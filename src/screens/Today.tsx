@@ -10,7 +10,9 @@ import { useToast } from "../lib/toast";
 import BlockSheet from "./BlockSheet";
 import StepPlayer from "./StepPlayer";
 import { HeadTray } from "../head/ui/tray";
-import { openTask } from "../head/useHead";
+import { BodyTray } from "../body/BodyScreen";
+import { fitApi } from "../body/host";
+import { goTab, openTask } from "../head/useHead";
 
 interface Props { pending: number; online: boolean; details: boolean; onToggleDetails: () => void; onSettings: () => void; onApprovals: () => void; }
 
@@ -105,7 +107,7 @@ export default function Today(props: Props) {
                     <button className="rb-head" aria-expanded={isOpen} onClick={() => setOpenId(isOpen ? "" : b.id)}>
                       <span className="rb-t">
                         <b>{b.title}</b>
-                        <small className="detail">{shortTime(b.start)}{b.end ? `–${shortTime(b.end)}` : ""} · {b.steps.length} steps{b.source_type === "task" ? " · 🧠" : ""}</small>
+                        <small className="detail">{shortTime(b.start)}{b.end ? `–${shortTime(b.end)}` : ""} · {b.steps.length} steps{b.source_type === "task" ? " · 🧠" : b.source_type === "workout" ? " · 🏋" : ""}</small>
                       </span>
                       <span className="rb-n">{b.status === "done" ? "✓" : b.status === "skipped" ? "⤼" : b.steps.length ? `${b.doneCount}/${b.steps.length}` : ""}</span>
                     </button>
@@ -132,6 +134,7 @@ export default function Today(props: Props) {
                             ? <button className="btn sm" onClick={() => setPlaying(b.id)}>▶ Step by step</button>
                             : <button className="btn sm good" onClick={async () => toast("✓ Done", await completeBlock(b.id))}>✓ Done</button>}
                           {b.source_type === "task" && b.source_id && <button className="btn sm" onClick={() => openTask(b.source_id!)}>🧠 Task</button>}
+                          {b.source_type === "workout" && <button className="btn sm" onClick={() => openBody(b.source_id)}>🏋 {b.source_id?.endsWith("|main") ? "Log" : "Open"}</button>}
                         </div>
                       )}
                     </>
@@ -147,6 +150,7 @@ export default function Today(props: Props) {
         </>
       )}
 
+      <BodyTray day={day} />
       <HeadTray day={day} />
 
       {menu && (
@@ -158,6 +162,7 @@ export default function Today(props: Props) {
               {menu.steps.length > 0 && menu.status !== "done" && <button onClick={() => { setPlaying(menu.id); setMenu(null); }}>▶ Step by step</button>}
               {menu.status !== "done" && <button onClick={async () => { const u = await completeBlock(menu.id); setMenu(null); toast("✓ Done", u); }}>✓ Mark done</button>}
               {menu.source_type === "task" && menu.source_id && <button onClick={() => { openTask(menu.source_id!); setMenu(null); }}>🧠 Open task</button>}
+              {menu.source_type === "workout" && <button onClick={() => { openBody(menu.source_id); setMenu(null); }}>🏋 Open in Body</button>}
               <button onClick={async () => { const u = await moveBlock(menu.id); setMenu(null); toast("↪ Moved to tomorrow", u); }}>↪ Tomorrow</button>
               <button onClick={async () => { const u = await skipBlock(menu.id); setMenu(null); toast(menu.status === "skipped" ? "↺ Back on" : "⤼ Skipped", u); }}>{menu.status === "skipped" ? "↺ Un-skip" : "⤼ Skip today"}</button>
               <button className="danger" onClick={async () => { const u = await softDelete(menu.id); setMenu(null); toast("🗑 In Trash", u); }}>🗑 Delete</button>
@@ -173,4 +178,18 @@ export default function Today(props: Props) {
       )}
     </>
   );
+}
+
+/** A Body block on the River opens the matching Fitness screen: the logger for the workout, the stretch session otherwise. */
+function openBody(sourceId?: string | null) {
+  goTab("body");
+  const api = fitApi();
+  if (!api || !sourceId) return;
+  const [date, key] = sourceId.split("|");
+  const plan = api.plan(date);
+  const main = plan.blocks.find((x) => x.key === "main");
+  if (key === "main" && main?.wid) api.openWorkout(date, main.wid);
+  else if (key === "cool") api.openStretch(date, "s2");
+  else if (key === "warm") api.openToday(date);
+  else api.openStretch(date, key);
 }

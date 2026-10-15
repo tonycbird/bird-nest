@@ -21,8 +21,8 @@ export interface Block extends Row {
   title: string;
   status: BlockStatus;
   done_at: string | null;
-  source_type?: "task" | "groceries" | null;  // Phase 2: a block made from Head (a task, or grocery items)
-  source_id?: string | null;    // task id, or grocery task ids joined by ","
+  source_type?: "task" | "groceries" | "workout" | null;  // made from Head (a task, grocery items) or Body (a workout part)
+  source_id?: string | null;    // task id; grocery task ids joined by ","; or "YYYY-MM-DD|warm|main|cool|…" for Body
 }
 
 export interface Step extends Row {
@@ -32,6 +32,9 @@ export interface Step extends Row {
   value: string | null;   // "4×5 · 245", "2 min"
   done_at: string | null;
 }
+
+/** Body (Bird Fitness) documents, stored as the old app saved them: key "fit/settings" or "logs/2026-10". */
+export interface FitDoc { key: string; value: Record<string, unknown>; _u: number; updated_at: string; }
 
 export interface Setting { key: string; value: unknown; updated_at: string; }
 
@@ -56,6 +59,8 @@ export class NestDB extends Dexie {
   templates!: Table<Template, string>;
   trash!: Table<TrashEntry, string>;
   photos!: Table<Photo, string>;
+  // Body (ported from Bird Fitness; documents keep the old app's shape so its logic runs unchanged)
+  fit!: Table<FitDoc, string>;
   constructor(name = "bird-nest") {
     super(name);
     this.version(1).stores({ proposals: "id, status, created_at", outbox: "op_id, queued_at" });
@@ -75,11 +80,12 @@ export class NestDB extends Dexie {
       trash: "id, group, deletedAt",
       photos: "id, owner",
     });
+    this.version(4).stores({ fit: "key, updated_at" });
   }
 }
 export const db = new NestDB();
 
-export const TABLES = ["days", "blocks", "steps", "settings", "proposals", "areas", "projects", "tasks", "templates", "trash", "photos"] as const;
+export const TABLES = ["days", "blocks", "steps", "settings", "proposals", "areas", "projects", "tasks", "templates", "trash", "photos", "fit"] as const;
 export type TableName = (typeof TABLES)[number];
 
 export const nowISO = () => new Date().toISOString();

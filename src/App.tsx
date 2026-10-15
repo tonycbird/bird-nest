@@ -10,11 +10,11 @@ import SignIn from "./screens/SignIn";
 import Today from "./screens/Today";
 import Approvals from "./screens/Approvals";
 import Settings from "./screens/Settings";
-import Later from "./screens/Later";
 import UpdateToast from "./screens/UpdateToast";
 import HeadScreen, { HeadOverlays } from "./head/HeadScreen";
 import { appNav, goTab, multi, openOverlay, type AppTab } from "./head/useHead";
 import * as C from "./head/core/clearhead.js";
+import BodyScreen, { BodyFrame, TimerPill } from "./body/BodyScreen";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -69,7 +69,7 @@ export default function App() {
             onToggleDetails={() => void setSetting("details", !details)}
             onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}
           {tab === "head" && <HeadScreen />}
-          {tab === "body" && <Later icon="🏋" title="Body" phase={3} />}
+          {tab === "body" && <BodyScreen />}
           {tab === "ok" && <Approvals />}
           {tab === "settings" && <Settings email={session?.user.email ?? ""} online={online} />}
         </main>
@@ -82,6 +82,8 @@ export default function App() {
           {T("body", "🏋", "Body")}
           {T("ok", "✓", "Approve", pending)}
         </nav>
+        <BodyFrame />
+        <TimerPill />
         <HeadOverlays />
         <UpdateToast />
       </div>

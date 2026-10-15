@@ -7,6 +7,8 @@ const BUILD = new Date().toISOString().slice(0, 16).replace("T", " ");
 
 export default defineConfig({
   define: { __BUILD__: JSON.stringify(BUILD) },
+  // Two pages: the app, and Body (the Fitness screens Nest shows in a frame).
+  build: { rollupOptions: { input: { main: "index.html", body: "body.html" } } },
   plugins: [
     react(),
     VitePWA({
@@ -31,7 +33,9 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: "/index.html",
         // Supabase calls are never cached by the service worker; Dexie is the offline copy.
-        navigateFallbackDenylist: [/^\/auth/]
+        navigateFallbackDenylist: [/^\/auth/, /^\/body/],
+        // The Fitness script carries its exercise, stretch and food libraries, so it's big.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }
     })
   ],

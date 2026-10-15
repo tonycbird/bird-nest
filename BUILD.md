@@ -407,10 +407,10 @@ Every Fitness item, plus workout blocks that use the plan as their steps, plus t
 
 **Done when:**
 
-- [ ] A full workout logs offline at the gym and syncs.
-- [ ] Plate math and PRs match the old app on the same input.
-- [ ] The rest timer survives locking the phone.
-- [ ] Groceries merge into one list.
+- [x] A full workout logs offline at the gym and syncs. (Offline: done. Sync: Phase 4.)
+- [x] Plate math and PRs match the old app on the same input.
+- [ ] The rest timer survives locking the phone. (Built on end time; confirm on the iPhone.)
+- [x] Groceries merge into one list.
 
 ### Phase 4: The Claude loop
 

@@ -1,6 +1,42 @@
 # Progress
 
-## Now: Phase 2 — Head (Clearhead port) · code done, waiting on Anthony's phone check
+## Now: Phase 3 — Body (Bird Fitness port) · code done, waiting on Anthony's phone check
+
+Built Oct 15, 2026.
+
+### Phone check (Anthony)
+1. Commit "Phase 3 Body" in GitHub Desktop and push. Cloudflare deploys in ~1 min.
+2. Open Nest on the iPhone → tap "New version ↻" if it shows.
+3. Old Bird Fitness → Settings → Export backup. Nest → ⚙ → 🏋 Body → ⬆ Import Bird Fitness backup.
+4. Body tab: check your program, last weights and PRs look right.
+5. Today: 🏋 tray → 🌊 Add. At the gym, log a set with Wi-Fi off. Lock the phone during rest, unlock, check the timer.
+
+### Phase 3 done
+- [x] Bird Fitness runs inside Nest's Body tab (`body.html` + `src/body/`), old code unchanged except `window.claude` → `window.nest`
+- [x] Its data lives in Nest's database (`fit` table), in Nest backups, and imports from a Bird Fitness backup (Nest ⚙ or Fitness Setup)
+- [x] Nest look: paper and ink, teal for Body, Archivo and Fraunces, light and dark
+- [x] Everything from the old app: Today flow, rotation and next workout, logger with warm-up sets, plate math, PRs, swaps, missed workout + makeup, rest timer, stretch player + dose + streak, meal plan, macros, water, recipes, add food, staff lunch, batch prep, taste learning, progress charts, bodyweight, volume, calendar, Sunday recap, gym barcode card
+- [x] River: 🏋 tray → 🌊 Add puts 🔥 Warm-up, 🏋 the workout (one step per lift, with today's target, max 7) and 🧘 Cool-down on the River. Rest days get the stretch session
+- [x] Logging a lift in Body ticks its River step; finishing the session finishes the block; finishing Warm-up on the River checks it off in Body
+- [x] 🏋 Log / Open on a River block jumps to the logger or stretch session
+- [x] Rest timer keeps going while you're on Today (⏱ pill), and runs on end time, so a locked phone doesn't stop it
+- [x] Groceries: 🛒 One list → 🧠 Send adds the week's Fitness groceries to Head's grocery list (no duplicates; pantry spices skipped)
+- [x] Tests: 76 unit tests, e2e for Body (`tests/e2e/phase3.e2e.cjs`) incl. parity with the old app, offline e2e (`phase3-offline.e2e.cjs`)
+
+### Phase 3 done-check (from BUILD.md)
+- [x] A full workout logs offline at the gym (automated offline test) — "and syncs" is Phase 4 (phone-only until then)
+- [x] Plate math and PRs match the old app on the same input (automated: plates, rounding, targets, warm-ups, PRs, time estimates, 3-week rotation)
+- [~] The rest timer survives locking the phone — end-time timer, tested with a jumped clock; confirm on the iPhone
+- [x] Groceries merge into one list
+
+### Not done in Phase 3 (and why)
+- Sound/vibration when rest ends while the phone is locked → needs push (Phase 5). On unlock it shows "Rest done — go"
+- Two-way grocery ticks (Head ✓ → Fitness ✓) → one list lives in Head now; say if you want the Fitness checkboxes to follow
+- River ticks on lifts don't log sets (they need reps and weight) → use 🏋 Log
+
+---
+
+## Phase 2 — Head (Clearhead port) · done (phone-checked)
 
 Built overnight Oct 15, 2026 (night shift, in Claude's cloud workspace; copied into the repo when the Mac woke).
 
@@ -32,17 +68,17 @@ Built overnight Oct 15, 2026 (night shift, in Claude's cloud workspace; copied i
 
 ### Phase 2 done-check (from BUILD.md)
 - [x] Every Clearhead box ticked (except the Phase 4 items above)
-- [ ] Import counts match — needs Anthony's real export on the phone
+- [x] Import counts match — checked on the iPhone
 - [x] Quick Add gives the same result as the old app on 20+ sample lines (26, automated)
 
 ---
 
-## Phase 1 — Shell + River · done (pending phone check)
+## Phase 1 — Shell + River · done (phone-checked)
 - [x] Today River: blocks + steps, auto-complete, Next line, step player, block menu, edit sheet, sample day, copy day
 - [x] Quiet mode + ⓘ, backup/restore, River trash, undo on everything
 - [x] Afternoon times marked "p"; tab bar above River icons
 
 ## Phase 0 — Spike · part 1 done
 - [x] Skeleton, PWA, tokens, icons, 6-digit-code sign-in (off until Phase 4), gateway, migration 0001 (run in Supabase), legacy copies
-- [ ] Cloudflare deploy → iPhone install check
+- [x] Cloudflare deploy → iPhone install check (https://bird-nest.tonyc-bird.workers.dev)
 - [ ] Hello test scheduled task (Phase 4)

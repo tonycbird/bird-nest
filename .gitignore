@@ -10,3 +10,5 @@ migration/raw
 
 # files Claude sends to the chat
 Claude outputs/
+tsconfig.tsbuildinfo
+*.tsbuildinfo

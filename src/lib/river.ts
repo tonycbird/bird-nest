@@ -12,7 +12,7 @@ export const MAX_STEPS = 7;
 export interface StepInput { label: string; value?: string | null; done?: boolean; }
 export interface BlockInput {
   day: string; start: string; end?: string | null; kind: Kind; title: string; icon?: string; steps: StepInput[];
-  source_type?: "task" | "groceries" | null; source_id?: string | null;
+  source_type?: "task" | "groceries" | "workout" | null; source_id?: string | null;
 }
 
 /* ---------- reading ---------- */
@@ -170,9 +170,13 @@ export function setBlockDoneHandler(fn: DoneHandler | null, restored: ((id: stri
   onBlockDone = fn;
   onBlockRestored = restored;
 }
+const doneListeners = new Set<DoneHandler>();
+/** Extra listeners (Body) that hear about every finished block. */
+export function onAnyBlockDone(fn: DoneHandler): () => void { doneListeners.add(fn); return () => { doneListeners.delete(fn); }; }
 async function notifyBlockDone(id: string): Promise<void> {
   const b = await db.blocks.get(id);
   if (b && onBlockDone) await onBlockDone(b);
+  if (b) for (const fn of doneListeners) { try { await fn(b); } catch { /* a listener never blocks the River */ } }
 }
 
 export async function skipBlock(id: string): Promise<Undo> {

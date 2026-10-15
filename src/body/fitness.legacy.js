@@ -1,0 +1,4829 @@
+/* Bird Fitness, ported into Bird Nest (Phase 3). Unchanged from the old app except one rename:
+   the artifact host object is now window.nest (Nest supplies its database and file saving). */
+
+"use strict";
+/* ============ EXERCISE LIBRARY ============
+   X(id, name, group, pattern, equipment, primary, secondary, flags, how, cues)
+   flags: comp = compound · pair = two dumbbells / per-side (volume x2)
+          time = timed hold (seconds) · bw = bodyweight (added load optional)
+          assist = assisted machine (lower lbs = harder)                          */
+const EX = {};
+const EX_LIST = [];
+function X(id, name, g, pat, eq, prim, sec, flags, how, cues) {
+  const f = flags ? flags.split(' ') : [];
+  const e = {
+    id, name, g, pat, eq,
+    prim: prim ? prim.split(' ') : [],
+    sec: sec ? sec.split(' ') : [],
+    comp: f.includes('comp'), pair: f.includes('pair'), time: f.includes('time'),
+    bw: f.includes('bw'), assist: f.includes('assist'),
+    how, cues: cues.split('|')
+  };
+  EX[id] = e; EX_LIST.push(e);
+}
+
+/* ---------- LEGS ---------- */
+X('db_goblet_squat','Dumbbell Goblet Squat','legs','squat','dumbbell','quads glutes','adductors abs','comp','Hold one dumbbell vertically against your chest, feet shoulder-width. Sit down between your heels until your thighs pass parallel, then drive up through the whole foot.','Elbows track inside the knees|Chest tall, brace before every rep|Knees follow the toes');
+X('bb_back_squat','Barbell Back Squat','legs','squat','barbell','quads glutes','adductors lowerBack abs','comp','Bar across your upper traps, feet shoulder-width. Brace, sit down and slightly back to parallel or below, then stand by driving the floor away.','Big breath and brace before you descend|Knees push out over the toes|Bar stays over mid-foot');
+X('bb_front_squat','Barbell Front Squat','legs','squat','barbell','quads glutes','abs midBack','comp','Bar rests on your front delts with elbows high. Squat straight down with an upright torso, then drive up keeping the elbows high.','Elbows high the whole rep|Stay upright|Knees forward and out');
+X('mach_hack_squat','Machine Hack Squat','legs','squat','machine','quads glutes','adductors','comp','Back flat on the pad, feet mid-platform at shoulder width. Lower under control until your knees are deeply bent, then press back up without slamming into lockout.','Hips and back stay on the pad|2–3 second lowering|No bounce at the bottom');
+X('smith_squat','Smith Machine Squat','legs','squat','machine','quads glutes','adductors','comp','Bar on your upper back with your feet slightly in front of the bar. Squat to parallel or below and drive back up.','Feet a little ahead of the bar|Brace hard|Use the depth you own');
+X('mach_pendulum_squat','Pendulum Squat','legs','squat','machine','quads','glutes adductors','comp','Shoulders under the pads, feet mid-platform. Let your knees travel forward as you sink deep, then drive up.','Knees can travel past the toes|Stay tight to the back pad|Smooth, even tempo');
+X('mach_belt_squat','Belt Squat','legs','squat','machine','quads glutes','adductors','comp','Clip the belt at your hips and hold the rails. Squat straight down and stand up — no load on your spine.','Hips go straight down|Chest tall|Drive through mid-foot');
+X('bw_tempo_squat','Bodyweight Tempo Squat','legs','squat','bodyweight','quads glutes','adductors','bw','Arms forward, feet shoulder-width. Lower for 3–4 seconds to full depth, pause, then stand.','3–4 seconds down|Pause at the bottom|Heels stay planted');
+X('db_bulgarian','Dumbbell Bulgarian Split Squat','legs','lunge','dumbbell','quads glutes','adductors','pair comp','Rear foot on a bench, a dumbbell in each hand. Drop the back knee straight down, then drive up through the front foot. Reps are per leg.','Front heel stays down|Slight forward lean for glutes|Own the bottom position');
+X('db_lunge','Dumbbell Lunge','legs','lunge','dumbbell','quads glutes','adductors hamstrings','pair comp','A dumbbell in each hand. Step forward, lower until both knees are near 90°, then push back to standing. Alternate legs; reps are per leg.','Step long enough to keep the front heel down|Back knee nearly kisses the floor|Push through the front heel');
+X('db_walking_lunge','Dumbbell Walking Lunge','legs','lunge','dumbbell','quads glutes','adductors hamstrings','pair comp','Dumbbells at your sides; lunge forward and step through into the next rep continuously. Reps are per leg.','Stay tall|Controlled knee drop|Step through without stalling');
+X('db_reverse_lunge','Dumbbell Reverse Lunge','legs','lunge','dumbbell','glutes quads','hamstrings adductors','pair comp','Step back into a lunge, drop the back knee, then drive through the front foot to return. Easier on the knees than forward lunges.','Weight stays in the front foot|Slight forward lean|Knee tracks over the toes');
+X('db_step_up','Dumbbell Step-Up','legs','lunge','dumbbell','quads glutes','hamstrings','pair comp','Dumbbells at your sides, one foot on a knee-height box. Drive through that foot to stand tall on the box, then lower under control. Reps are per leg.','Don\'t push off the back foot|Full hip lockout on top|Slow lowering');
+X('smith_split_squat','Smith Machine Split Squat','legs','lunge','machine','quads glutes','adductors','comp','Staggered stance under the Smith bar. Drop the back knee straight down and drive up. Reps are per leg.','Front shin near vertical|Stay tall|Control the bottom');
+X('bw_walking_lunge','Bodyweight Walking Lunge','legs','lunge','bodyweight','quads glutes','hamstrings','bw','Walk forward lunge by lunge, dropping the back knee close to the floor each step. Reps are per leg.','Tall posture|Soft back-knee touch|Push through the front heel');
+X('mach_leg_press','Machine Seated Leg Press','legs','legpress','machine','quads glutes','adductors hamstrings','comp','Sit with your back flat and feet shoulder-width mid-platform. Lower until your knees reach about 90° or deeper, then press without locking out.','Lower back stays on the pad|Don\'t lock the knees|Push through the whole foot');
+X('mach_45_leg_press','45° Leg Press','legs','legpress','machine','quads glutes','adductors hamstrings','comp','Feet shoulder-width on the sled. Lower as deep as you can without your hips rolling up, then press.','Hips stay down|Control the lowering|Knees in line with the toes');
+X('mach_single_leg_press','Single-Leg Press','legs','legpress','machine','quads glutes','','comp','One foot centered on the platform. Lower under control and press. Reps are per leg — start around 40% of your two-leg weight.','Hips square|Full range|Match reps side to side');
+X('db_rdl','Dumbbell Romanian Deadlift','legs','hinge','dumbbell','hamstrings glutes','lowerBack','pair comp','Dumbbells in front of your thighs, soft knees. Push your hips back and slide the weights down your legs until you feel a deep hamstring stretch, then drive the hips forward to stand.','Hips back, not down|Flat back, weights close|Stop when the hips stop');
+X('bb_rdl','Barbell Romanian Deadlift','legs','hinge','barbell','hamstrings glutes','lowerBack','comp','Hold the bar at hip height with soft knees. Hinge back keeping the bar against your legs to mid-shin, then squeeze your glutes to stand.','Bar drags the thighs|Neutral spine|Feel the hamstrings load');
+X('db_sl_rdl','Single-Leg Dumbbell RDL','legs','hinge','dumbbell','hamstrings glutes','lowerBack','comp','Dumbbell in the hand opposite the standing leg. Hinge forward as the free leg reaches back, then return. Reps are per leg.','Hips square to the floor|Slight bend in the standing knee|Reach long through the back heel');
+X('bb_good_morning','Barbell Good Morning','legs','hinge','barbell','hamstrings lowerBack','glutes','comp','Bar on your upper back with soft knees. Hinge forward until your torso is near parallel, then return. Keep it light.','Push the hips straight back|Neutral spine|Light weight, big stretch');
+X('cable_pull_through','Cable Pull-Through','legs','hinge','cable','glutes hamstrings','','','Face away from a low cable with the rope between your legs. Hinge back, then snap your hips forward to stand.','Hinge — don\'t squat|Squeeze glutes at the top|Arms stay long');
+X('back_ext_45','45° Back Extension','legs','hinge','bodyweight','glutes hamstrings','lowerBack','bw','Hips on the pad, feet anchored. Lower your torso, then rise until your body is in a straight line. Hold a plate to add load.','Round slightly for glutes|Don\'t hyperextend at the top|Squeeze at the top');
+X('bb_hip_thrust','Barbell Hip Thrust','legs','thrust','barbell','glutes','hamstrings quads','comp','Upper back on a bench, padded bar across your hips. Drive your hips up until your torso is flat, pause, lower.','Chin tucked, ribs down|Shins vertical at the top|Pause 1 second at lockout');
+X('mach_hip_thrust','Machine Hip Thrust','legs','thrust','machine','glutes','hamstrings','comp','Set the pad across your hips. Drive up to full lockout, pause, and lower under control.','Ribs down|Push through the heels|Full lockout');
+X('db_hip_thrust','Dumbbell Hip Thrust','legs','thrust','dumbbell','glutes','hamstrings','','Upper back on a bench, one heavy dumbbell on your hips. Drive up to a flat torso and squeeze.','Pause at the top|Tuck the chin|Drive through the heels');
+X('bw_glute_bridge','Glute Bridge','legs','thrust','bodyweight','glutes','hamstrings','bw','Lie on your back with knees bent. Drive your hips up by squeezing your glutes, pause, lower slowly.','Squeeze glutes hard|Ribs down|Slow lowering');
+X('cable_kickback','Cable Glute Kickback','legs','thrust','cable','glutes','hamstrings','','Ankle strap on a low cable. Kick the leg back and slightly out, squeezing the glute, then return. Reps are per leg.','Don\'t arch your back|Squeeze at the end|Slow return');
+X('mach_lying_leg_curl','Machine Lying Leg Curl','legs','legcurl','machine','hamstrings','calves','','Lie face down with the pad just above your heels. Curl your heels toward your glutes, then lower slowly.','Hips pressed into the pad|Full squeeze|3-second lowering');
+X('mach_seated_leg_curl','Machine Seated Leg Curl','legs','legcurl','machine','hamstrings','calves','','Thigh pad locked down, lower pad above your heels. Curl down and back, then control the return.','Lean slightly forward|Full range|Slow negatives');
+X('bw_nordic_curl','Nordic Hamstring Curl','legs','legcurl','bodyweight','hamstrings','glutes','bw','Kneel with your ankles anchored. Lower your torso toward the floor as slowly as you can, catch yourself, and pull back up.','Straight line knees to head|Fight the fall|Use your hands to assist');
+X('mach_leg_ext','Machine Leg Extension','legs','legext','machine','quads','','','Pad on your lower shins, knees at the pivot. Extend fully, squeeze, and lower under control.','Pause at the top|Hold the handles|Slow lowering');
+X('mach_hip_adduction','Machine Hip Adduction','legs','adduct','machine','adductors','','','Pads on your inner knees. Squeeze your legs together, then let them open under control.','Sit tall|Squeeze 1 second|Full stretch');
+X('mach_hip_abduction','Machine Hip Abduction','legs','adduct','machine','glutes','','','Pads on your outer knees. Push your knees apart, then return slowly.','Lean slightly forward for glute med|Control the return|Full range');
+X('mach_standing_calf','Machine Standing Calf Raise','legs','calf','machine','calves','','','Shoulders under the pads, balls of your feet on the edge. Lower into a deep stretch, pause, then rise as high as you can.','Pause 1–2 seconds in the stretch|Knees soft but fixed|Rise onto the big toe');
+X('mach_seated_calf','Machine Seated Calf Raise','legs','calf','machine','calves','','','Pad on your lower thighs, balls of your feet on the platform. Lower deep, pause, rise high.','Bent knee targets the soleus|Pause at the bottom|No bouncing');
+X('db_single_calf','Single-Leg Dumbbell Calf Raise','legs','calf','dumbbell','calves','','','Stand on one foot on a step holding a dumbbell. Lower deep, pause, rise high. Reps are per leg.','Hold something for balance|Deep stretch|Slow tempo');
+X('legpress_calf','Leg Press Calf Raise','legs','calf','machine','calves','','','On the leg press, balls of your feet on the bottom edge. Press through your toes and lower into a stretch.','Knees straight, not locked|Full range|Keep the safeties on');
+X('smith_calf','Smith Machine Calf Raise','legs','calf','machine','calves','','','Bar on your back, balls of your feet on a plate. Lower deep and rise high.','Pause at the bottom|Straight knees|Controlled reps');
+X('bw_calf_raise','Bodyweight Calf Raise','legs','calf','bodyweight','calves','','bw','Stand on a step edge. Lower your heels into a stretch, then rise high.','Slow and full|Pause at the top|Add a dumbbell when easy');
+
+/* ---------- CHEST ---------- */
+X('bb_bench','Barbell Bench Press','chest','flat','barbell','chest','triceps frontDelts','comp','Eyes under the bar, shoulder blades pinched, feet planted. Lower to mid-chest with elbows about 45°, then press up and slightly back.','Shoulder blades back and down|Touch mid-chest, no bounce|Drive your feet into the floor');
+X('db_bench','Dumbbell Bench Press','chest','flat','dumbbell','chest','triceps frontDelts','pair comp','Dumbbells over your chest, palms forward. Lower to the sides of your chest, then press up and together.','Deep stretch at the bottom|Elbows about 45°|Don\'t clank at the top');
+X('mach_chest_press','Machine Chest Press','chest','flat','machine','chest','triceps frontDelts','comp','Handles at mid-chest height. Press out without shrugging, then return slowly to a stretch.','Seat so handles are mid-chest|Shoulders down|Slow return');
+X('smith_bench','Smith Machine Bench Press','chest','flat','machine','chest','triceps frontDelts','comp','Set the bench so the bar lands at mid-chest. Lower under control and press.','Shoulder blades pinched|Touch mid-chest|Control the lowering');
+X('cable_chest_press','Standing Cable Chest Press','chest','flat','cable','chest','triceps frontDelts','pair','Handles at chest height, staggered stance. Press forward and together, return slowly.','Brace your core|Press slightly together|Full stretch');
+X('db_incline','Dumbbell Incline Bench Press','chest','incline','dumbbell','chest frontDelts','triceps','pair comp','Bench at 30°. Lower the dumbbells to your upper chest, then press up and slightly together.','30° bench, not steeper|Elbows under the wrists|Big stretch at the bottom');
+X('bb_incline','Barbell Incline Bench Press','chest','incline','barbell','chest frontDelts','triceps','comp','Bench at about 30°. Lower the bar to your upper chest and press straight up.','Pinch the shoulder blades|Touch just below the collarbone|Wrists stacked');
+X('mach_incline_press','Machine Incline Press','chest','incline','machine','chest frontDelts','triceps','comp','Seat set so the handles line up with your upper chest. Press up and out, return slowly.','Chest up|Shoulders down|Full stretch');
+X('smith_incline','Smith Machine Incline Press','chest','incline','machine','chest frontDelts','triceps','comp','Incline bench under the Smith bar; lower to your upper chest and press.','Bar to the upper chest|Elbows about 45°|Controlled');
+X('landmine_press','Landmine Chest Press','chest','incline','barbell','chest frontDelts','triceps','comp','Hold the end of a landmine bar at your chest with both hands. Press up and forward, lower under control.','Lean into the bar|Ribs down|Full lockout');
+X('db_decline','Dumbbell Decline Press','chest','decline','dumbbell','chest','triceps','pair comp','On a slight decline bench, press the dumbbells from your lower chest to lockout.','Lock your legs in|Lower to the lower chest|Press together');
+X('cable_fly','Cable Fly','chest','fly','cable','chest','frontDelts','pair','Handles at shoulder height, step forward. With a slight elbow bend, bring your hands together in front of your chest and open back to a stretch.','Fixed elbow angle|Squeeze the hands together|Feel the stretch');
+X('cable_low_high_fly','Low-to-High Cable Fly','chest','fly','cable','chest','frontDelts','pair','Handles low; sweep up and together to eye level to hit the upper chest.','Palms up|Lead with the pinkies|Slow return');
+X('mach_pec_deck','Machine Pec Deck','chest','fly','machine','chest','frontDelts','','Arms on the pads at chest height. Bring them together, squeeze, and open to a stretch.','Chest up|Squeeze 1 second|Don\'t let the stack slam');
+X('db_fly','Dumbbell Fly','chest','fly','dumbbell','chest','frontDelts','pair','On a flat bench with a slight elbow bend, open the dumbbells wide to a chest stretch, then hug them back up.','Slight, fixed elbow bend|Only as low as comfortable|Hug a barrel');
+X('db_incline_fly','Dumbbell Incline Fly','chest','fly','dumbbell','chest','frontDelts','pair','On a 30° bench, open the dumbbells wide and squeeze back up.','Stretch, don\'t strain|Fixed elbows|Squeeze at the top');
+X('bw_pushup','Push-Up','chest','pushup','bodyweight','chest','triceps frontDelts abs','bw comp','Hands slightly wider than your shoulders, body in a straight line. Lower your chest to the floor and press up.','Glutes and abs tight|Elbows about 45°|Chest touches first');
+X('bw_deficit_pushup','Deficit Push-Up','chest','pushup','bodyweight','chest','triceps frontDelts','bw comp','Hands on plates or handles so your chest can drop below them. Lower deep and press up.','Deeper stretch|Straight body|Controlled');
+X('bw_chest_dip','Chest Dip','chest','dip','bodyweight','chest','triceps frontDelts','bw comp','On parallel bars, lean forward and lower until your shoulders are just below your elbows, then press up.','Lean forward for chest|Elbows flare slightly|Don\'t sink too deep');
+X('assisted_chest_dip','Assisted Chest Dip','chest','dip','machine','chest','triceps frontDelts','assist comp','Knees on the assist pad, lean forward and lower until you feel a chest stretch, then press up. Less assistance = harder.','Lean forward|Controlled depth|Drop assistance over time');
+
+/* ---------- TRICEPS ---------- */
+X('db_lying_tri_ext','Dumbbell Lying Tricep Extension','triceps','ext','dumbbell','triceps','','pair','Lie on a bench with dumbbells over your shoulders, palms facing. Bend only at the elbows to lower the weights beside your head, then extend.','Upper arms stay still|Deep stretch|Lock out and squeeze');
+X('ez_skullcrusher','EZ-Bar Skull Crusher','triceps','ext','barbell','triceps','','','Lie on a bench holding an EZ-bar over your chest. Lower it toward your forehead by bending the elbows, then extend.','Arms angled slightly back|Elbows in|Controlled');
+X('mach_tri_ext','Machine Tricep Extension','triceps','ext','machine','triceps','','','Elbows on the pad; extend the handles to lockout and return slowly.','Elbows stay on the pad|Squeeze|Slow return');
+X('cable_cross_ext','Cable Cross-Body Tricep Extension','triceps','ext','cable','triceps','','','Two high cables crossed; pull out and down to lockout with your elbows fixed.','Elbows at shoulder height|Extend out wide|Slow return');
+X('cable_pushdown_rope','Cable Tricep Pushdown (Rope)','triceps','pushdown','cable','triceps','','','Rope at a high pulley. Elbows pinned to your sides, push down and pull the rope apart at the bottom.','Elbows locked at your sides|Spread the rope|Slow return');
+X('cable_pushdown_bar','Cable Tricep Pushdown (Straight Bar)','triceps','pushdown','cable','triceps','','','Straight bar at a high pulley. Push down to lockout keeping your elbows at your sides.','Don\'t lean over the bar|Full lockout|Control on the way up');
+X('cable_single_pushdown','Single-Arm Reverse-Grip Pushdown','triceps','pushdown','cable','triceps','forearms','','Single handle, palm up. Push down to lockout. Reps are per arm.','Elbow tucked|Squeeze at the bottom|Slow return');
+X('cable_overhead_ext','Cable Overhead Tricep Extension','triceps','overhead','cable','triceps','','','Face away from a high cable with the rope behind your head. Extend your arms forward and up.','Elbows point forward|Big stretch|Lock out');
+X('db_overhead_ext','Dumbbell Overhead Tricep Extension','triceps','overhead','dumbbell','triceps','','','Hold one dumbbell overhead with both hands. Lower it behind your head, then extend.','Elbows in|Ribs down|Full stretch');
+X('db_kickback','Dumbbell Tricep Kickback','triceps','kickback','dumbbell','triceps','','pair','Hinge forward with your upper arm parallel to your torso. Extend the dumbbell back until your arm is straight.','Upper arm frozen|Squeeze at lockout|Light weight');
+X('bb_close_grip_bench','Close-Grip Bench Press','triceps','press','barbell','triceps chest','frontDelts','comp','Grip just inside shoulder width. Lower to your lower chest with elbows tucked, then press up.','Elbows tucked|Wrists straight|Touch the lower chest');
+X('jm_press','JM Press','triceps','press','barbell','triceps','chest','comp','A hybrid of a close-grip bench and skull crusher: lower the bar toward your chin by letting your elbows drift forward, then press.','Light weight|Elbows forward|Control');
+X('bw_diamond_pushup','Diamond Push-Up','triceps','press','bodyweight','triceps','chest','bw','Hands together under your chest. Lower with elbows close and press up.','Elbows brush the ribs|Straight body|Full range');
+X('bw_bench_dip','Bench Dip','triceps','dip','bodyweight','triceps','chest frontDelts','bw','Hands on a bench behind you, feet out. Lower by bending the elbows, then press up.','Stay close to the bench|Elbows point back|Don\'t sink too deep');
+X('mach_seated_dip','Machine Seated Dip','triceps','dip','machine','triceps','chest','comp','Sit and push the handles down to lockout, then return slowly.','Stay upright|Full lockout|Control');
+X('assisted_tri_dip','Assisted Tricep Dip','triceps','dip','machine','triceps','chest','assist comp','Upright torso on the assisted dip; lower to about a 90° elbow bend and press up. Less assistance = harder.','Stay upright|Elbows point back|Drop assistance over time');
+
+/* ---------- BACK ---------- */
+X('bb_deadlift','Barbell Deadlift','back','hinge','barbell','glutes hamstrings lowerBack','lats traps quads forearms','comp','Bar over mid-foot, grip just outside your legs. Pull the slack out, brace, and push the floor away until you stand tall. Lower by hinging back.','Bar stays against your legs|Chest up, lats tight|Push the floor away');
+X('trap_bar_deadlift','Trap Bar Deadlift','back','hinge','barbell','glutes quads hamstrings','lowerBack traps','comp','Stand inside the hex bar, grab the handles, brace, and stand up.','Hips and shoulders rise together|Brace hard|Lock out with the glutes');
+X('bb_rack_pull','Rack Pull','back','hinge','barbell','lowerBack glutes traps','lats hamstrings forearms','comp','Bar set in a rack at knee height. Pull to lockout and lower with control.','Lats tight|Squeeze the top|No hitching');
+X('db_deadlift','Dumbbell Deadlift','back','hinge','dumbbell','glutes hamstrings','lowerBack traps quads','pair comp','Dumbbells at your sides or in front. Hinge down to mid-shin and stand up tall.','Flat back|Drive with the hips|Weights stay close');
+X('sumo_deadlift','Barbell Sumo Deadlift','back','hinge','barbell','glutes adductors','hamstrings lowerBack quads','comp','Wide stance, toes out, hands inside your knees. Push your knees out and stand the bar up.','Hips close to the bar|Knees out|Chest up');
+X('mach_back_ext','Machine Back Extension','back','hinge','machine','lowerBack','glutes hamstrings','','Seated back extension machine: extend back against the pad and return slowly.','Controlled|Don\'t hyperextend|Squeeze the glutes');
+X('cable_seated_row','Cable Seated Row','back','row','cable','midBack lats','biceps rearDelts','comp','Sit tall with a V-handle. Pull to your belly button, squeezing your shoulder blades, then let your arms stretch forward.','Chest up, don\'t rock|Elbows close|Squeeze 1 second');
+X('bb_bent_row','Barbell Bent-Over Row','back','row','barbell','midBack lats','biceps rearDelts lowerBack','comp','Hinge to about 45° with the bar hanging. Row it to your lower ribs and lower under control.','Flat back|Pull to the lower ribs|No jerking');
+X('bb_pendlay_row','Pendlay Row','back','row','barbell','midBack lats','lowerBack biceps','comp','Torso parallel to the floor; row the bar from the floor to your lower chest, resetting each rep.','Flat back|Explosive pull|Dead stop each rep');
+X('db_one_arm_row','One-Arm Dumbbell Row','back','row','dumbbell','lats midBack','biceps rearDelts','pair comp','One hand and knee on a bench. Row the dumbbell toward your hip, lower to a full stretch. Reps are per arm.','Pull to the hip|Don\'t rotate|Full stretch');
+X('db_chest_supported_row','Chest-Supported Dumbbell Row','back','row','dumbbell','midBack lats','rearDelts biceps','pair comp','Chest on an incline bench; row both dumbbells up and squeeze.','Chest stays on the pad|Squeeze the shoulder blades|Slow lowering');
+X('mach_row','Machine Seated Row','back','row','machine','midBack lats','biceps rearDelts','comp','Chest on the pad; pull the handles back and squeeze, return slowly.','Chest stays on the pad|Elbows back|Full stretch');
+X('tbar_row','T-Bar Row','back','row','barbell','midBack lats','biceps rearDelts lowerBack','comp','Straddle the landmine bar with a V-handle, hinge, and row to your chest.','Flat back|Squeeze at the top|Controlled');
+X('cable_single_row','Single-Arm Cable Row','back','row','cable','lats midBack','biceps','','Single handle from a mid cable. Row to your hip and reach long. Reps are per arm.','Slight rotation at the stretch|Elbow to hip|Tall posture');
+X('bw_inverted_row','Inverted Row','back','row','bodyweight','midBack lats','biceps rearDelts','bw comp','Hang under a bar in a rack with your body straight. Pull your chest to the bar.','Body straight|Chest to the bar|Squeeze');
+X('cable_lat_pulldown','Cable Lat Pulldown','back','vpull','cable','lats','biceps midBack','comp','Grip a little wider than your shoulders. Pull the bar to your upper chest driving the elbows down, then let it rise to a full stretch.','Lean back slightly|Elbows to your back pockets|Full stretch at the top');
+X('cable_close_pulldown','Close-Grip (V-Bar) Pulldown','back','vpull','cable','lats','biceps midBack','comp','V-handle attached. Pull to your upper chest with elbows tight to your sides.','Chest up|Elbows in|Controlled');
+X('cable_single_pulldown','Single-Arm Lat Pulldown','back','vpull','cable','lats','biceps','','Single handle overhead; pull the elbow down to your side. Reps are per arm.','Big stretch|Elbow to hip|Slow');
+X('mach_pulldown','Machine Lat Pulldown','back','vpull','machine','lats','biceps','comp','Plate-loaded or selectorized pulldown; pull the elbows down and back.','Chest up|Full stretch|Squeeze');
+X('bw_pullup','Pull-Up','back','vpull','bodyweight','lats','biceps midBack','bw comp','Overhand grip from a full hang. Pull your chest toward the bar and lower all the way.','Dead-hang start|Chest to the bar|No kipping');
+X('bw_chinup','Chin-Up','back','vpull','bodyweight','lats biceps','midBack','bw comp','Underhand, shoulder-width grip. Pull your chin over the bar and lower fully.','Full hang|Squeeze at the top|Controlled');
+X('assisted_pullup','Assisted Pull-Up','back','vpull','machine','lats','biceps midBack','assist comp','Knees on the assist pad; pull your chin over the bar and lower fully. Less assistance = harder.','Full range|Chest up|Drop assistance over time');
+X('cable_straight_pulldown','Straight-Arm Pulldown','back','pullover','cable','lats','triceps','','Bar or rope on a high cable, arms straight. Sweep down to your thighs and return to a stretch.','Arms stay straight|Hinge slightly|Squeeze the lats');
+X('db_pullover','Dumbbell Pullover','back','pullover','dumbbell','lats chest','triceps','','Lying across a bench with one dumbbell over your chest, lower it behind your head with a slight elbow bend, then pull back over.','Ribs down|Stretch the lats|Slight elbow bend');
+X('db_shrug','Dumbbell Shrug','back','shrug','dumbbell','traps','forearms','pair','Dumbbells at your sides. Shrug straight up toward your ears, pause, lower.','Straight up, no rolling|Pause at the top|Full stretch');
+X('bb_shrug','Barbell Shrug','back','shrug','barbell','traps','forearms','','Bar at hip height. Shrug straight up, pause, lower.','Pause at the top|No rolling|Use straps if grip fails');
+
+/* ---------- BICEPS ---------- */
+X('db_curl','Dumbbell Curl','biceps','curl','dumbbell','biceps','forearms','pair','Dumbbells at your sides, palms forward. Curl up without swinging, lower slowly.','Elbows stay at your sides|Squeeze at the top|3-second lowering');
+X('bb_curl','Barbell Curl','biceps','curl','barbell','biceps','forearms','','Shoulder-width grip; curl the bar up keeping your elbows still.','Stand tall|No hip drive|Slow on the way down');
+X('ez_curl','EZ-Bar Curl','biceps','curl','barbell','biceps','forearms','','Grip the angled part of the EZ-bar, curl up, and lower with control.','Easier on the wrists|Elbows fixed|Squeeze');
+X('db_incline_curl','Incline Dumbbell Curl','biceps','curl','dumbbell','biceps','','pair','Lie back on a 45–60° bench, arms hanging. Curl up without moving your upper arms.','Big stretch at the bottom|Upper arms still|Slow');
+X('cable_curl','Cable Curl','biceps','curl','cable','biceps','forearms','','Straight bar on a low pulley. Curl up with elbows pinned, lower slowly.','Constant tension|Elbows fixed|Squeeze');
+X('cable_bayesian','Bayesian Cable Curl','biceps','curl','cable','biceps','','','Face away from a low cable with your arm behind you. Curl forward from a deep stretch. Reps are per arm.','Arm starts behind you|Big stretch|Elbow stays back');
+X('db_concentration','Concentration Curl','biceps','curl','dumbbell','biceps','','','Seated with your elbow braced on your inner thigh. Curl up and squeeze. Reps are per arm.','Elbow braced|Squeeze hard|Slow lowering');
+X('db_spider','Spider Curl','biceps','curl','dumbbell','biceps','','pair','Chest down on an incline bench, arms hanging straight. Curl up and squeeze.','Arms vertical|Squeeze at the top|Controlled');
+X('mach_preacher','Machine Preacher Curl','biceps','preacher','machine','biceps','','','Arms on the pad; curl the handles up and lower to nearly straight.','Full stretch|No bouncing|Squeeze');
+X('ez_preacher','EZ-Bar Preacher Curl','biceps','preacher','barbell','biceps','forearms','','Arms over the preacher pad; curl the EZ-bar up and lower slowly.','Don\'t hyperextend at the bottom|Controlled|Squeeze');
+X('db_preacher','Dumbbell Preacher Curl','biceps','preacher','dumbbell','biceps','','','One arm over the preacher pad; curl and lower slowly. Reps are per arm.','Full range|Slow|Squeeze');
+X('db_hammer','Dumbbell Hammer Curl','biceps','hammer','dumbbell','biceps forearms','','pair','Palms facing each other; curl the dumbbells up and lower slowly.','Neutral grip|No swinging|Full lowering');
+X('cable_rope_hammer','Cable Rope Hammer Curl','biceps','hammer','cable','biceps forearms','','','Rope on a low pulley with a neutral grip. Curl up and lower slowly.','Thumbs up|Elbows fixed|Slow');
+X('db_cross_hammer','Cross-Body Hammer Curl','biceps','hammer','dumbbell','biceps forearms','','pair','Curl the dumbbell across your body toward the opposite shoulder.','Neutral grip|Alternate arms|Slow');
+X('bb_reverse_curl','Reverse-Grip Barbell Curl','biceps','hammer','barbell','forearms biceps','','','Overhand grip; curl the bar up and lower slowly.','Wrists straight|Elbows fixed|Light weight');
+X('db_zottman','Zottman Curl','biceps','hammer','dumbbell','biceps forearms','','pair','Curl up palms-up, rotate to palms-down at the top, and lower slowly.','Rotate at the top|Slow lowering|Go light');
+
+/* ---------- SHOULDERS ---------- */
+X('db_shoulder_press','Dumbbell Shoulder Press','shoulders','press','dumbbell','frontDelts sideDelts','triceps','pair comp','Seated with back support, dumbbells at shoulder height. Press overhead until your arms are straight, lower to ear level.','Ribs down, no big arch|Press slightly inward|Lower to ear level');
+X('bb_ohp','Barbell Overhead Press','shoulders','press','barbell','frontDelts sideDelts','triceps abs','comp','Standing with the bar at your collarbones. Press overhead, moving your head back and then through, and lock out.','Glutes squeezed|Straight bar path|Head through at the top');
+X('mach_shoulder_press','Machine Shoulder Press','shoulders','press','machine','frontDelts sideDelts','triceps','comp','Handles at shoulder height; press overhead and return slowly.','Back on the pad|Full lockout|Controlled');
+X('smith_shoulder_press','Smith Machine Shoulder Press','shoulders','press','machine','frontDelts','triceps sideDelts','comp','Seated under the Smith bar; lower to chin level and press.','Bench upright|Controlled|Lock out');
+X('db_arnold','Arnold Press','shoulders','press','dumbbell','frontDelts sideDelts','triceps','pair comp','Start with palms facing you at chin height. Rotate the palms forward as you press overhead.','Smooth rotation|Full press|Controlled lowering');
+X('landmine_sh_press','Half-Kneeling Landmine Press','shoulders','press','barbell','frontDelts','chest triceps abs','comp','Half-kneeling, press the end of a landmine bar up and forward with one arm. Reps are per arm.','Brace your core|Reach at the top|Shoulder-friendly');
+X('bw_pike_pushup','Pike Push-Up','shoulders','press','bodyweight','frontDelts','triceps','bw comp','Hips high with hands and feet on the floor. Lower your head toward the floor and press back up.','Hips high|Head forward of the hands|Full range');
+X('db_lateral_raise','Dumbbell Lateral Raise','shoulders','lateral','dumbbell','sideDelts','traps','pair','Dumbbells at your sides with a slight elbow bend. Raise out to shoulder height and lower slowly.','Lead with the elbows|Stop at shoulder height|No swinging');
+X('cable_lateral_raise','Cable Lateral Raise','shoulders','lateral','cable','sideDelts','','','Low cable across your body. Raise the handle out to shoulder height. Reps are per arm.','Constant tension|Lead with the elbow|Slow');
+X('mach_lateral_raise','Machine Lateral Raise','shoulders','lateral','machine','sideDelts','','','Arms against the pads; raise out to shoulder height and lower slowly.','Shoulders down|Pause at the top|Controlled');
+X('db_lean_lateral','Leaning Lateral Raise','shoulders','lateral','dumbbell','sideDelts','','','Hold a post and lean away; raise the dumbbell out to the side. Reps are per arm.','Big range|Slow|Light weight');
+X('cable_upright_row','Cable Upright Row','shoulders','lateral','cable','sideDelts traps','biceps','','Straight bar on a low cable with a wide grip. Pull the elbows up and out to shoulder height.','Wide grip|Elbows lead|Stop at shoulder height');
+X('db_front_raise','Dumbbell Front Raise','shoulders','front','dumbbell','frontDelts','','pair','Raise the dumbbells in front of you to shoulder height and lower slowly.','No swinging|Shoulder height|Controlled');
+X('cable_front_raise','Cable Front Raise','shoulders','front','cable','frontDelts','','','Face away from a low cable and raise the handle forward to shoulder height.','Steady torso|Slow|Shoulder height');
+X('cable_face_pull','Cable Standing Rear Delt Row with Rope (Face Pull)','shoulders','rear','cable','rearDelts','traps midBack','','Rope at upper-chest height. Pull toward your face, splitting the rope and driving the elbows back and up.','Elbows high|Pull the rope apart|Squeeze 1 second');
+X('mach_reverse_fly','Machine Reverse Fly','shoulders','rear','machine','rearDelts','midBack','','Chest on the pad, arms straight ahead. Open your arms out and back.','Lead with the hands|Don\'t shrug|Squeeze');
+X('db_rear_delt_fly','Bent-Over Dumbbell Rear Delt Fly','shoulders','rear','dumbbell','rearDelts','midBack','pair','Hinge forward with the dumbbells hanging. Raise them out to the sides and lower slowly.','Slight elbow bend|Pinkies lead|No momentum');
+X('cable_rear_delt_fly','Cable Reverse Fly','shoulders','rear','cable','rearDelts','midBack','','Cross the cables at shoulder height and pull out wide.','Arms nearly straight|Squeeze|Slow');
+X('db_rear_delt_row','Dumbbell Rear Delt Row','shoulders','rear','dumbbell','rearDelts','midBack biceps','pair','Hinge forward and row the dumbbells with your elbows flared wide.','Elbows wide|Pull to chest level|Controlled');
+X('bw_ytw','Prone Y-T-W Raise','shoulders','rear','bodyweight','rearDelts','traps midBack','bw','Chest down on an incline bench; raise your arms in a Y, then a T, then a W. That is one rep.','Thumbs up|Light or no weight|Squeeze the shoulder blades');
+X('band_pull_apart','Band Pull-Apart','shoulders','rear','bodyweight','rearDelts','midBack traps','bw','Hold a band at shoulder height and pull it apart to your chest.','Arms straight|Squeeze|Slow return');
+
+/* ---------- ABS ---------- */
+X('cable_crunch_seated','Cable Seated Crunch','abs','crunch','cable','abs','','','Sit facing a high cable with the rope behind your head. Curl your ribs toward your hips, then return.','Round your spine|Hips stay still|Exhale on the crunch');
+X('cable_kneeling_crunch','Cable Kneeling Crunch','abs','crunch','cable','abs','','','Kneel under a high cable holding the rope by your head. Crunch down, ribs toward hips.','Hips fixed|Round down|Slow return');
+X('mach_crunch','Machine Crunch','abs','crunch','machine','abs','','','Seated ab machine; crunch forward and return slowly.','Exhale as you crunch|Controlled|Full squeeze');
+X('ab_crunch','Crunch','abs','crunch','bodyweight','abs','','bw','On your back with knees bent, curl your shoulders off the floor.','Exhale up|Chin off the chest|Slow');
+X('decline_situp','Decline Sit-Up','abs','crunch','bodyweight','abs','hipFlexors','bw','Feet locked on a decline bench; curl up and lower slowly. Hold a plate to add load.','Round up|Slow down|Exhale up');
+X('bicycle_crunch','Bicycle Crunch','abs','crunch','bodyweight','abs obliques','','bw','On your back, bring your opposite elbow toward the knee while extending the other leg. Reps are per side.','Slow|Shoulders off the floor|Full leg extension');
+X('v_up','V-Up','abs','crunch','bodyweight','abs','hipFlexors','bw','Lying flat, lift your arms and legs together to meet over your hips.','Controlled|Reach for the toes|Slow lowering');
+X('front_plank','Front Plank','abs','plank','bodyweight','abs','obliques frontDelts','time bw','Forearms under your shoulders, body straight from head to heels. Hold.','Squeeze your glutes|Ribs down|Keep breathing');
+X('side_plank','Side Plank','abs','plank','bodyweight','obliques','abs glutes','time bw','On one forearm with hips stacked and lifted. Hold each side.','Hips high|Straight line|Keep breathing');
+X('hollow_hold','Hollow Body Hold','abs','plank','bodyweight','abs','hipFlexors','time bw','On your back with your low back pressed down, arms and legs extended just off the floor. Hold.','Low back glued down|Bend the knees to scale|Breathe');
+X('mountain_climber','Mountain Climbers','abs','plank','bodyweight','abs','hipFlexors frontDelts','time bw','High plank; drive the knees toward your chest alternately at a steady pace.','Hips level|Steady rhythm|Brace');
+X('ab_wheel','Ab Wheel Rollout','abs','rollout','bodyweight','abs','lats','bw','Kneeling, roll the wheel forward as far as you can control, then pull back.','Ribs down|Don\'t sag|Short range at first');
+X('russian_twist','Russian Twist','abs','rotation','bodyweight','obliques abs','','bw','Sit leaning back with feet up or down, holding a weight at your chest. Rotate side to side. Reps are per side.','Rotate from the ribs|Chest tall|Controlled');
+X('cable_woodchop','Cable Woodchopper','abs','rotation','cable','obliques','abs','','Cable high to one side; pull it diagonally across your body to the opposite hip. Reps are per side.','Pivot the back foot|Arms long|Rotate through the torso');
+X('db_side_bend','Dumbbell Side Bend','abs','rotation','dumbbell','obliques','','','Dumbbell in one hand; bend sideways and return. Reps are per side.','Straight side bend|No twisting|Slow');
+X('pallof_press','Cable Pallof Press','abs','antirot','cable','obliques abs','','','Stand sideways to a chest-height cable. Press the handle straight out and resist the rotation. Reps are per side.','Don\'t rotate|Brace|Slow');
+X('dead_bug','Dead Bug','abs','antirot','bodyweight','abs','','bw','On your back, arms up, knees at 90°. Extend the opposite arm and leg, return, and switch. Reps are per side.','Low back pressed down|Slow|Exhale');
+X('hanging_leg_raise','Hanging Leg Raise','abs','legraise','bodyweight','abs hipFlexors','','bw','Hang from a bar and raise straight legs to hip height or higher, then lower slowly.','No swinging|Curl the pelvis|Slow down');
+X('hanging_knee_raise','Hanging Knee Raise','abs','legraise','bodyweight','abs hipFlexors','','bw','Hang from a bar and bring your knees to your chest, then lower slowly.','Curl the hips up|No swing|Controlled');
+X('captain_chair','Captain\'s Chair Knee Raise','abs','legraise','machine','abs hipFlexors','','bw','Back against the pad, forearms on the rests. Lift your knees toward your chest.','Back on the pad|Curl the pelvis|Slow');
+X('lying_leg_raise','Lying Leg Raise','abs','legraise','bodyweight','abs hipFlexors','','bw','On your back with hands under your hips, raise straight legs to vertical and lower slowly.','Low back down|Slow|Don\'t touch the floor');
+X('reverse_crunch','Reverse Crunch','abs','legraise','bodyweight','abs','','bw','On your back with knees bent, curl your hips off the floor toward your chest.','Curl the pelvis|Slow|Exhale');
+
+const GROUP_NAMES = { legs:'Legs', chest:'Chest', triceps:'Triceps', back:'Back', biceps:'Biceps', shoulders:'Shoulders', abs:'Abs' };
+const EQUIP_NAMES = { barbell:'Barbell', dumbbell:'Dumbbell', cable:'Cable', machine:'Machine', bodyweight:'Bodyweight' };
+const MUSCLE_NAMES = { chest:'Chest', frontDelts:'Front delts', sideDelts:'Side delts', rearDelts:'Rear delts', biceps:'Biceps', triceps:'Triceps', forearms:'Forearms', abs:'Abs', obliques:'Obliques', quads:'Quads', hamstrings:'Hamstrings', glutes:'Glutes', calves:'Calves', adductors:'Adductors', traps:'Traps', lats:'Lats', midBack:'Upper back', lowerBack:'Lower back', neck:'Neck', hipFlexors:'Hip flexors' };
+/* muscle -> weekly-volume bucket */
+const VOL_BUCKET = { chest:'Chest', lats:'Back', midBack:'Back', traps:'Back', lowerBack:'Back', frontDelts:'Shoulders', sideDelts:'Shoulders', rearDelts:'Shoulders', biceps:'Biceps', forearms:'Biceps', triceps:'Triceps', quads:'Quads', hamstrings:'Hamstrings', glutes:'Glutes', adductors:'Glutes', calves:'Calves', abs:'Abs', obliques:'Abs', hipFlexors:'Abs', neck:'Back' };
+const VOL_ORDER = ['Chest','Back','Shoulders','Biceps','Triceps','Quads','Hamstrings','Glutes','Calves','Abs'];
+
+/* Default sets x reps when adding an exercise */
+function defaultScheme(e) {
+  if (e.time) return { sets: 3, lo: 45, hi: 45 };
+  if (e.g === 'abs') return { sets: 3, lo: 10, hi: 15 };
+  if (e.comp) return { sets: 3, lo: 6, hi: 8 };
+  return { sets: 3, lo: 8, hi: 12 };
+}
+
+/* ============ DEFAULT PROGRAM (Anthony's current Caliber split) ============ */
+const DEFAULT_WORKOUTS = [
+  { id:'legs', name:'Legs', short:'Legs', groups:['legs'], ex:[
+    ['db_goblet_squat',3,6,8], ['db_rdl',3,6,8], ['db_lunge',3,6,8], ['mach_leg_press',3,6,8], ['mach_standing_calf',3,8,10] ] },
+  { id:'chest', name:'Chest & Triceps', short:'Chest & Tri', groups:['chest','triceps'], ex:[
+    ['bb_bench',3,6,8], ['db_incline',3,6,8], ['db_lying_tri_ext',3,8,10], ['assisted_chest_dip',3,8,10], ['cable_pushdown_rope',2,6,8] ] },
+  { id:'back', name:'Back & Biceps', short:'Back & Bi', groups:['back','biceps'], ex:[
+    ['bb_deadlift',3,6,8], ['cable_seated_row',3,8,10], ['cable_lat_pulldown',2,6,8], ['db_curl',3,6,8], ['db_hammer',3,8,10] ] },
+  { id:'shoulders', name:'Shoulders & Abs', short:'Shoulders & Abs', groups:['shoulders','abs'], ex:[
+    ['db_shoulder_press',3,6,8], ['db_lateral_raise',3,6,8], ['cable_face_pull',3,8,10], ['cable_crunch_seated',2,10,12], ['front_plank',3,60,60], ['russian_twist',3,8,10] ] },
+];
+
+/* ============ STRETCH LIBRARY ============
+   S(id, name, type d=dynamic s=static, areas, sides(0/1), seconds (per side), position, muscles, how, cues) */
+const ST = {};
+const ST_LIST = [];
+function S(id, name, t, areas, sides, dur, pos, mus, how, cues) {
+  const s = { id, name, t, areas: areas.split(' '), sides: !!sides, dur, pos, mus: mus.split(' '), how, cues: cues.split('|') };
+  ST[id] = s; ST_LIST.push(s);
+}
+const AREA_NAMES = { hips:'Hips', hamstrings:'Hamstrings', quads:'Quads', glutes:'Glutes', calves:'Calves', adductors:'Adductors', lowback:'Low back', thoracic:'Thoracic spine', chest:'Chest', shoulders:'Shoulders', lats:'Lats', triceps:'Triceps', arms:'Biceps & forearms', neck:'Neck', core:'Core' };
+const POS_ORDER = { stand:0, wall:1, kneel:2, all4:3, seat:4, lie:5 };
+
+/* ---------- DYNAMIC / MOBILITY ---------- */
+S('cat_cow','Cat-Cow','d','lowback thoracic',0,60,'all4','lowerBack midBack abs','On hands and knees, alternate rounding your spine toward the ceiling (cat) and letting it sag with your chest forward (cow).','Move one vertebra at a time|Breathe with the movement|Slow and smooth');
+S('leg_swing_fb','Leg Swings (Front-to-Back)','d','hips hamstrings quads',1,40,'stand','hamstrings hipFlexors glutes','Hold a rack for balance and swing one leg forward and back, letting the height grow each rep.','Stay tall|Relaxed swing|Grow the range gradually');
+S('leg_swing_lat','Leg Swings (Side-to-Side)','d','hips adductors',1,40,'stand','adductors glutes','Face a rack and swing one leg across your body and out to the side.','Hips square to the rack|Controlled|Increase range gradually');
+S('hip_cars','Standing Hip Circles','d','hips glutes',1,45,'stand','glutes hipFlexors adductors','Standing on one leg, lift the other knee and draw the biggest slow circle you can at the hip. Reverse halfway.','Keep the pelvis still|Slow and big|Reverse halfway');
+S('hip_9090_switch','90/90 Hip Switches','d','hips glutes',0,60,'seat','glutes adductors hipFlexors','Sit with both knees bent at 90° — one in front, one to the side. Rotate both knees to the other side and back.','Sit tall|Hands behind you at first|Smooth side to side');
+S('worlds_greatest','World\'s Greatest Stretch','d','hips hamstrings thoracic',1,45,'stand','hipFlexors hamstrings midBack','Step into a deep lunge, put the inside hand on the floor, rotate the other arm to the ceiling, then straighten the front leg to open the hamstring.','Back knee off the floor|Eyes follow the top hand|Exhale into each position');
+S('spiderman_reach','Spiderman Lunge with Reach','d','hips thoracic adductors',1,45,'all4','hipFlexors adductors midBack','From a push-up position, step one foot outside your hand, sink the hips, then reach the inside arm up.','Drop the hips|Long back leg|Rotate from the mid-back');
+S('walking_knee_hug','Walking Knee Hugs','d','glutes hips',0,45,'stand','glutes hamstrings','Walk forward pulling one knee to your chest each step while rising onto the standing toes.','Stand tall|Squeeze the standing glute|Alternate each step');
+S('walking_quad_pull','Walking Quad Pulls','d','quads hips',0,45,'stand','quads hipFlexors','Walk forward pulling one heel to your glute each step and pushing that hip forward.','Knee points down|Squeeze the glute|Reach the opposite arm up');
+S('lateral_lunge_shift','Lateral Lunge Shifts','d','adductors hips',0,60,'stand','adductors glutes','Wide stance; shift side to side into a lateral lunge, keeping the straight leg\'s foot flat.','Sit back into the hip|Chest up|Feel the inner thigh');
+S('cossack','Cossack Squat','d','adductors hips quads',0,60,'stand','adductors glutes quads','Wide stance; sink down to one side while the other leg straightens with its toes up, then switch.','Heel down on the bent leg|Only as low as you control|Hold a rack if needed');
+S('frog_rock','Frog Rocks','d','adductors hips',0,60,'all4','adductors','On hands and knees with knees wide, rock your hips back toward your heels and forward again.','Knees wide, ankles in line|Flat back|Rock slowly');
+S('fire_hydrant','Fire Hydrant Circles','d','glutes hips',1,40,'all4','glutes','On hands and knees, lift one bent knee out to the side and draw circles.','Don\'t shift your weight|Big circles|Both directions');
+S('deep_squat_pry','Deep Squat Pry','d','hips adductors calves',0,60,'stand','adductors glutes calves','Sink into a deep bodyweight squat with elbows inside your knees; gently pry the knees out and shift side to side.','Heels down|Chest tall|Breathe and relax into it');
+S('hip_flexor_pulse','Half-Kneeling Hip Flexor Pulses','d','hips quads',1,45,'kneel','hipFlexors quads','Half-kneeling, squeeze the back glute and gently pulse your hips forward and back.','Tuck the pelvis|Small pulses|Reach the same-side arm overhead');
+S('squat_to_stand','Squat-to-Stand','d','hamstrings hips',0,45,'stand','hamstrings adductors','Fold forward and grab your toes, drop into a deep squat, then lift your hips to straighten your legs while holding your toes.','Hold the toes|Chest up in the squat|Straighten slowly');
+S('inchworm','Inchworm Walkouts','d','hamstrings shoulders core',0,60,'stand','hamstrings abs frontDelts','From standing, fold and walk your hands out to a plank, then walk your feet up toward your hands.','Legs as straight as you can|Tight plank|Slow walk-in');
+S('hamstring_sweep','Hamstring Sweeps','d','hamstrings',0,45,'stand','hamstrings','Step one heel forward with the toes up, hinge, and sweep your hands low along the ground. Alternate legs as you walk.','Hinge at the hips|Flat back|Front toes up');
+S('toy_soldier','Toy Soldiers','d','hamstrings hips',0,45,'stand','hamstrings','Walk forward kicking a straight leg up toward the opposite hand.','Tall posture|Controlled kick|Alternate legs');
+S('bw_good_morning','Bodyweight Good Mornings','d','hamstrings lowback',0,45,'stand','hamstrings lowerBack','Hands behind your head, soft knees; hinge forward to load the hamstrings, then stand.','Flat back|Hips back|Smooth tempo');
+S('sl_rdl_reach','Single-Leg RDL Reach','d','hamstrings glutes',1,40,'stand','hamstrings glutes','Balance on one leg and hinge forward, reaching toward the floor as the free leg lifts behind you.','Hips square|Soft standing knee|Slow');
+S('reverse_lunge_reach','Reverse Lunge with Overhead Reach','d','quads hips',0,60,'stand','hipFlexors quads','Step back into a lunge and reach both arms overhead, leaning slightly away from the back leg.','Squeeze the back glute|Tall torso|Alternate legs');
+S('butt_kicks','Butt Kicks','d','quads',0,30,'stand','quads','Jog in place bringing your heels up to your glutes.','Light and quick|Stay tall|Relaxed arms');
+S('ankle_rock','Knee-to-Wall Ankle Rocks','d','calves',1,40,'kneel','calves','Half-kneeling facing a wall, drive the front knee toward the wall over your toes while the heel stays down.','Heel stays down|Knee tracks over the toes|Rock in and out');
+S('calf_pedal','Downward Dog Calf Pedal','d','calves hamstrings',0,45,'all4','calves hamstrings','In a downward dog, alternate bending one knee while pressing the other heel toward the floor.','Hips high|Press the heels down|Slow pedal');
+S('ankle_circles','Ankle Circles','d','calves',1,30,'stand','calves','Lift one foot and draw slow circles with the ankle, both directions.','Big circles|Both directions|Keep the leg still');
+S('toe_heel_walk','Heel & Toe Walks','d','calves',0,45,'stand','calves','Walk on your toes for several steps, then on your heels.','Stay tall|Short steps|Alternate');
+S('pelvic_tilt','Pelvic Tilts','d','lowback core',0,45,'lie','lowerBack abs','Lying on your back with knees bent, gently rock your pelvis to flatten and then arch your low back.','Small, slow movement|Breathe|Pain-free range');
+S('windshield_wiper','Supine Windshield Wipers','d','lowback hips',0,60,'lie','lowerBack obliques glutes','Lie on your back with knees bent and feet wide. Let both knees drop side to side.','Shoulders stay down|Slow|Relax into it');
+S('bird_dog','Bird Dog','d','lowback core glutes',0,60,'all4','lowerBack abs glutes','On hands and knees, extend the opposite arm and leg, hold a breath, return and switch.','No arching|Reach long|Slow');
+S('child_cobra_flow','Child\'s Pose to Cobra Flow','d','lowback core lats',0,60,'all4','lowerBack abs lats','Flow from child\'s pose forward into a cobra and back again with your breath.','Move with your breath|Gentle arch|Hips drop in cobra');
+S('dead_bug_d','Dead Bug','d','core',0,45,'lie','abs','On your back, extend the opposite arm and leg while keeping your low back pressed down.','Slow|Low back flat|Exhale as you reach');
+S('glute_bridge_d','Glute Bridge March','d','glutes core',0,45,'lie','glutes hamstrings','Hold a glute bridge and alternate lifting one foot a few inches.','Hips level|Squeeze the glutes|Slow march');
+S('open_book','Open Book Rotations','d','thoracic chest',1,45,'lie','midBack chest','Lie on your side with knees bent and arms together. Open the top arm across to the other side, following it with your eyes.','Knees stay stacked|Exhale as you open|Return slowly');
+S('thread_needle_d','Thread the Needle','d','thoracic shoulders',1,40,'all4','midBack rearDelts','On hands and knees, reach one arm under your body, then rotate and reach it to the ceiling.','Hips stay over the knees|Follow your hand|Smooth');
+S('quad_tspine_rot','Quadruped T-Spine Rotation','d','thoracic',1,40,'all4','midBack','On hands and knees with one hand behind your head, rotate the elbow down toward the opposite wrist, then up to the ceiling.','Sit the hips back|Rotate from the mid-back|Slow');
+S('foam_tspine','Foam Roller T-Spine Extensions','d','thoracic',0,60,'lie','midBack','Foam roller under your upper back, hands behind your head. Extend back over the roller, then shift it an inch and repeat.','Hips down|Don\'t roll the low back|Exhale as you extend');
+S('arm_circles','Arm Circles','d','shoulders',0,45,'stand','frontDelts sideDelts rearDelts','Arms out to the sides; make circles from small to big, forward then backward.','Start small|Reverse halfway|Relaxed neck');
+S('band_dislocate','Band Pass-Throughs','d','shoulders chest',0,45,'stand','frontDelts chest rearDelts','Hold a band, towel, or PVC wide with straight arms and pass it overhead to behind your back and return.','Wide grip|Arms straight|Narrow the grip slowly');
+S('band_pull_apart_d','Band Pull-Aparts','d','shoulders thoracic',0,45,'stand','rearDelts midBack','Hold a band at shoulder height and pull it apart to your chest.','Arms straight|Squeeze the shoulder blades|Slow return');
+S('wall_slide','Wall Slides','d','shoulders thoracic',0,45,'wall','sideDelts traps midBack','Back against a wall, arms in a goalpost. Slide your arms up overhead keeping contact with the wall.','Ribs down|Wrists and elbows touch the wall|Slow');
+S('scap_pushup','Scapular Push-Ups','d','shoulders chest',0,40,'all4','chest frontDelts','In a plank with arms locked, let your chest sink between your shoulder blades, then push the floor away.','Arms locked|Small movement|Control');
+S('shoulder_cars','Shoulder CARs','d','shoulders',1,45,'stand','frontDelts sideDelts rearDelts','Make the biggest slow circle you can with one straight arm while your torso stays still.','Torso still|Slow and big|Both directions');
+S('cross_arm_swing','Cross-Body Arm Swings','d','chest shoulders',0,40,'stand','chest rearDelts','Swing your arms open wide, then cross them in front of your chest, alternating which is on top.','Relaxed swing|Open wide|Stay tall');
+S('doorway_pulse','Doorway Chest Pulses','d','chest shoulders',0,40,'wall','chest frontDelts','Forearms on a doorframe; gently pulse your chest forward and back.','Elbows at shoulder height|Small pulses|Relax the neck');
+S('neck_cars','Neck Half Circles','d','neck',0,40,'stand','neck traps','Slowly roll your head in half circles from shoulder to shoulder, then look up and down.','Slow|Never force it|Shoulders relaxed');
+S('chin_tuck','Chin Tucks','d','neck',0,30,'stand','neck','Pull your chin straight back to make a double chin, hold 2 seconds, release.','Look straight ahead|Gentle|Hold 2 seconds');
+S('neck_tilt','Neck Side Tilts','d','neck',0,40,'stand','neck traps','Tilt your ear toward each shoulder, pausing briefly at the end.','Shoulders down|Slow|Breathe');
+S('overhead_side_bend','Overhead Reach Side Bends','d','lats core',0,45,'stand','lats obliques','Reach both arms overhead and lean slowly to one side, then the other.','Hips stay centered|Reach long|Breathe');
+S('lat_rockback','Kneeling Lat Rock-Backs','d','lats triceps',0,45,'kneel','lats triceps','Elbows on a bench with hands together; rock your hips back to stretch the lats, then return.','Head between the arms|Sit back|Slow');
+S('wrist_rocks','Wrist Circles & Rocks','d','arms',0,40,'all4','forearms','Circle your wrists, then on hands and knees gently rock forward and back over your palms.','Gentle|Fingers forward, then back|Both directions');
+
+/* ---------- STATIC ---------- */
+S('pigeon','Pigeon Pose','s','hips glutes',1,60,'all4','glutes hipFlexors','From hands and knees, bring one shin forward across your body and slide the back leg straight behind you. Sink your hips.','Square the hips|Fold forward to deepen|Breathe into the hip');
+S('hold_9090','90/90 Hold','s','hips glutes',1,60,'seat','glutes','Sit in a 90/90 position and lean your chest over the front shin.','Tall spine first|Hinge forward|Relax');
+S('couch','Couch Stretch','s','quads hips',1,60,'kneel','quads hipFlexors','Back knee against a wall or bench with the shin up it, other foot forward in a lunge. Squeeze the back glute and lift your torso.','Squeeze the back glute|Ribs down|Build up slowly');
+S('hk_hip_flexor','Half-Kneeling Hip Flexor Stretch','s','hips quads',1,45,'kneel','hipFlexors','Half-kneeling, tuck the pelvis and shift forward until you feel the front of the hip stretch.','Tuck, then shift|Reach the arm up|Don\'t arch');
+S('lizard','Lizard Pose','s','hips adductors',1,45,'kneel','hipFlexors adductors','Low lunge with both hands inside the front foot; lower toward your forearms.','Back knee down|Sink the hips|Breathe');
+S('figure4','Supine Figure-4','s','glutes hips',1,45,'lie','glutes','On your back, cross one ankle over the opposite knee and pull that thigh toward you.','Flex the top foot|Head down|Relax');
+S('seated_glute','Seated Glute Stretch','s','glutes lowback',1,45,'seat','glutes','Seated, cross one ankle over the opposite knee and lean forward with a tall chest.','Flex the foot|Tall spine|Lean from the hips');
+S('butterfly','Butterfly Stretch','s','adductors hips',0,60,'seat','adductors','Seated with the soles of your feet together, let your knees drop and hinge forward.','Tall spine|Hinge from the hips|Gentle elbow pressure');
+S('frog','Frog Stretch','s','adductors hips',0,60,'all4','adductors','On forearms and knees with knees wide, sink your hips back.','Ankles in line with the knees|Slow|Breathe');
+S('supine_butterfly','Reclined Butterfly','s','adductors hips',0,60,'lie','adductors','On your back with the soles together, let your knees fall open.','Relax|Hands on the belly|Breathe');
+S('deep_squat_hold','Deep Squat Hold','s','hips calves adductors',0,60,'stand','adductors glutes calves','Sit in a deep squat with heels down and elbows pressing your knees out.','Heels down (hold a rack)|Chest up|Breathe');
+S('happy_baby','Happy Baby','s','hips lowback',0,60,'lie','adductors lowerBack glutes','On your back, grab the outsides of your feet and draw your knees toward your armpits.','Low back down|Gently rock|Relax');
+S('seated_fold','Seated Forward Fold','s','hamstrings lowback',0,60,'seat','hamstrings lowerBack','Legs straight in front of you; hinge from the hips and reach toward your feet.','Hinge, don\'t hunch|Soft knees are OK|Exhale to deepen');
+S('ragdoll','Standing Ragdoll','s','hamstrings lowback',0,60,'stand','hamstrings lowerBack','Stand with soft knees and fold over holding opposite elbows. Let your head hang.','Relax the neck|Weight toward the toes|Sway gently');
+S('supine_ham','Supine Hamstring Stretch','s','hamstrings',1,45,'lie','hamstrings','On your back, loop a towel or band around one foot and raise the straight leg.','Other leg flat|Straight knee|Pull gently');
+S('half_split','Half Split','s','hamstrings calves',1,45,'kneel','hamstrings calves','From a low lunge, shift your hips back and straighten the front leg with the toes up.','Hips over the back knee|Flat back|Toes up');
+S('wide_fold','Wide-Leg Forward Fold','s','hamstrings adductors',0,60,'stand','hamstrings adductors','Feet wide; hinge forward and let your hands walk toward the floor.','Flat back first|Hands on the floor or blocks|Breathe');
+S('legs_up_wall','Legs Up the Wall','s','hamstrings lowback',0,60,'lie','hamstrings','Lie on your back with your legs straight up a wall and your hips close to it.','Scoot the hips close|Relax|Breathe');
+S('standing_quad','Standing Quad Stretch','s','quads',1,40,'stand','quads','Hold your ankle behind you with knees together and push the hip forward.','Knees together|Tuck the pelvis|Hold a rack');
+S('side_lying_quad','Side-Lying Quad Stretch','s','quads hips',1,45,'lie','quads hipFlexors','Lying on your side, pull the top heel toward your glute.','Knees together|Hips forward|Relax');
+S('wall_calf','Wall Calf Stretch','s','calves',1,45,'wall','calves','Hands on a wall with one leg back straight and the heel down; lean in.','Back heel down|Toes forward|Straight back knee');
+S('soleus','Bent-Knee Calf Stretch','s','calves',1,40,'wall','calves','Like the wall calf stretch, but bend the back knee to reach the soleus.','Heel down|Bend the knee|Lean in');
+S('step_calf','Step Calf Drop','s','calves',1,40,'stand','calves','Ball of one foot on a step; let the heel drop below the step.','Hold a rail|Relax into it|Straight knee');
+S('down_dog','Downward Dog','s','calves hamstrings shoulders',0,45,'all4','calves hamstrings lats','Hands and feet on the floor, hips high, heels pressing toward the floor.','Hips high|Push the floor away|Bend the knees if needed');
+S('toe_extension','Toe Extension Kneel','s','calves',0,30,'kneel','calves','Kneel with your toes tucked and sit back onto your heels to stretch the soles of your feet.','Tuck all the toes|Ease in|Breathe');
+S('childs_pose','Child\'s Pose','s','lowback lats',0,60,'kneel','lowerBack lats','Kneel, sit back on your heels, and reach your arms forward on the floor.','Sink the hips back|Arms long|Breathe into your back');
+S('knees_chest','Knees-to-Chest','s','lowback glutes',0,45,'lie','lowerBack glutes','On your back, hug both knees to your chest.','Relax the shoulders|Gentle rock|Breathe');
+S('supine_twist','Supine Spinal Twist','s','lowback glutes thoracic',1,45,'lie','lowerBack obliques glutes','On your back, drop your bent knees to one side with arms out wide.','Shoulders down|Look away from the knees|Breathe');
+S('sphinx','Sphinx Pose','s','lowback core',0,45,'lie','abs lowerBack','Lying face down, prop up on your forearms and let your belly relax.','Shoulders down|Gentle|Breathe');
+S('cobra','Cobra Stretch','s','core lowback',0,40,'lie','abs hipFlexors','Face down with hands under your shoulders; press your chest up while your hips stay down.','Hips on the floor|Shoulders down|Only as high as comfortable');
+S('seated_twist','Seated Twist','s','thoracic lowback',1,40,'seat','obliques midBack','Seated tall, cross one leg over and rotate toward the bent knee using your arm.','Tall spine|Rotate from the mid-back|Breathe');
+S('thread_needle_s','Thread the Needle Hold','s','thoracic shoulders',1,45,'all4','midBack rearDelts','On hands and knees, slide one arm under your body and rest your shoulder and head down.','Hips over the knees|Relax|Breathe');
+S('bench_tspine','Bench T-Spine Stretch','s','thoracic lats triceps',0,60,'kneel','lats triceps midBack','Kneel facing a bench with elbows on it and hands together behind your head; sink your chest toward the floor.','Hips back|Chest sinks|Elbows together');
+S('foam_chest_opener','Foam Roller Chest Opener','s','thoracic chest',0,60,'lie','chest midBack','Lie lengthwise on a foam roller with your arms open wide, palms up.','Relax|Let the arms sink|Breathe');
+S('puppy','Puppy Pose','s','thoracic lats shoulders',0,45,'kneel','lats frontDelts','From hands and knees, walk your hands forward and let your chest sink toward the floor with hips over knees.','Hips stay up|Chest sinks|Arms long');
+S('doorway_pec','Doorway Pec Stretch','s','chest shoulders',1,45,'wall','chest frontDelts','Forearm on a doorframe at shoulder height; step through and turn away.','Elbow at shoulder height|Don\'t shrug|Gentle');
+S('corner_chest','Corner Chest Stretch','s','chest',0,45,'wall','chest frontDelts','Forearms on both walls of a corner; lean your chest in.','Chin tucked|Lean slowly|Shoulders down');
+S('clasp_opener','Behind-Back Clasp Chest Opener','s','chest shoulders',0,40,'stand','chest frontDelts','Clasp your hands behind you, straighten your arms, and lift slightly while opening your chest.','Squeeze the shoulder blades|Chest up|Neck relaxed');
+S('front_delt_wall','Wall Front Delt Stretch','s','shoulders chest',1,40,'wall','frontDelts chest','Hand on the wall behind you at shoulder height; turn your body away.','Arm straight|Turn slowly|Shoulder down');
+S('cross_body_shoulder','Cross-Body Shoulder Stretch','s','shoulders',1,40,'stand','rearDelts','Pull one straight arm across your chest with the other arm.','Shoulder down|Pull at the elbow|Relax');
+S('sleeper','Sleeper Stretch','s','shoulders',1,40,'lie','rearDelts','Lie on your side with the bottom arm bent 90° in front. Gently press that forearm toward the floor.','Gentle pressure|Stop if it pinches|Shoulder blade back');
+S('towel_ir','Behind-Back Towel Stretch','s','shoulders triceps',1,40,'stand','frontDelts triceps','Hold a towel over one shoulder and behind your back; gently pull up with the top hand, then switch.','Gentle|Tall posture|Breathe');
+S('dead_hang','Dead Hang','s','lats shoulders arms',0,30,'stand','lats forearms','Hang from a pull-up bar with relaxed shoulders.','Relax the shoulders|Breathe|Toes on a box if needed');
+S('overhead_tricep','Overhead Tricep Stretch','s','triceps lats',1,40,'stand','triceps lats','Reach one arm overhead, bend the elbow, and gently pull it behind your head.','Elbow up|Stand tall|Gentle pull');
+S('rack_lat','Rack Lat Stretch','s','lats',1,40,'stand','lats','Hold a rack post with one hand, push your hips back, and lean away to stretch your side.','Hips back|Arm long|Breathe into your side');
+S('child_side','Child\'s Pose Side Reach','s','lats lowback',1,40,'kneel','lats obliques','In child\'s pose, walk both hands to one side.','Hips back|Reach long|Breathe');
+S('standing_side','Standing Side Stretch','s','lats core',1,30,'stand','lats obliques','Reach one arm overhead and lean to the opposite side.','Hips centered|Reach long|Breathe');
+S('wall_bicep','Wall Bicep Stretch','s','arms chest',1,30,'wall','biceps chest','Palm on the wall behind you with a straight arm and thumb up; turn away.','Arm straight|Gentle|Turn slowly');
+S('wrist_flexor','Wrist Flexor Stretch','s','arms',1,30,'stand','forearms','Arm straight, palm up; gently pull your fingers back.','Elbow straight|Gentle|Breathe');
+S('wrist_extensor','Wrist Extensor Stretch','s','arms',1,30,'stand','forearms','Arm straight, palm down; gently pull your hand down.','Elbow straight|Gentle|Relax');
+S('upper_trap','Upper Trap Stretch','s','neck',1,40,'seat','neck traps','Sit on one hand and gently tilt your head away, using the other hand for light pressure.','Very gentle|Shoulder down|Breathe');
+S('levator','Levator Scapulae Stretch','s','neck',1,40,'seat','neck traps','Turn your head 45° toward your armpit and gently look down.','Light hand pressure|Shoulder down|Slow');
+S('chin_tuck_hold','Chin Tuck Hold','s','neck',0,30,'seat','neck','Tuck your chin straight back and hold.','Eyes level|Gentle|Breathe');
+S('scalene','Neck Extension Side Stretch','s','neck chest',1,30,'seat','neck','Hold your collarbone down with one hand; tilt your head back and away.','Gentle|Collarbone down|Slow');
+
+/* Focus areas per workout, and rest-day focus sets */
+const STRETCH_FOCUS = {
+  legs:      { pri:['hips','hamstrings','quads','glutes','calves'], sec:['adductors','lowback'] },
+  chest:     { pri:['chest','shoulders','triceps','thoracic'], sec:['lats','arms','neck'] },
+  back:      { pri:['lats','thoracic','lowback','hamstrings','arms'], sec:['hips','glutes','shoulders'] },
+  shoulders: { pri:['shoulders','thoracic','neck','core'], sec:['chest','lats','triceps'] },
+};
+const REST_FOCUS = [
+  { name:'Hips, hamstrings & low back', pri:['hips','hamstrings','lowback','calves'], sec:['glutes','adductors','quads'] },
+  { name:'Shoulders, chest & upper back', pri:['shoulders','chest','thoracic','neck'], sec:['lats','triceps','arms'] },
+  { name:'Full-body flexibility', pri:['hips','hamstrings','lowback','shoulders','chest','thoracic','calves','neck'], sec:['glutes','quads','lats','adductors'] },
+];
+
+/* Warm-up: always a walk, then one machine that primes the day's muscles */
+const WARM_MACHINES = {
+  rower:      { id: 'rower', short: 'Rowing', name: 'Rowing machine', why: 'Warms up back, shoulders, arms and legs together' },
+  stair:      { id: 'stair', short: 'Stairs', name: 'Stair climber', why: 'Primes quads, glutes and calves' },
+  bike:       { id: 'bike', short: 'Bike', name: 'Stationary bike', why: 'Warms up knees and hips with no impact' },
+  incline:    { id: 'incline', short: 'Incline walk', name: 'Incline treadmill', why: 'Primes glutes, hamstrings and calves' },
+  airbike:    { id: 'airbike', short: 'Air bike', name: 'Air bike', why: 'Arms push and pull while legs pedal — full upper body' },
+  elliptical: { id: 'elliptical', short: 'Elliptical', name: 'Elliptical (moving arms)', why: 'Push-pull handles warm up shoulders, chest and back' },
+  skierg:     { id: 'skierg', short: 'Ski erg', name: 'Ski erg', why: 'Lats, triceps and core' },
+  arc:        { id: 'arc', short: 'Arc trainer', name: 'Arc trainer', why: 'Low-impact legs and glutes' },
+};
+const DEFAULT_WARM_PICK = { legs: 'stair', chest: 'rower', back: 'rower', shoulders: 'elliptical' };
+
+/* ============ HOW-TO GUIDES ============
+   Step-by-step setup, movement, feel, common mistakes and breathing for every
+   exercise and stretch (keys match EX / ST ids). */
+const GUIDE = {"db_goblet_squat":{"setup":"Hold one dumbbell upright against your chest, cupping the top end. Feet shoulder-width, toes out 15–30 degrees.","steps":["Brace your stomach and keep your chest tall.","Sit straight down between your heels for 2–3 seconds.","Go until your thighs pass parallel, elbows inside your knees.","Drive through your whole foot to stand."],"feel":"You should feel your thighs and glutes, not your lower back.","mistakes":[["Heels lifting off the floor","Keep weight mid-foot; widen your stance slightly."],["Knees caving inward","Push knees out so they follow your toes."],["Dumbbell drifting off your chest","Keep it pinned to your breastbone."]],"breathe":"Breathe in and brace at the top; breathe out as you stand."},"bb_back_squat":{"setup":"Unrack the bar from mid-chest height onto your upper traps. Step back, feet shoulder-width, toes slightly out.","steps":["Take a big breath and brace.","Sit down and slightly back for 2–3 seconds.","Push your knees out; reach parallel or below.","Drive the floor away to stand, bar over mid-foot."],"feel":"You should feel your thighs and glutes, not your lower back.","mistakes":[["Hips rising before your chest","Lead with your chest out of the bottom."],["Lower back rounding at the bottom","Only go as deep as your back stays flat."]],"breathe":"Brace before each rep; breathe out at the top.","safety":"Squat in a rack with safety arms just below your lowest point."},"bb_front_squat":{"setup":"Rack the bar at upper-chest height and rest it on your front shoulders, fingertips under it, elbows high.","steps":["Step back, feet shoulder-width, and brace.","Squat straight down for 2–3 seconds, torso upright.","Let your knees travel forward and out to parallel or below.","Drive up, pushing your elbows toward the ceiling."],"feel":"You should feel it mostly in your quads and upper back.","mistakes":[["Elbows dropping, bar rolling forward","Lead up with your elbows every rep."],["Squeezing the bar with a full fist","Use fingertips; the bar rests on your shoulders."]],"breathe":"Brace before you descend; breathe out near the top.","safety":"Use a rack with safety arms just below your lowest point."},"mach_hack_squat":{"setup":"Set the shoulder pads snug with your back flat on the pad. Feet mid-platform, shoulder-width, toes slightly out.","steps":["Release the safety handles and brace.","Lower for 2–3 seconds until your knees are deeply bent.","Pause briefly without bouncing.","Press through your whole foot, stopping short of locked knees."],"feel":"You should feel it mostly in the front of your thighs.","mistakes":[["Hips peeling off the back pad","Only go as deep as your hips stay down."],["Slamming the knees into lockout","Stop just short of straight."]],"breathe":"Breathe in on the way down, out as you press.","safety":"Find the safety handles first and lock them in before stepping out."},"smith_squat":{"setup":"Rest the bar on your upper traps with feet shoulder-width, a few inches in front of the bar.","steps":["Twist the bar to unhook it and brace hard.","Sit down for 2–3 seconds to parallel or below.","Keep your back flat and knees over your toes.","Drive through your whole foot to stand."],"feel":"You should feel your quads and glutes, not your lower back.","mistakes":[["Feet directly under the bar","Step your feet a few inches forward."],["Going deeper than you control","Use the depth where your back stays flat."]],"breathe":"Brace at the top; breathe out as you stand.","safety":"Set the safety stops just below your bottom position first."},"mach_pendulum_squat":{"setup":"Set the shoulder pads snug so your back stays flat on the back pad. Feet mid-platform, about shoulder-width.","steps":["Release the lock and brace.","Sink for 2–3 seconds, letting your knees travel past your toes.","Go as deep as you can with your back on the pad.","Drive up through your whole foot at the same pace."],"feel":"You should feel a deep stretch and burn in your quads.","mistakes":[["Pulling away from the back pad","Keep shoulders and back pressed in every rep."],["Bouncing at the bottom","Use a smooth, even tempo both ways."]],"breathe":"Breathe in as you sink, out as you drive up."},"mach_belt_squat":{"setup":"Clip the belt around your hips so the chain hangs straight down. Stand feet shoulder-width and hold the rails lightly.","steps":["Release the lever and stand tall.","Squat straight down for 2–3 seconds, chest tall.","Go until your thighs reach parallel or a bit lower.","Drive through mid-foot to stand and squeeze your glutes."],"feel":"You should feel your quads and glutes, with no load on your spine.","mistakes":[["Pulling yourself up with the rails","Use the rails for balance only."],["Hips drifting back like a deadlift","Sit straight down between your heels."]],"breathe":"Brace at the top; breathe out as you stand."},"bw_tempo_squat":{"setup":"Stand with feet shoulder-width, toes slightly out, arms reaching straight forward for balance.","steps":["Brace and keep your chest tall.","Lower for 3–4 seconds, counting in your head.","Pause 1–2 seconds at full depth, heels flat.","Stand up at normal speed and squeeze your glutes."],"feel":"You should feel your thighs and glutes burning by the last rep.","mistakes":[["Rushing the lowering","Count one-one-thousand up to four."],["Heels lifting at the bottom","Only go as deep as your heels stay down."],["Chest folding forward","Keep arms reaching forward, eyes on a spot ahead."]],"breathe":"Breathe in on the way down, out as you stand."},"db_bulgarian":{"setup":"Hold a dumbbell in each hand. Stand 2–3 feet in front of a knee-high bench with the top of your back foot on it.","steps":["Lean your chest slightly forward.","Drop your back knee straight down for 2–3 seconds, to a few inches off the floor.","Drive up through your front foot, heel flat.","Reps are per leg: finish all reps, then switch."],"feel":"You should feel your front leg's thigh and glute, not the back leg.","mistakes":[["Front heel lifting","Move your front foot farther from the bench."],["Pushing off the back foot","Keep it relaxed; it is only for balance."]],"breathe":"Breathe in going down, out as you drive up."},"db_lunge":{"setup":"Stand tall, feet hip-width, a dumbbell in each hand at your sides.","steps":["Step forward about 2–3 feet.","Lower for 2 seconds until both knees are near 90°, back knee just off the floor.","Push through your front heel to step back.","Alternate legs; reps are per leg."],"feel":"You should feel the front leg's thigh and glute working.","mistakes":[["Short step, front heel lifts","Step long enough to keep the heel planted."],["Front knee caving in","Keep the knee in line with your toes."],["Leaning far forward","Keep your shoulders stacked over your hips."]],"breathe":"Breathe in as you lower, out as you push back."},"db_walking_lunge":{"setup":"Hold a dumbbell in each hand at your sides. Find a clear, flat path of at least 20 feet.","steps":["Step forward 2–3 feet and lower your back knee for 2 seconds.","Stop just before the knee touches, chest tall.","Drive through your front heel and bring the back foot through.","Flow into the next lunge; reps are per leg."],"feel":"You should feel your thighs and glutes, with your grip and core holding steady.","mistakes":[["Wobbling side to side","Keep feet hip-width, like walking on train tracks."],["Stalling between steps","Step through smoothly into the next rep."]],"breathe":"Breathe in as you lower, out as you step through."},"db_reverse_lunge":{"setup":"Stand tall, feet hip-width, a dumbbell in each hand at your sides.","steps":["Step one foot back 2–3 feet onto the ball of that foot.","Drop the back knee for 2 seconds, chest leaning slightly forward.","Keep most of your weight in the front foot.","Drive through the front heel to return to standing."],"feel":"You should feel the front leg's glute and thigh, with less knee stress than a forward lunge.","mistakes":[["Weight shifting to the back leg","Keep about 80% of your weight in front."],["Front knee caving inward","Track the knee over your middle toes."]],"breathe":"Breathe in as you step back, out as you drive up."},"db_step_up":{"setup":"Hold a dumbbell in each hand facing a knee-height box. Place one whole foot flat on top.","steps":["Lean slightly forward over the box foot.","Drive through that foot to stand tall, hips fully locked out.","Lower for 2–3 seconds back to the floor.","Reps are per leg: finish all reps, then switch."],"feel":"You should feel the working leg's glute and thigh.","mistakes":[["Pushing off the back foot","Pull your back toes up so it can't help."],["Dropping down fast","Lower slowly, controlled by the top leg."]],"breathe":"Breathe out as you step up, in as you lower."},"smith_split_squat":{"setup":"Rest the Smith bar on your upper traps. Stagger your feet 2–3 feet apart, front foot slightly ahead of the bar.","steps":["Unhook the bar and stand tall, front shin near vertical.","Drop the back knee straight down for 2 seconds.","Drive up through your front foot.","Reps are per leg: finish all reps, then switch."],"feel":"You should feel the front leg's thigh and glute.","mistakes":[["Front foot too close to the bar","Move it forward so your shin stays vertical."],["Dropping fast into the bottom","Lower under control and pause briefly."]],"breathe":"Breathe in as you lower, out as you stand."},"bw_walking_lunge":{"setup":"Stand tall with hands on your hips. Find a clear, flat path of at least 20 feet.","steps":["Step forward about 2–3 feet.","Lower for 2 seconds until your back knee softly touches the floor.","Push through your front heel and bring the back foot forward.","Flow into the next step; reps are per leg."],"feel":"You should feel your thighs and glutes working.","mistakes":[["Slamming the back knee down","Lower slowly so the knee just brushes the floor."],["Leaning over the front leg","Keep your shoulders stacked over your hips."]],"breathe":"Breathe in as you lower, out as you step through."},"mach_leg_press":{"setup":"Set the seat so your knees can bend to about 90° or deeper. Back flat on the pad, feet shoulder-width mid-platform.","steps":["Release any lock and hold the side handles.","Let your knees bend for 2–3 seconds to about 90° or deeper.","Keep your lower back on the pad.","Press through your whole foot, stopping short of locked knees."],"feel":"You should feel your thighs and glutes, not your lower back.","mistakes":[["Lower back curling off the pad","Stop lowering just before your hips roll up."],["Locking the knees at the top","Keep a slight bend at the end."]],"breathe":"Breathe in as you lower, out as you press."},"mach_45_leg_press":{"setup":"Sit with back and hips flat on the pad, feet shoulder-width in the middle of the sled.","steps":["Press the sled up and turn the safety handles out.","Lower for 2–3 seconds, knees in line with your toes.","Stop before your hips roll up.","Press through your whole foot, knees soft at the top."],"feel":"You should feel your thighs and glutes, not your lower back.","mistakes":[["Hips rolling up at the bottom","Shorten the range or raise your feet slightly."],["Dropping the sled fast","Control the lowering for 2–3 seconds."]],"breathe":"Breathe in as it lowers, out as you press.","safety":"Never lock your knees, and lock the safety handles before getting out."},"mach_single_leg_press":{"setup":"On the leg press, center one foot on the platform and rest the other on the frame. Start around 40% of your two-leg weight.","steps":["Release the lock, knee soft.","Lower for 2–3 seconds as deep as you can with hips square.","Press through your whole foot, stopping short of lockout.","Reps are per leg; match reps on both sides."],"feel":"You should feel the working leg's thigh and glute.","mistakes":[["Hips twisting to one side","Keep both hips pressed evenly into the seat."],["Cutting range on the weaker leg","Use the same depth on both sides."]],"breathe":"Breathe in as you lower, out as you press."},"db_rdl":{"setup":"Stand feet hip-width, dumbbells in front of your thighs, palms facing you, knees slightly bent.","steps":["Push your hips straight back, eyes on the floor a few feet ahead.","Slide the weights down your legs for 2–3 seconds, back flat.","Stop when your hips stop moving back, usually near mid-shin.","Drive your hips forward and squeeze your glutes to stand."],"feel":"You should feel a deep hamstring stretch, not strain in your lower back.","mistakes":[["Bending the knees into a squat","Keep the same soft bend; move the hips back."],["Rounding your back to reach lower","Stop when the hips stop."]],"breathe":"Brace at the top; breathe out as you stand."},"bb_rdl":{"setup":"Stand tall holding the bar at hip height. Feet hip-width, hands just outside your thighs, knees soft.","steps":["Brace and set your shoulders back.","Push your hips back for 2–3 seconds, dragging the bar down your thighs.","Stop near mid-shin, or sooner if your back rounds.","Squeeze your glutes and drive your hips forward to stand."],"feel":"You should feel your hamstrings load, not your back.","mistakes":[["Bar drifting away from your legs","Keep it dragging on your thighs."],["Leaning back at the top","Stand tall with glutes squeezed and stop."]],"breathe":"Brace at the top; breathe out as you stand.","safety":"Keep a neutral spine; end the set if your back starts to round."},"db_sl_rdl":{"setup":"Stand on one leg, knee slightly bent, with a dumbbell in the opposite hand. Hold a wall with your free hand if needed.","steps":["Hinge forward as your free leg reaches straight back.","Lower for 2–3 seconds until you feel a deep hamstring stretch.","Keep your hips square, back toes pointing down.","Drive the standing hip forward to return. Reps are per leg."],"feel":"You should feel the standing leg's hamstring and glute.","mistakes":[["Hip twisting open","Point your back toes at the floor."],["Locking the standing knee","Keep a slight bend the whole time."]],"breathe":"Breathe in as you lower, out as you return."},"bb_good_morning":{"setup":"Unrack the bar onto your upper traps like a back squat. Feet hip-width, knees soft.","steps":["Brace and squeeze your shoulder blades together.","Push your hips back for 2–3 seconds as your torso tips forward.","Stop with your torso near parallel.","Drive your hips forward to stand."],"feel":"You should feel a big hamstring stretch, not a pinch in your back.","mistakes":[["Rounding your back to go lower","Stop higher; keep your spine neutral."],["Bending the knees into a squat","Keep a soft bend; move the hips back."]],"breathe":"Brace before you hinge; breathe out as you stand.","safety":"Keep the weight light, your spine neutral, and use a rack to unrack and rerack."},"cable_pull_through":{"setup":"Attach a rope to a low cable. Face away, hold the rope between your legs, and walk out 2–3 steps, feet wider than shoulders.","steps":["Stand tall with arms long.","Push your hips back for 2 seconds as the rope pulls through your legs.","Stop at a hamstring stretch, back flat.","Snap your hips forward and squeeze your glutes hard."],"feel":"You should feel your glutes and hamstrings, not your arms or lower back.","mistakes":[["Squatting instead of hinging","Keep shins nearly vertical; push hips back, not down."],["Pulling with your arms","Keep arms straight; your hips move the weight."]],"breathe":"Breathe in as you hinge, out as you snap forward."},"back_ext_45":{"setup":"Set the pad just below your hip bones so you can bend freely. Hook your heels, arms crossed or hugging a plate for load.","steps":["Start in a straight line from head to heels.","Lower your torso for 2–3 seconds to a hamstring stretch.","Round your upper back slightly for more glute work.","Squeeze your glutes to rise back to straight and pause 1 second."],"feel":"You should feel your glutes and hamstrings more than your lower back.","mistakes":[["Arching past straight at the top","Stop when your body forms a straight line."],["Swinging up fast","Rise with a slow, controlled squeeze."]],"breathe":"Breathe in as you lower, out as you rise."},"bb_hip_thrust":{"setup":"Sit with the bottom of your shoulder blades against a bench and a padded bar over your hip crease. Feet flat, shoulder-width.","steps":["Tuck your chin and pull your ribs down.","Drive through your heels until your torso is flat like a table.","Pause 1 second with shins vertical and glutes squeezed.","Lower for 2 seconds."],"feel":"You should feel your glutes, not your lower back or quads.","mistakes":[["Arching your lower back at the top","Keep ribs down; stop when your torso is flat."],["Feet too close or too far","Adjust until shins are vertical at the top."]],"breathe":"Brace at the bottom; breathe out as you lock out."},"mach_hip_thrust":{"setup":"Adjust the machine so the pad sits across your hip crease and your upper back rests on the back pad. Feet flat, shoulder-width.","steps":["Pull your ribs down.","Push through your heels to full hip lockout.","Pause 1 second and squeeze your glutes.","Lower under control for 2 seconds."],"feel":"You should feel your glutes, not your lower back.","mistakes":[["Stopping short of lockout","Drive up until your hips are fully straight."],["Arching your lower back","Keep ribs down; move at the hips."],["Pushing through your toes","Shift pressure to your heels."]],"breathe":"Breathe in at the bottom, out as you drive up."},"db_hip_thrust":{"setup":"Sit with the bottom of your shoulder blades against a bench. Rest one heavy dumbbell across your hip crease, feet flat, shoulder-width.","steps":["Tuck your chin and hold both ends of the dumbbell.","Drive through your heels until your torso is flat.","Pause 1 second and squeeze your glutes.","Lower for 2 seconds, hips just off the floor."],"feel":"You should feel your glutes working hard, not your lower back.","mistakes":[["Skipping the pause","Hold the top a full second every rep."],["Looking at the ceiling, back arched","Keep your chin tucked and eyes forward."]],"breathe":"Breathe in at the bottom, out as you lift."},"bw_glute_bridge":{"setup":"Lie on your back, knees bent, feet flat and hip-width, heels 6–8 inches from your glutes. Arms at your sides.","steps":["Pull your ribs down.","Squeeze your glutes to lift your hips until knees, hips, and shoulders line up.","Pause 1–2 seconds at the top.","Lower slowly for 2–3 seconds."],"feel":"You should feel your glutes and a little hamstring, not your lower back.","mistakes":[["Arching to lift higher","Stop when your body forms a straight line."],["Pushing through your toes","Drive through your heels; lift your toes slightly."]],"breathe":"Breathe out as you lift, in as you lower."},"cable_kickback":{"setup":"Strap one ankle to a low cable. Face the machine, step back 1–2 feet, and hold the frame with both hands.","steps":["Brace and hinge slightly forward.","Kick the leg back and slightly out, leading with your heel.","Squeeze your glute for 1 second.","Return over 2 seconds. Reps are per leg."],"feel":"You should feel the working glute, not your lower back.","mistakes":[["Arching your back to kick higher","Stop at full hip extension; keep ribs down."],["Swinging with momentum","Slow down and pause at the end."]],"breathe":"Breathe out as you kick, in as you return."},"mach_lying_leg_curl":{"setup":"Adjust the machine so your knees line up with its pivot and the pad sits just above your heels. Lie face down and hold the handles.","steps":["Press your hips into the pad.","Curl your heels toward your glutes as far as you can.","Squeeze 1 second at the top.","Lower for 3 seconds until your legs are nearly straight."],"feel":"You should feel the backs of your thighs, not your lower back.","mistakes":[["Hips lifting off the pad","Press hips down; lower the weight if needed."],["Dropping the weight fast","Take a full 3 seconds to lower."]],"breathe":"Breathe out as you curl, in as you lower."},"mach_seated_leg_curl":{"setup":"Set the back pad so your knees line up with the pivot. Lock the thigh pad snug on your lower thighs, lower pad above your heels.","steps":["Hold the handles and lean slightly forward.","Curl your heels down and back as far as you can.","Squeeze 1 second at the bottom.","Return over 3 seconds until your legs are nearly straight."],"feel":"You should feel the backs of your thighs.","mistakes":[["Thigh pad too loose","Lock it down so your thighs can't lift."],["Letting the weight snap back","Control the return for 3 seconds."]],"breathe":"Breathe out as you curl, in as you return."},"bw_nordic_curl":{"setup":"Kneel on a pad with your ankles anchored. Keep your body straight from knees to head, hands at your chest.","steps":["Squeeze your glutes to keep your hips straight.","Lean forward as slowly as you can, fighting the fall.","Catch yourself with your hands like a push-up.","Push off lightly and pull back up with your hamstrings."],"feel":"You should feel intense work in the backs of your thighs.","mistakes":[["Bending at the hips","Squeeze your glutes to stay in one straight line."],["Refusing to use your hands","Push off with your hands; that is normal early on."]],"breathe":"Breathe in before you lower, out as you pull up."},"mach_leg_ext":{"setup":"Set the back pad so your knees line up with the pivot. Set the shin pad just above your feet and hold the handles.","steps":["Sit tall against the back pad.","Straighten your legs fully.","Squeeze your quads for 1 second at the top.","Lower for 2–3 seconds to about 90°."],"feel":"You should feel the fronts of your thighs, not a pinch in your knees.","mistakes":[["Knees not lined up with the pivot","Move the back pad until they match."],["Swinging the weight up","Lift smoothly and pause at the top."]],"breathe":"Breathe out as you extend, in as you lower."},"mach_hip_adduction":{"setup":"Set the start width to a light inner-thigh stretch. Sit tall with the pads on the inside of your knees and hold the handles.","steps":["Brace your core, back against the pad.","Squeeze your knees together until the pads meet.","Hold the squeeze for 1 second.","Open slowly for 2–3 seconds to a full stretch."],"feel":"You should feel it along your inner thighs.","mistakes":[["Setting the start too wide","Start with a mild stretch, not a painful one."],["Letting the weight slam back","Control the opening for 2–3 seconds."]],"breathe":"Breathe out as you squeeze, in as you open."},"mach_hip_abduction":{"setup":"Sit with your legs together, pads on the outside of your knees, and hold the handles.","steps":["Lean your chest slightly forward to hit the side of your glutes.","Push your knees apart as far as you can.","Hold 1 second at the widest point.","Return slowly for 2–3 seconds."],"feel":"You should feel the upper outer glutes, near your back pockets.","mistakes":[["Letting the pads snap back","Control the return for 2–3 seconds."],["Rocking your body for momentum","Brace your core and keep your torso still."]],"breathe":"Breathe out as you push apart, in as you return."},"mach_standing_calf":{"setup":"Set the shoulder pads so you stand upright with knees slightly bent. Balls of your feet on the step edge, heels hanging off.","steps":["Lower your heels for 2 seconds into a deep stretch.","Pause 1–2 seconds at the bottom.","Rise as high as you can, pressing through your big toe.","Squeeze 1 second at the top."],"feel":"You should feel your calves, with a strong stretch at the bottom.","mistakes":[["Bouncing out of the bottom","Pause in the stretch before rising."],["Bending and straightening the knees","Keep knees soft but fixed; only ankles move."]],"breathe":"Breathe out as you rise, in as you lower."},"mach_seated_calf":{"setup":"Sit with the pad on your lower thighs, just above your knees. Balls of your feet on the platform edge, heels hanging off.","steps":["Push up slightly and release the safety lever.","Lower your heels for 2 seconds and pause 1–2 seconds in the stretch.","Rise as high as you can and squeeze.","Re-engage the lever after your last rep."],"feel":"You should feel your lower calves; the bent knee targets the soleus.","mistakes":[["Bouncing at the bottom","Pause fully in the stretch, then rise."],["Feet too far onto the platform","Keep only the balls of your feet on."]],"breathe":"Breathe out as you rise, in as you lower."},"db_single_calf":{"setup":"Stand on one foot with the ball of that foot on a step edge. Hold a dumbbell on that side and a rail with your other hand.","steps":["Lower your heel for 2–3 seconds into a deep stretch.","Pause 1 second at the bottom.","Rise as high as you can, then squeeze 1 second.","Reps are per leg: finish all reps, then switch."],"feel":"You should feel the working leg's calf.","mistakes":[["Balancing with no support","Hold a rail so you can focus on the calf."],["Rushing the reps","Take about 2 seconds up and 2 down."]],"breathe":"Breathe out as you rise, in as you lower."},"legpress_calf":{"setup":"Sit with legs straight but not locked and the balls of your feet on the platform's bottom edge.","steps":["Let your toes come back for 2 seconds into a stretch.","Pause 1 second at the bottom.","Press through the balls of your feet as far as you can.","Squeeze 1 second, then lower again."],"feel":"You should feel your calves, not your knees.","mistakes":[["Bending the knees to help","Keep knees straight but soft; only ankles move."],["Short, bouncy reps","Use full range with a pause in the stretch."]],"breathe":"Breathe out as you press, in as it returns.","safety":"Keep the safeties set so the sled can't drop if your feet slip."},"smith_calf":{"setup":"Put a sturdy plate under the Smith bar. Rest the bar on your upper traps with the balls of your feet on the plate.","steps":["Unhook the bar and stand tall, knees straight.","Lower your heels for 2 seconds and pause 1 second.","Rise as high as you can onto the balls of your feet.","Squeeze 1 second at the top."],"feel":"You should feel your calves, with a deep stretch at the bottom.","mistakes":[["Bending the knees to push up","Keep knees straight; only your ankles move."],["Feet slipping on the plate","Set your feet firmly before unhooking."]],"breathe":"Breathe out as you rise, in as you lower."},"bw_calf_raise":{"setup":"Stand with the balls of both feet on a step edge, heels hanging off. Lightly hold a rail for balance.","steps":["Lower your heels for 2–3 seconds into a stretch.","Rise as high as you can.","Pause 1–2 seconds at the top.","When 20 slow reps feel easy, hold a dumbbell."],"feel":"You should feel your calves, from the stretch to the top squeeze.","mistakes":[["Fast, bouncy reps","Slow down to 2–3 seconds each way."],["Using half the range","Drop the heels low and rise all the way."]],"breathe":"Breathe out as you rise, in as you lower."},"bb_bench":{"setup":"Lie with your eyes under the bar, feet flat. Grip just wider than shoulders and pinch your shoulder blades back and down.","steps":["Unrack and hold the bar over your shoulders.","Lower for 2 seconds to mid-chest, elbows about 45°.","Touch lightly; no bounce.","Drive your feet into the floor and press up and slightly back."],"feel":"You should feel your chest and triceps, not your shoulders.","mistakes":[["Elbows flared out to 90°","Tuck them to about 45° from your sides."],["Shoulder blades coming loose","Keep them pinched the whole set."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Use a spotter or set safety arms just below chest height."},"db_bench":{"setup":"Sit with the dumbbells on your thighs, lie back, and use your knees to lift them over your chest. Palms face your feet.","steps":["Lower for 2–3 seconds to the sides of your chest, elbows about 45°.","Feel a deep stretch at the bottom.","Press up and slightly together, stopping before they touch."],"feel":"You should feel your chest and triceps, not your front shoulders.","mistakes":[["Clanking the dumbbells at the top","Stop an inch or two apart."],["Elbows flaring straight out","Keep them about 45° from your body."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Finish by bringing the dumbbells to your chest and sitting up; don't drop them wide."},"mach_chest_press":{"setup":"Set the seat so the handles line up with mid-chest. Sit with your back flat on the pad, feet flat.","steps":["Grip the handles and pull your shoulders down.","Press until your arms are nearly straight.","Return for 2–3 seconds to a chest stretch.","Stop just before the stack touches, then press again."],"feel":"You should feel your chest and triceps, not your neck.","mistakes":[["Shrugging as you press","Keep shoulders down, away from your ears."],["Letting the weight slam back","Control the return for 2–3 seconds."]],"breathe":"Breathe out as you press, in as you return."},"smith_bench":{"setup":"Set a flat bench under the Smith bar so it lands on your mid-chest. Lie back, feet flat, shoulder blades pinched, grip just wider than shoulders.","steps":["Twist the bar to unhook it.","Lower for 2–3 seconds to mid-chest, elbows about 45°.","Touch lightly and press straight up.","Twist to re-hook after your last rep."],"feel":"You should feel your chest and triceps.","mistakes":[["Bench in the wrong spot","Test with an empty bar that it hits mid-chest."],["Shoulder blades loose","Pinch them back and down before unhooking."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Set the safety stops just below where the bar touches your chest."},"cable_chest_press":{"setup":"Set both pulleys at chest height. Grab a handle in each hand and step forward into a staggered stance, handles beside your chest.","steps":["Brace your core and lean slightly forward.","Press forward and slightly together until arms are nearly straight.","Squeeze your chest for 1 second.","Return for 2–3 seconds to a full stretch."],"feel":"You should feel your chest, with your core holding you steady.","mistakes":[["Getting pulled backward","Use a longer stagger and brace harder."],["Rushing the return","Control the handles back for 2–3 seconds."]],"breathe":"Breathe out as you press, in as you return."},"db_incline":{"setup":"Set the bench to 30°. Sit with the dumbbells on your thighs, lie back, and use your knees to lift them over your upper chest.","steps":["Pinch your shoulder blades back.","Lower for 2–3 seconds beside your upper chest, elbows under wrists.","Feel a big stretch at the bottom.","Press up and slightly together."],"feel":"You should feel your upper chest and front shoulders.","mistakes":[["Bench set steeper than 30°","Lower it; steeper shifts work to your shoulders."],["Wrists bending back","Stack wrists straight over your elbows."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Finish by bringing the dumbbells to your chest and sitting up; don't drop them wide."},"bb_incline":{"setup":"Set the bench to about 30° under the bar. Lie back with your eyes under the bar and grip just wider than shoulders.","steps":["Pinch your shoulder blades and unrack.","Lower for 2 seconds to just below your collarbone.","Keep your wrists stacked over your elbows.","Press straight up."],"feel":"You should feel your upper chest and front shoulders.","mistakes":[["Bar landing too low","Touch just below your collarbone."],["Butt lifting off the bench","Keep hips down; drive through your feet."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Use a spotter or set safety arms just below chest height."},"mach_incline_press":{"setup":"Set the seat so the handles line up with your upper chest. Sit with your back flat on the pad, feet flat.","steps":["Grip the handles, chest up, shoulders down.","Press up and out until arms are nearly straight.","Return for 2–3 seconds to a full stretch.","Stop just before the stack touches."],"feel":"You should feel your upper chest and front shoulders, not your neck.","mistakes":[["Shoulders shrugging up","Keep them down and back all set."],["Short, partial reps","Let the handles return to a full stretch."]],"breathe":"Breathe out as you press, in as you return."},"smith_incline":{"setup":"Set a bench at about 30° under the Smith bar so it lands on your upper chest. Lie back and grip just wider than shoulders.","steps":["Pinch your shoulder blades and twist to unhook.","Lower for 2–3 seconds to your upper chest, elbows about 45°.","Press straight up under control.","Twist to re-hook after your last rep."],"feel":"You should feel your upper chest and front shoulders.","mistakes":[["Bench in the wrong spot","Test with an empty bar that it hits your upper chest."],["Bouncing off your chest","Touch lightly and press smoothly."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Set the safety stops just below your chest first."},"landmine_press":{"setup":"Stand facing the anchor, feet hip-width in a slight stagger. Hold the loaded end of the bar at your chest with both hands.","steps":["Lean slightly into the bar and pull your ribs down.","Press up and forward until your arms are straight.","Squeeze your chest at lockout.","Lower for 2–3 seconds back to your chest."],"feel":"You should feel your upper chest and front shoulders, with your core bracing.","mistakes":[["Leaning back as you press","Lean into the bar and keep ribs down."],["Stopping short of lockout","Press until your arms are fully straight."]],"breathe":"Breathe out as you press, in as you lower."},"db_decline":{"setup":"Set a bench to a slight decline, about 15–30°, and hook your legs under the pads. Lie back with the dumbbells held at your chest.","steps":["Press the dumbbells up over your lower chest.","Lower for 2–3 seconds beside your lower chest, elbows about 45°.","Press up and slightly together.","Stop just before they touch."],"feel":"You should feel your lower chest and triceps.","mistakes":[["Lowering toward your upper chest","Aim the dumbbells at your lower chest."],["Bench too steep","Use a slight decline, 15–30°."]],"breathe":"Breathe in as you lower, out as you press.","safety":"Hold the dumbbells tight to your chest to lie back and sit up, or get a partner's help."},"cable_fly":{"setup":"Set both pulleys at shoulder height and grab a handle in each hand. Step forward into a staggered stance, elbows slightly bent.","steps":["Lean slightly forward and brace.","Hug your arms around in an arc until your hands meet at your chest.","Squeeze 1 second, same elbow bend.","Open for 2–3 seconds to a chest stretch."],"feel":"You should feel it across your chest, not in your biceps.","mistakes":[["Bending the elbows into a press","Set a slight bend and keep it."],["Opening too far back","Stop when your hands line up with your chest."]],"breathe":"Breathe out as your hands meet, in as you open."},"cable_low_high_fly":{"setup":"Set both pulleys at the bottom and grab a handle in each hand. Step forward into a staggered stance, arms low, elbows slightly bent.","steps":["Brace and keep your chest tall.","Sweep up and together, palms up, leading with your pinkies.","Stop when your hands meet at eye level; squeeze 1 second.","Lower for 2–3 seconds."],"feel":"You should feel your upper chest, not your front shoulders.","mistakes":[["Shrugging your shoulders up","Keep shoulders down; only your arms move."],["Turning it into a front raise","Bring your hands together across your body."]],"breathe":"Breathe out as you sweep up, in as you lower."},"mach_pec_deck":{"setup":"Set the seat so your elbows sit at mid-chest height with your forearms on the pads. Sit tall with your back flat on the pad.","steps":["Brace and keep your chest up.","Bring the pads together in front of your chest.","Squeeze for 1 second.","Open for 2–3 seconds to a chest stretch, stopping before the stack touches."],"feel":"You should feel it across your chest, not the front of your shoulders.","mistakes":[["Letting the stack slam","Stop the stretch just before the plates touch."],["Shoulders rolling forward","Keep your shoulder blades pinned back on the pad."]],"breathe":"Exhale as you squeeze, inhale as you open."},"db_fly":{"setup":"Lie on a flat bench, feet flat. Press the dumbbells over your chest, palms facing, elbows slightly bent.","steps":["Keep that slight elbow bend the whole rep.","Open wide in an arc for 2–3 seconds.","Stop at a comfortable stretch, elbows about bench height.","Hug the weights back up, like hugging a barrel."],"feel":"You should feel a stretch and squeeze across your chest, not a pinch in your shoulders.","mistakes":[["Bending your elbows more as you lower","Keep the same slight bend. It's a hug, not a press."],["Going too heavy","Use much lighter dumbbells than you press."]],"breathe":"Inhale as you open, exhale as you hug up."},"db_incline_fly":{"setup":"Set the bench to about 30 degrees. Sit back, feet flat, dumbbells over your upper chest, palms facing, elbows slightly bent.","steps":["Pin your shoulder blades back into the bench.","Open wide in an arc for 2–3 seconds, elbows fixed.","Stop at a firm stretch, elbows about bench level.","Squeeze back up and pause 1 second at the top."],"feel":"You should feel it in your upper chest, not your shoulder joints.","mistakes":[["Bench set too steep","Keep it near 30 degrees, or it becomes a shoulder move."],["Stretching until it hurts","Stretch, don't strain. Stop at a firm pull."]],"breathe":"Inhale on the way down, exhale as you squeeze up."},"bw_pushup":{"setup":"Start in a high plank, hands slightly wider than your shoulders, feet hip-width. Keep one straight line from head to heels.","steps":["Squeeze your glutes and brace your abs.","Lower for 2 seconds, elbows about 45 degrees from your body.","Touch your chest to the floor first.","Press the floor away to straight arms."],"feel":"You should feel it in your chest, triceps, and front shoulders, not your lower back.","mistakes":[["Hips sagging","Squeeze glutes and abs to hold a straight line."],["Elbows flared straight out","Tuck them to about 45 degrees from your sides."]],"breathe":"Inhale on the way down, exhale as you press."},"bw_deficit_pushup":{"setup":"Set two plates or push-up handles a little wider than your shoulders. Put your hands on them in a straight plank, feet hip-width.","steps":["Brace your abs and squeeze your glutes.","Lower for 2–3 seconds, elbows about 45 degrees.","Let your chest drop 1–3 inches below your hands.","Pause briefly, then press up to straight arms."],"feel":"You should feel a deeper chest stretch than a normal push-up, with no shoulder pinch.","mistakes":[["Going too deep too soon","Start with a 1–2 inch deficit and add height over weeks."],["Wobbly hand supports","Use stable plates or handles on a non-slip floor."]],"breathe":"Inhale as you lower, exhale as you press."},"bw_chest_dip":{"setup":"Grip parallel bars about shoulder-width apart. Step up to straight arms, cross your ankles, and lean forward about 30 degrees.","steps":["Keep the lean and let your elbows flare slightly.","Lower for 2–3 seconds until your shoulders are just below your elbows.","Press through your palms back to straight arms."],"feel":"You should feel it in your lower chest and triceps, not your shoulders.","mistakes":[["Staying too upright","Lean forward and look at the floor ahead."],["Sinking too deep","Stop when your shoulders are just below your elbows."]],"breathe":"Inhale on the way down, exhale as you press.","safety":"Use assisted dips until you can do 5 slow reps, and never bounce at the bottom."},"assisted_chest_dip":{"setup":"Set the assistance; more weight makes it easier. Grip the handles and kneel on the pad with your arms straight.","steps":["Lean your chest forward about 30 degrees.","Lower for 2–3 seconds until you feel a chest stretch.","Press back up to straight arms."],"feel":"You should feel it in your lower chest and triceps, not your shoulders.","mistakes":[["Staying straight up and down","Lean forward about 30 degrees to load your chest."],["Never lowering the assistance","Drop it a notch once you hit your top rep target."]],"breathe":"Inhale as you lower, exhale as you press.","safety":"Get on and off only with straight arms, and stop any rep that pinches your shoulder."},"db_lying_tri_ext":{"setup":"Lie on a flat bench, feet flat. Hold the dumbbells straight over your shoulders, palms facing each other.","steps":["Lock your upper arms in place.","Bend only your elbows to lower the weights beside your head for 2–3 seconds.","Stop at a deep stretch in the back of your arms.","Straighten to lockout and squeeze for 1 second."],"feel":"You should feel it in the back of your upper arms, not sharp pain in your elbows.","mistakes":[["Upper arms swinging","Keep your upper arms still. Only your forearms move."],["Elbows flaring out","Keep elbows pointing up, about shoulder-width apart."]],"breathe":"Inhale as you lower, exhale as you straighten."},"ez_skullcrusher":{"setup":"Lie on a flat bench. Grip the EZ-bar on its inner angles and hold it over your chest.","steps":["Tilt your arms back slightly, about 10–15 degrees.","Bend only your elbows to lower the bar toward your forehead for 2–3 seconds.","Stop 1–2 inches above your forehead, then extend back up."],"feel":"You should feel it in the back of your arms, not your elbows.","mistakes":[["Elbows flaring out","Keep elbows in, pointing up and slightly back."],["Upper arms moving","Keep them still. Only bend at the elbows."]],"breathe":"Inhale as you lower, exhale as you press.","safety":"The bar passes over your face, so start light and use a spotter as it gets heavier."},"mach_tri_ext":{"setup":"Set the seat so your upper arms lie flat on the pad and your elbows line up with the machine's pivot.","steps":["Grab the handles and keep your elbows planted.","Extend until your arms are fully straight.","Squeeze for 1 second.","Return slowly for 2–3 seconds to a full bend."],"feel":"You should feel it in the back of your upper arms, not your shoulders.","mistakes":[["Elbows lifting off the pad","Keep them pressed down. Lighten the weight if they lift."],["Letting the weight snap back","Return for 2–3 seconds without the plates touching."]],"breathe":"Exhale as you push, inhale on the way back."},"cable_cross_ext":{"setup":"Set both pulleys high. Take the left cable in your right hand and the right cable in your left, and stand tall in the middle.","steps":["Raise your elbows to shoulder height, hands near your face.","Keep your elbows fixed and straighten your arms out wide.","Lock out and squeeze for 1 second, arms in a T.","Let your hands cross back slowly for 2–3 seconds."],"feel":"You should feel it in the back of your upper arms, not your shoulders.","mistakes":[["Elbows dropping below shoulder height","Keep your elbows level with your shoulders all set."],["Rushing the return","Take 2–3 seconds to come back."]],"breathe":"Exhale as you extend, inhale as you return."},"cable_pushdown_rope":{"setup":"Attach a rope to a high pulley. Stand close, feet hip-width, palms facing each other, elbows bent 90 degrees at your sides.","steps":["Pin your elbows to your sides with a slight forward lean.","Push down until your arms are straight.","Pull the rope ends apart and squeeze for 1 second.","Let your hands rise for 2–3 seconds to just above parallel."],"feel":"You should feel it in the back of your upper arms only.","mistakes":[["Elbows drifting forward","Keep your elbows glued to your sides."],["Leaning over to push","Stand tall with only a slight lean."]],"breathe":"Exhale as you push down, inhale as you return."},"cable_pushdown_bar":{"setup":"Attach a straight bar to a high pulley. Stand close, feet hip-width, overhand grip about shoulder-width, elbows at your sides.","steps":["Stand tall with a small lean and elbows pinned.","Push down until your arms are fully straight.","Squeeze for 1 second.","Let the bar rise for 2–3 seconds to just above parallel."],"feel":"You should feel it in the back of your upper arms, not your shoulders.","mistakes":[["Leaning over the bar","Stand tall. Don't push with your bodyweight."],["Letting the bar fly up","Control it up with your elbows still."],["Stopping short of lockout","Straighten your arms fully every rep."]],"breathe":"Exhale as you push, inhale on the way up."},"cable_single_pushdown":{"setup":"Attach a single handle to a high pulley. Grip it palm up, elbow bent 90 degrees and tucked at your side.","steps":["Stand tall, elbow against your ribs.","Push down until your arm is straight.","Squeeze for 1 second.","Let it rise for 2–3 seconds. Reps are per arm, so finish one side, then switch."],"feel":"You should feel it in the back of your upper arm, plus some forearm.","mistakes":[["Elbow drifting off your side","Keep it tucked. Lighten the weight if it moves."],["Wrist bending back","Keep your wrist straight, in line with your forearm."]],"breathe":"Exhale as you push, inhale as you return."},"cable_overhead_ext":{"setup":"Attach a rope to a high pulley. Face away with the rope behind your head, elbows pointing forward, in a staggered stance.","steps":["Keep your elbows forward, about head-width apart.","Straighten your arms forward and up to lockout.","Squeeze for 1 second.","Return behind your head for 2–3 seconds into a big stretch."],"feel":"You should feel a strong stretch and squeeze in the back of your arms.","mistakes":[["Elbows flaring out wide","Keep them pointing forward, head-width apart."],["Arching your lower back","Tighten your abs and keep your ribs down."],["Cutting the stretch short","Let your hands go all the way back."]],"breathe":"Exhale as you extend, inhale as you return."},"db_overhead_ext":{"setup":"Sit on a bench with back support, or stand. Hold one dumbbell overhead, both palms cupped under the top plate, arms straight.","steps":["Pull your ribs down and brace.","Keep your elbows in and lower the weight behind your head for 2–3 seconds.","Stop at a full stretch, then press back overhead."],"feel":"You should feel a deep stretch in the back of your arms, not your lower back.","mistakes":[["Elbows flaring out","Keep your elbows close to your head, pointing up."],["Arching your lower back","Ribs down, abs tight. Back support helps."]],"breathe":"Inhale as you lower, exhale as you press."},"db_kickback":{"setup":"Hold a light dumbbell in each hand. Hinge forward about 45 degrees, back flat, upper arms along your torso, elbows bent 90 degrees.","steps":["Freeze your upper arms at your sides.","Extend the dumbbells back until your arms are straight.","Squeeze for 1 second.","Lower for 2 seconds back to 90 degrees."],"feel":"You should feel a sharp squeeze in the back of your arms at lockout.","mistakes":[["Swinging the weight","Go lighter and keep your upper arms frozen."],["Upper arms dropping","Keep them parallel to your torso the whole rep."],["Rounding your back","Hinge at your hips with a flat back."]],"breathe":"Exhale as you extend, inhale as you lower."},"bb_close_grip_bench":{"setup":"Lie on a flat bench, eyes under the bar, feet flat. Grip just inside shoulder-width, pinch your shoulder blades, and unrack.","steps":["Keep your wrists straight, stacked over your elbows.","Lower for 2–3 seconds, elbows tucked.","Touch your lower chest lightly.","Press up until your arms are straight over your shoulders."],"feel":"You should feel it mostly in your triceps, with some chest.","mistakes":[["Grip too narrow","Keep hands just inside shoulder-width, not touching."],["Elbows flaring out","Tuck them about 30–45 degrees from your sides."]],"breathe":"Inhale and hold going down, exhale near the top.","safety":"Set safety arms just below chest height or use a spotter, and wrap your thumbs around the bar."},"jm_press":{"setup":"Lie on a flat bench, feet flat. Grip a light bar about shoulder-width and unrack to straight arms.","steps":["Point your elbows toward your feet.","Lower toward your chin for 2–3 seconds, letting your elbows drift forward.","Stop 2–3 inches above your chin.","Press back up the same path."],"feel":"You should feel it mostly in your triceps. Sharp elbow pain means go lighter.","mistakes":[["Going too heavy","Start well under your close-grip bench weight."],["Elbows flaring out","Keep your elbows pointed toward your feet."]],"breathe":"Inhale as you lower, exhale as you press.","safety":"The bar travels near your face, so use a spotter or safety arms set just below its lowest point."},"bw_diamond_pushup":{"setup":"Start in a high plank, feet hip-width. Put your hands together under your chest, thumbs and index fingers forming a diamond.","steps":["Brace your abs and squeeze your glutes.","Lower for 2 seconds, elbows brushing your ribs.","Stop when your chest nearly touches your hands.","Press up to straight arms."],"feel":"You should feel it mostly in your triceps, with some chest.","mistakes":[["Elbows flaring out wide","Keep them close enough to brush your ribs."],["Hips sagging","Squeeze glutes and abs to stay straight, head to heels."],["Can't do full reps","Drop to your knees and keep the full range."]],"breathe":"Inhale as you lower, exhale as you press."},"bw_bench_dip":{"setup":"Sit on the edge of a sturdy bench, hands by your hips. Slide your hips off, knees bent 90 degrees, feet flat.","steps":["Stay an inch or two from the bench.","Bend your elbows straight back for 2 seconds.","Stop at a 90-degree elbow bend.","Press through your palms to straight arms."],"feel":"You should feel it in the back of your arms, not your shoulders.","mistakes":[["Drifting away from the bench","Stay close enough to nearly brush it."],["Elbows flaring out","Point your elbows straight back."]],"breathe":"Inhale as you lower, exhale as you press.","safety":"Never go past 90 degrees, and end the set if the front of your shoulder pinches."},"mach_seated_dip":{"setup":"Set the seat so the handles sit about level with your lower chest. Sit tall, back on the pad, feet flat.","steps":["Grab the handles, chest up, shoulders down.","Push down until your arms are fully straight.","Squeeze for 1 second.","Let the handles rise for 2–3 seconds until your elbows are about 90 degrees."],"feel":"You should feel it mostly in the back of your arms, with some chest.","mistakes":[["Leaning forward over the handles","Sit upright with your back on the pad."],["Shrugging your shoulders up","Press your shoulders down, away from your ears."]],"breathe":"Exhale as you push, inhale as you return."},"assisted_tri_dip":{"setup":"Set the assistance; more weight makes it easier. Grip the handles and kneel on the pad, arms straight, torso upright.","steps":["Stay upright with your elbows pointing straight back.","Lower for 2–3 seconds to about a 90-degree elbow bend.","Press through your palms to straight arms and squeeze."],"feel":"You should feel it in the back of your arms, not your shoulders.","mistakes":[["Leaning forward","Stay upright so your triceps do the work."],["Never lowering the assistance","Drop it a notch once you hit your top rep target."]],"breathe":"Inhale on the way down, exhale as you press.","safety":"Get on and off only with straight arms, and never go deeper than 90 degrees."},"bb_deadlift":{"setup":"Feet hip-width, bar over mid-foot. Hinge and grip just outside your legs, shins on the bar.","steps":["Chest up, lats tight, pull the slack out.","Brace and push the floor away, bar on your legs.","Stand tall. Don't lean back.","Hips back to lower; bend your knees after the bar passes them."],"feel":"You should feel your glutes, hamstrings, and back working, with no sharp pain.","mistakes":[["Bar drifting forward","Keep it touching your shins and thighs."],["Jerking it off the floor","Pull the slack out first, then push."]],"breathe":"Big belly breath and hold it; exhale at the top.","safety":"Keep a neutral spine and end the set when your back starts to round."},"trap_bar_deadlift":{"setup":"Stand centered in the hex bar, feet hip-width. Hinge down and grab the middle of the handles.","steps":["Chest up, back flat, hips a bit higher than knees.","Take a big breath and brace hard.","Push the floor away so hips and shoulders rise together.","Squeeze your glutes at the top, then lower under control."],"feel":"You should feel it in your glutes, quads, and hamstrings.","mistakes":[["Hips shooting up first","Push through your whole foot so everything rises together."],["Leaning back at the top","Stand straight and squeeze your glutes."]],"breathe":"Inhale and brace before each rep, exhale at the top.","safety":"Keep a neutral spine and stop the set if your back rounds."},"bb_rack_pull":{"setup":"Set the pins so the bar sits at knee height. Stand close, feet hip-width, and grip just outside your thighs.","steps":["Hinge with a flat back and chest up.","Tighten your lats and brace.","Drive your hips forward to stand tall.","Squeeze 1 second, then hinge back to lower to the pins."],"feel":"You should feel it in your upper back, glutes, and lower back.","mistakes":[["Hitching the bar up your thighs","Pull in one smooth motion; go lighter if needed."],["Leaning back at lockout","Stand straight and squeeze your glutes."]],"breathe":"Inhale and brace at the bottom, exhale at the top.","safety":"Keep a neutral spine and don't drop the bar from the top."},"db_deadlift":{"setup":"Stand hip-width with a dumbbell in each hand at your sides or in front of your thighs.","steps":["Brace and push your hips back, bending your knees.","Lower the weights close to your legs to mid-shin, back flat.","Drive through your feet to stand tall.","Squeeze your glutes at the top."],"feel":"You should feel it in your glutes and hamstrings, not your lower back.","mistakes":[["Rounding at the bottom","Stop where you can still keep a flat back."],["Pulling with your arms","Keep arms straight like hooks. Drive with your hips."]],"breathe":"Inhale and brace as you lower, exhale as you stand.","safety":"Keep a neutral spine; if your back rounds, go lighter."},"sumo_deadlift":{"setup":"Wide stance, toes out 30–45 degrees, bar over mid-foot and touching your shins. Grip shoulder-width, hands inside your knees.","steps":["Push your knees out, hips close to the bar.","Chest up, lats tight, pull the slack out.","Brace and push the floor apart to stand up.","Squeeze your glutes at the top, then lower straight down."],"feel":"You should feel it in your glutes and inner thighs.","mistakes":[["Knees caving in","Push your knees out over your toes."],["Hips too high at the start","Sit your hips down close to the bar."]],"breathe":"Brace before you pull, exhale at the top.","safety":"Keep a neutral spine and lighten the load if your back rounds."},"mach_back_ext":{"setup":"Set the seat so the back pad sits below your shoulder blades. Feet on the platform, belt on if there is one, arms crossed.","steps":["Brace your abs and sit tall.","Push back for 1–2 seconds until your body is straight.","Squeeze your glutes for 1 second. Don't lean past straight.","Return for 2–3 seconds."],"feel":"You should feel it in your lower back and glutes, with some hamstrings.","mistakes":[["Leaning back past upright","Stop when your body is straight."],["Using momentum","Move slowly: 2 seconds back, 2–3 seconds forward."],["Starting too heavy","Begin light and add weight only when reps feel smooth."]],"breathe":"Exhale as you extend, inhale as you return."},"cable_seated_row":{"setup":"Attach a V-handle. Sit with feet on the platform, knees slightly bent, and scoot back until your arms are straight.","steps":["Sit tall, chest up.","Pull the handle to your belly button, elbows close.","Squeeze your shoulder blades for 1 second.","Let your arms stretch forward for 2–3 seconds, torso still."],"feel":"You should feel it in your mid-back and lats, not mostly your biceps.","mistakes":[["Rocking back and forth","Keep your torso still. Lighten the weight if you swing."],["Shrugging your shoulders","Keep your shoulders down, away from your ears."],["Rounding forward at the stretch","Reach with your arms but keep your chest up."]],"breathe":"Exhale as you pull, inhale as you return."},"bb_bent_row":{"setup":"Grip the bar overhand just outside your thighs, feet hip-width. Soften your knees and hinge to about 45 degrees.","steps":["Brace with a flat back, eyes on the floor a few feet ahead.","Row the bar to your lower ribs.","Squeeze your shoulder blades for 1 second.","Lower for 2 seconds without changing your hinge."],"feel":"You should feel it in your mid-back and lats.","mistakes":[["Jerking the weight up","Pull smoothly with no body swing."],["Standing up as you pull","Hold your 45-degree hinge the whole set."]],"breathe":"Inhale and brace, exhale as the bar touches.","safety":"Keep a neutral spine and set the bar down once you can't hold your hinge."},"bb_pendlay_row":{"setup":"Bar over mid-foot. Hinge until your torso is about parallel to the floor, and grip overhand just wider than shoulder-width.","steps":["Flatten your back and brace.","Pull the bar explosively to your lower chest.","Lower it to the floor with control.","Let it stop dead, then reset before the next rep."],"feel":"You should feel it in your mid-back and lats.","mistakes":[["Torso rising as you pull","Keep your back parallel to the floor. Go lighter."],["Bouncing off the floor","Let the bar settle to a full stop."]],"breathe":"Inhale and brace at the floor, exhale after the pull.","safety":"Keep a neutral spine and lower the weight if your back starts to round."},"db_one_arm_row":{"setup":"Put your left hand and knee on a flat bench, right foot on the floor. Hold the dumbbell in your right hand, back flat.","steps":["Brace and keep your shoulders square to the floor.","Row the dumbbell toward your hip.","Squeeze for 1 second.","Lower for 2–3 seconds to a full stretch. Reps are per arm; then switch sides."],"feel":"You should feel it in your lat, along the side of your back.","mistakes":[["Twisting to lift the weight","Keep shoulders square. Lighten the weight if you rotate."],["Pulling to your chest","Aim your elbow toward your back pocket."]],"breathe":"Exhale as you row, inhale as you lower."},"db_chest_supported_row":{"setup":"Set a bench to 30–45 degrees. Lie face down, chest on the pad, feet on the floor, dumbbells hanging straight down.","steps":["Keep your chest pressed into the pad.","Row both dumbbells, driving your elbows back.","Squeeze your shoulder blades for 1 second.","Lower for 2–3 seconds to a full stretch."],"feel":"You should feel it in your mid-back, between your shoulder blades.","mistakes":[["Chest lifting off the pad","Keep your chest down. Go lighter if you rise."],["Shrugging your shoulders","Pull your elbows back, not your shoulders up."],["Dropping the weights fast","Take 2–3 seconds to lower."]],"breathe":"Exhale as you row, inhale as you lower."},"mach_row":{"setup":"Set the seat so the handles line up with mid-chest. Set the chest pad so you can just reach the handles with straight arms.","steps":["Sit tall with your chest on the pad.","Pull your elbows back until your hands reach your sides.","Squeeze your shoulder blades for 1 second.","Return for 2–3 seconds to a full stretch."],"feel":"You should feel it in your mid-back and lats.","mistakes":[["Chest leaving the pad","Keep your chest planted. Use less weight."],["Short, choppy reps","Let your arms reach all the way forward."],["Shrugging your shoulders","Keep your shoulders down and drive your elbows back."]],"breathe":"Exhale as you pull, inhale as you return."},"tbar_row":{"setup":"Load plates on a landmine bar. Straddle it, hook a V-handle under the bar near the plates, and hinge to about 45 degrees.","steps":["Brace with a flat back, eyes on the floor ahead.","Row the handle to your chest.","Squeeze your shoulder blades for 1 second.","Lower for 2 seconds without the plates touching down."],"feel":"You should feel it in your mid-back and lats.","mistakes":[["Bouncing with your legs","Hold your hinge and pull with your back."],["Standing taller each rep","Keep the same 45-degree hinge all set."]],"breathe":"Inhale and brace, exhale at the top.","safety":"Keep a neutral spine and set the bar down if your lower back rounds."},"cable_single_row":{"setup":"Attach a single handle at about chest height. Stand tall in a staggered stance, arm straight, with tension on the cable.","steps":["Reach long, letting your torso turn slightly.","Row toward your hip, turning square as you pull.","Squeeze 1 second with your elbow at your side.","Return for 2–3 seconds to a long reach. Reps are per arm."],"feel":"You should feel it in the lat along the side of your back.","mistakes":[["Pulling to your chest","Drive your elbow toward your hip."],["Twisting too much","Allow only a slight turn. Hips stay still."],["Slouching","Stand tall with your chest up."]],"breathe":"Exhale as you row, inhale as you reach."},"bw_inverted_row":{"setup":"Set a bar in a rack at about waist height. Lie under it, grip overhand a bit wider than your shoulders, heels on the floor.","steps":["Squeeze glutes and abs so your body is straight.","Pull your chest to the bar.","Squeeze your shoulder blades for 1 second.","Lower for 2 seconds to straight arms."],"feel":"You should feel it in your mid-back and lats, with some biceps.","mistakes":[["Hips sagging","Squeeze glutes and abs to stay straight."],["Chin reaching for the bar","Keep your head neutral and lead with your chest."],["Can't finish your reps","Raise the bar or bend your knees."]],"breathe":"Exhale as you pull, inhale as you lower."},"cable_lat_pulldown":{"setup":"Set the thigh pad snug with feet flat. Grip the bar overhand, a little wider than your shoulders, and sit with arms straight.","steps":["Lean back 10–15 degrees, chest up.","Drive your elbows to your back pockets, bar to your upper chest.","Squeeze for 1 second.","Let the bar rise for 2–3 seconds to a full stretch."],"feel":"You should feel it in your lats, along the sides of your back.","mistakes":[["Leaning way back","Keep a slight lean. Lighten the weight."],["Pulling behind your neck","Always pull to your upper chest."],["Cutting off the stretch","Let your arms go fully straight at the top."]],"breathe":"Exhale as you pull, inhale as it rises."},"cable_close_pulldown":{"setup":"Attach a V-handle. Set the thigh pad snug, grab the handle with palms facing, and sit with arms straight.","steps":["Lift your chest and lean back slightly.","Pull to your upper chest, elbows tight to your sides.","Squeeze your lats for 1 second.","Let it rise for 2–3 seconds to a full stretch."],"feel":"You should feel it in your lats, low on your back near your ribs.","mistakes":[["Elbows flaring out","Keep your elbows tight to your sides."],["Rounding forward","Keep your chest up."],["Yanking the weight down","Pull smoothly and control the way up."]],"breathe":"Exhale as you pull, inhale as you return."},"cable_single_pulldown":{"setup":"Attach a single handle to a high cable. Sit or kneel facing it, one hand on the handle, arm straight overhead.","steps":["Let the cable stretch your arm up.","Pull your elbow down to your side, toward your hip.","Squeeze for 1 second.","Let it rise over 3 seconds. Reps are per arm; then switch."],"feel":"You should feel it in the lat along the side of your back.","mistakes":[["Pulling with your biceps","Drive your elbow down; don't curl the handle."],["Leaning away from the cable","Stay tall and square, abs braced."],["Rushing the reps","Pull in 1 second, lower in 3."]],"breathe":"Exhale as you pull, inhale as you reach up."},"mach_pulldown":{"setup":"Set the seat and thigh pad so your legs are snug and you can just reach the handles.","steps":["Grab the handles, chest up, shoulders down.","Drive your elbows down and back until your hands reach upper-chest height.","Squeeze for 1 second.","Let the handles rise for 2–3 seconds to a full stretch."],"feel":"You should feel it in your lats, along the sides of your back.","mistakes":[["Shrugging your shoulders up","Start each rep by pulling your shoulders down."],["Short range of motion","Go from a full stretch to chest height."],["Leaning back to pull","Sit tall. Lighten the weight if you swing."]],"breathe":"Exhale as you pull, inhale as you return."},"bw_pullup":{"setup":"Grab the bar overhand, hands a little wider than your shoulders. Hang with straight arms, feet off the floor, legs still.","steps":["Start from a dead hang.","Pull your shoulders down, then drive your elbows toward your ribs.","Pull until your chin clears the bar and your chest nears it.","Lower for 2–3 seconds to straight arms."],"feel":"You should feel it in your lats and upper back, with your biceps helping.","mistakes":[["Kicking or swinging","Keep legs still and abs tight. No kipping."],["Half reps","Straighten your arms fully at the bottom."],["Craning your chin up","Keep your neck neutral; pull your chest up."]],"breathe":"Exhale as you pull, inhale as you lower."},"bw_chinup":{"setup":"Grab the bar underhand, palms facing you, hands shoulder-width. Hang with straight arms and feet off the floor.","steps":["Start from a full hang and brace your abs.","Pull your shoulders down, then pull your elbows to your sides.","Get your chin over the bar and squeeze for 1 second.","Lower for 2–3 seconds to straight arms."],"feel":"You should feel it in your lats and biceps.","mistakes":[["Swinging your legs","Keep your legs still and abs tight."],["Stopping short at the top","Pull until your chin clears the bar."],["Dropping fast","Lower for 2–3 seconds to a full hang."]],"breathe":"Exhale as you pull, inhale as you lower."},"assisted_pullup":{"setup":"Set the assistance; more weight makes it easier. Grab the top handles overhand and kneel on the pad, arms straight.","steps":["Chest up, shoulders pulled down.","Drive your elbows toward your ribs until your chin is over the handles.","Squeeze for 1 second.","Lower for 2–3 seconds to straight arms."],"feel":"You should feel it in your lats, with your biceps and mid-back helping.","mistakes":[["Half reps","Go from straight arms to chin over the handles."],["Never lowering the assistance","Drop it a notch once you hit your top rep target."],["Rounding forward","Keep your chest up."]],"breathe":"Exhale as you pull, inhale as you lower."},"cable_straight_pulldown":{"setup":"Attach a bar or rope to a high cable. Grab it with straight arms, step back 2–3 feet, and hinge forward about 20–30 degrees.","steps":["Keep a soft, fixed bend in your elbows.","Sweep the bar down in an arc to your thighs.","Squeeze your lats for 1 second.","Let it rise for 2–3 seconds to a stretch under your armpits."],"feel":"You should feel it in your lats, not your triceps.","mistakes":[["Bending your elbows","Keep your arms straight. It's a sweep, not a pushdown."],["Swinging your body","Keep your torso still. Only your arms move."]],"breathe":"Exhale as you sweep down, inhale as it rises."},"db_pullover":{"setup":"Lie across a flat bench, upper back on it, feet flat, hips a bit low. Hold one dumbbell over your chest with both hands.","steps":["Pull your ribs down and brace.","With a slight elbow bend, lower the dumbbell behind your head for 2–3 seconds.","Stop at a lat stretch, arms about in line with your body.","Pull it back over your chest."],"feel":"You should feel a stretch in your lats and chest, not your lower back.","mistakes":[["Back arching as you lower","Keep your ribs down and abs tight."],["Bending and straightening your elbows","Keep the same slight bend the whole rep."]],"breathe":"Inhale as you lower, exhale as you pull over."},"db_shrug":{"setup":"Stand tall, feet hip-width, a dumbbell in each hand at your sides, palms in, arms straight.","steps":["Let your shoulders hang for a full stretch.","Shrug straight up toward your ears.","Pause and squeeze for 1–2 seconds.","Lower for 2 seconds back to a full stretch."],"feel":"You should feel it in your traps, at the top of your shoulders.","mistakes":[["Rolling your shoulders","Move straight up and straight down only."],["Bending your elbows","Keep your arms straight like ropes."],["Short, bouncy reps","Pause at the top and lower all the way."]],"breathe":"Exhale as you shrug, inhale as you lower."},"bb_shrug":{"setup":"Set the bar in a rack at hip height. Grip overhand just outside your thighs, lift it off, and step back.","steps":["Stand tall, arms straight, shoulders hanging.","Shrug straight up toward your ears.","Pause and squeeze for 1–2 seconds.","Lower for 2 seconds to a full stretch."],"feel":"You should feel it in your traps, with your forearms gripping hard.","mistakes":[["Rolling your shoulders","Move straight up and down only."],["Grip giving out first","Use lifting straps so your traps finish the set."]],"breathe":"Exhale as you shrug, inhale as you lower.","safety":"Take the bar from rack hooks at hip height so you never lift it off the floor."},"db_curl":{"setup":"Stand tall, feet hip-width, a dumbbell in each hand at your sides, palms forward.","steps":["Pin your elbows to your sides.","Curl up without swinging until your forearms are near vertical.","Squeeze for 1 second.","Lower for 3 seconds to straight arms."],"feel":"You should feel it in the front of your upper arms, not your shoulders or back.","mistakes":[["Swinging with your hips","Stand still and use a weight you can curl strictly."],["Elbows drifting forward","Keep your elbows at your sides the whole rep."],["Dropping the weight fast","Lower for a slow 3-count."]],"breathe":"Exhale as you curl, inhale as you lower."},"bb_curl":{"setup":"Stand tall, feet hip-width. Grip the bar underhand at shoulder-width, arms straight, bar against your thighs.","steps":["Brace your abs and pin your elbows to your sides.","Curl until your forearms are near vertical.","Squeeze for 1 second.","Lower for 2–3 seconds to straight arms."],"feel":"You should feel it in your biceps, with some forearms.","mistakes":[["Using hip drive to swing","Squeeze your glutes and stand still. Go lighter."],["Elbows moving forward","Keep your elbows pinned at your sides."],["Leaning back at the top","Stay tall; stop when forearms are near vertical."]],"breathe":"Exhale as you curl, inhale as you lower."},"ez_curl":{"setup":"Stand tall, feet hip-width. Grip the EZ-bar on the angled parts, palms up and slightly turned in.","steps":["Pin your elbows at your sides.","Curl until your forearms are near vertical.","Squeeze for 1 second.","Lower for 2–3 seconds to straight arms."],"feel":"You should feel it in your biceps, with less wrist strain than a straight bar.","mistakes":[["Gripping the straight part","Hold the angled bends so your wrists stay comfortable."],["Elbows drifting forward","Keep your elbows fixed at your sides."],["Swinging the weight","Stand still. Go lighter if you need momentum."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_incline_curl":{"setup":"Set a bench to 45–60 degrees. Sit back with head and back on the pad, arms hanging straight down, palms forward.","steps":["Let your arms hang for a big stretch.","Curl up without moving your upper arms.","Squeeze for 1 second.","Lower for 3 seconds to straight arms."],"feel":"You should feel a deep stretch and squeeze in your biceps.","mistakes":[["Upper arms swinging forward","Keep them hanging straight down. Only your forearms move."],["Shoulders rolling off the pad","Keep your back and shoulders on the bench."],["Going too heavy","Use lighter dumbbells than your normal curls."]],"breathe":"Exhale as you curl, inhale as you lower."},"cable_curl":{"setup":"Attach a straight bar to a low pulley. Grip underhand at shoulder-width and stand tall close to the machine.","steps":["Pin your elbows to your sides.","Curl until your forearms are near vertical.","Squeeze for 1 second.","Lower for 2–3 seconds, keeping tension at the bottom."],"feel":"You should feel steady tension in your biceps from bottom to top.","mistakes":[["Elbows drifting forward","Keep your elbows fixed at your sides."],["Leaning back to lift","Stand tall. Go lighter if you lean."],["Letting the stack rest","Stop just before the plates touch."]],"breathe":"Exhale as you curl, inhale as you lower."},"cable_bayesian":{"setup":"Set a handle on a low cable. Face away in a split stance, working arm hanging behind you, palm forward.","steps":["Start with your arm straight and angled back.","Curl the handle forward while your elbow stays back.","Squeeze for 1 second at the top.","Lower for 2–3 seconds to the stretch. Switch arms after all reps."],"feel":"You should feel your biceps, most at the stretched bottom.","mistakes":[["Elbow drifts forward as you curl","Keep your elbow back; only your forearm moves."],["Standing too close to the machine","Step out until your arm is pulled behind you."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_concentration":{"setup":"Sit on the end of a bench with feet wide. Brace the back of your upper arm against your inner thigh, dumbbell hanging straight down.","steps":["Curl the dumbbell toward your shoulder, palm up.","Squeeze hard for 1 second at the top.","Lower for 3 seconds until your arm is straight.","Finish all reps, then switch arms."],"feel":"You should feel it in your biceps while your shoulder and back stay quiet.","mistakes":[["Elbow lifting off your thigh","Keep the back of your arm pressed into your thigh."],["Leaning back to lift the weight","Stay slightly bent forward and go lighter."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_spider":{"setup":"Set an incline bench to about 45 degrees. Lie chest-down with your chin over the top, dumbbells hanging straight down, palms forward.","steps":["Keep your upper arms pointing at the floor.","Curl both dumbbells toward your shoulders.","Squeeze for 1 second at the top.","Lower for 2–3 seconds until your arms are straight."],"feel":"You should feel a hard squeeze in your biceps, not in your shoulders.","mistakes":[["Elbows swinging forward","Keep upper arms vertical; only your forearms move."],["Using your normal curl weight","Go lighter; this angle makes the top much harder."]],"breathe":"Exhale as you curl, inhale as you lower."},"mach_preacher":{"setup":"Set the seat so your armpits rest on top of the pad. Lay your upper arms flat on the pad and grab the handles, palms up.","steps":["Start with your arms nearly straight.","Curl the handles toward your shoulders.","Squeeze for 1 second at the top.","Lower for 3 seconds to nearly straight, then pause a beat."],"feel":"You should feel your biceps and a big stretch at the bottom, not an elbow pinch.","mistakes":[["Bouncing out of the bottom","Pause a beat at the bottom before each curl."],["Hips rising off the seat","Stay seated; lower the weight if you have to rise."]],"breathe":"Exhale as you curl, inhale as you lower."},"ez_preacher":{"setup":"Set the seat so your armpits rest on top of the pad. Grab the EZ-bar on its angled grips, palms up, upper arms flat on the pad.","steps":["Curl the bar until your forearms are nearly vertical.","Squeeze for 1 second.","Lower for 3 seconds until your arms are almost straight.","Stop short of locking your elbows, then curl again."],"feel":"You should feel your biceps and forearms, not a pull at the elbow joint.","mistakes":[["Dropping into locked-out elbows","Slow the last few inches and keep a slight bend."],["Lifting your arms off the pad","Keep the backs of your arms on the pad."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_preacher":{"setup":"Set the seat so your armpit rests on top of the pad. Lay one arm flat on the pad, dumbbell in hand, palm up.","steps":["Start with your arm almost straight.","Curl the dumbbell toward your shoulder.","Squeeze for 1 second at the top.","Lower for 3 seconds. Finish all reps, then switch arms."],"feel":"You should feel the biceps of your working arm, with a stretch at the bottom.","mistakes":[["Cutting the rep short at the bottom","Lower until your arm is almost straight every rep."],["Letting the dumbbell drop fast","Count 3 seconds on every lowering."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_hammer":{"setup":"Stand tall, feet hip-width apart, a dumbbell in each hand at your sides, palms facing your thighs.","steps":["Pin your elbows at your sides.","Curl both dumbbells to shoulder height, thumbs up.","Pause for 1 second.","Lower for 2–3 seconds until your arms are fully straight."],"feel":"You should feel your biceps and the thumb side of your forearms, not your lower back.","mistakes":[["Swinging your body to lift","Stand still with glutes tight; go lighter if needed."],["Stopping halfway down","Lower until your arms are fully straight every rep."]],"breathe":"Exhale as you curl, inhale as you lower."},"cable_rope_hammer":{"setup":"Attach a rope to a low cable. Stand about a foot back, feet hip-width, holding the rope ends with palms facing each other.","steps":["Pin your elbows at your sides.","Curl the rope toward your shoulders, thumbs up.","Squeeze for 1 second.","Lower for 2–3 seconds until your arms are straight."],"feel":"You should feel your biceps and the thumb side of your forearms.","mistakes":[["Elbows drifting forward at the top","Keep your elbows by your ribs the whole rep."],["Leaning back to finish the rep","Stand tall and drop the weight one notch."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_cross_hammer":{"setup":"Stand tall, feet hip-width apart, a dumbbell in each hand at your sides, palms facing your thighs.","steps":["Curl one dumbbell up and across your body toward the opposite shoulder.","Stop at your chest, thumb still pointing up.","Lower for 2–3 seconds back to your side.","Switch arms and keep alternating."],"feel":"You should feel your biceps and forearms, not your shoulders.","mistakes":[["Twisting your torso to swing the weight","Keep your chest facing forward; only the arm moves."],["Turning your palm up","Keep your thumb pointing up the whole rep."]],"breathe":"Exhale as you curl, inhale as you lower."},"bb_reverse_curl":{"setup":"Stand tall, feet hip-width apart. Hold a light barbell overhand, palms facing back, hands shoulder-width, bar against your thighs.","steps":["Pin your elbows and keep your wrists straight.","Curl the bar up to chest height.","Pause for 1 second.","Lower for 2–3 seconds until your arms are straight."],"feel":"You should feel it mostly in the top of your forearms, plus your biceps.","mistakes":[["Wrists bending back at the top","Keep your knuckles in line with your forearms."],["Using your normal curl weight","Start light; this grip is much weaker."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_zottman":{"setup":"Stand tall, feet hip-width apart, a dumbbell in each hand at your sides, palms facing forward.","steps":["Curl both dumbbells up, palms up, elbows at your sides.","At the top, turn your palms to face down.","Lower for 3 seconds with your palms down.","At the bottom, turn your palms forward and curl again."],"feel":"You should feel your biceps going up and the top of your forearms coming down.","mistakes":[["Turning your palms before the top","Finish the curl first, then rotate."],["Dropping fast on the way down","Go light and take 3 full seconds to lower."]],"breathe":"Exhale as you curl, inhale as you lower."},"db_shoulder_press":{"setup":"Sit on an upright bench with your back flat on the pad and feet flat. Hold the dumbbells at shoulder height, palms forward.","steps":["Brace your core and keep your ribs down.","Press up and slightly inward until your arms are straight.","Lower for 2–3 seconds until the dumbbells reach ear level.","Press again without bouncing."],"feel":"You should feel your shoulders and triceps working, not your lower back.","mistakes":[["Arching your lower back off the pad","Keep ribs down and back on the pad; go lighter."],["Lowering too far or too short","Stop each rep at ear level."]],"breathe":"Breathe in and brace, then exhale as you press."},"bb_ohp":{"setup":"Set the rack at mid-chest height. Unrack the bar onto your collarbones, hands just outside shoulder-width, feet hip-width.","steps":["Squeeze your glutes and brace.","Tip your head back and press the bar straight up.","As it passes your forehead, push your head through and lock out.","Lower for 2 seconds to your collarbones."],"feel":"You should feel your shoulders, triceps, and core, not your lower back.","mistakes":[["Leaning back to push the bar up","Squeeze your glutes, ribs down, and go lighter."],["Pressing the bar out in front","Move your head back so the bar goes straight up."]],"breathe":"Big breath and brace before each rep.","safety":"Start light, keep a neutral spine, and lower a stalled rep instead of leaning back."},"mach_shoulder_press":{"setup":"Set the seat so the handles start about level with your shoulders. Sit with your back flat on the pad and grip with palms forward.","steps":["Brace your core; keep your back and head on the pad.","Press until your arms are straight.","Pause for a beat at the top.","Lower for 2–3 seconds without letting the weights touch."],"feel":"You should feel your shoulders and triceps working, not your lower back.","mistakes":[["Back arching off the pad","Keep ribs down and back flat; go lighter."],["Stopping short of the top","Press until your arms are straight every rep."]],"breathe":"Exhale as you press, inhale as you lower."},"smith_shoulder_press":{"setup":"Set a bench upright under the bar so it lowers in front of your face. Grip just outside shoulder-width.","steps":["Unhook the bar and brace.","Lower for 2–3 seconds to chin level.","Press until your arms lock out.","Re-hook the bar after your last rep."],"feel":"You should feel your front shoulders and triceps.","mistakes":[["Bench too far back or forward","Move it so the bar just clears your nose."],["Arching your back off the pad","Keep your back flat and ribs down."]],"breathe":"Inhale as you lower, exhale as you press.","safety":"Set the safety stops just below chin level so the bar can't come down on you."},"db_arnold":{"setup":"Sit on an upright bench, back on the pad. Hold the dumbbells in front of your chin, palms facing you, like the top of a curl.","steps":["Press up while your elbows spread out to the sides.","Turn your palms forward as you rise, ending with arms straight.","Lower for 2–3 seconds, reversing the turn.","Finish at chin height, palms facing you."],"feel":"You should feel the front and sides of your shoulders and your triceps.","mistakes":[["Turning fully before you press","Blend the turn and press into one smooth move."],["Arching your lower back","Keep your back on the pad and ribs down."]],"breathe":"Exhale as you press, inhale as you lower."},"landmine_sh_press":{"setup":"Kneel on one knee, other foot flat in front. Hold the end of the landmine bar at your shoulder, on the same side as your down knee.","steps":["Squeeze your down-side glute and brace.","Press the bar up and forward until your arm is straight.","Reach an extra inch at the top.","Lower for 2–3 seconds. Finish all reps, then switch sides."],"feel":"You should feel your front shoulder and triceps, with your abs holding you tall.","mistakes":[["Leaning back or twisting to press","Stay tall with hips square; go lighter."],["Stopping short at the top","Reach forward until your arm is fully straight."]],"breathe":"Exhale as you press, inhale as you lower."},"bw_pike_pushup":{"setup":"Start in a push-up position, then walk your feet in and lift your hips high so your body makes an upside-down V.","steps":["Bend your elbows and lower your head for 2 seconds.","Aim your head just in front of your hands.","Stop about an inch from the floor.","Press back up until your arms are straight, hips still high."],"feel":"You should feel your shoulders and triceps, not your chest or lower back.","mistakes":[["Hips dropping into a regular push-up","Keep your hips stacked high over your shoulders."],["Head coming down between your hands","Lower your head ahead of your hands, like a triangle."]],"breathe":"Inhale as you lower, exhale as you press."},"db_lateral_raise":{"setup":"Stand tall with a light dumbbell in each hand at your sides, palms in, elbows slightly bent.","steps":["Raise the dumbbells out to your sides, leading with your elbows.","Stop at shoulder height, arms making a T.","Pause for 1 second.","Lower for 2–3 seconds."],"feel":"You should feel the outside of your shoulders, not your neck or upper traps.","mistakes":[["Swinging your body to lift","Stand still and pick lighter dumbbells."],["Shrugging your shoulders up","Keep your shoulders down, away from your ears."],["Raising above shoulder height","Stop when your arms are level with the floor."]],"breathe":"Exhale as you raise, inhale as you lower."},"cable_lateral_raise":{"setup":"Set a handle on a low cable. Stand sideways and hold it in your far hand, cable crossing in front of you.","steps":["Keep a slight bend in your elbow.","Raise the handle out to your side, leading with your elbow.","Stop at shoulder height and pause for 1 second.","Lower for 2–3 seconds. Finish all reps, then switch sides."],"feel":"You should feel the outside of your shoulder, not your neck.","mistakes":[["Letting the stack rest between reps","Stop just short of the bottom to keep tension."],["Leaning away and yanking the handle","Stand tall, hold the machine, and go slow."]],"breathe":"Exhale as you raise, inhale as you lower."},"mach_lateral_raise":{"setup":"Set the seat so your shoulders line up with the machine's pivot points. Sit tall with the outsides of your arms on the pads.","steps":["Keep your shoulders down, away from your ears.","Push the pads up and out with your elbows.","Stop at shoulder height and pause for 1 second.","Lower for 2–3 seconds without letting the weights touch."],"feel":"You should feel the outside of your shoulders, not your neck.","mistakes":[["Shrugging as you raise","Keep shoulders low; go lighter if they creep up."],["Dropping the weight fast","Count 2–3 seconds on every lowering."]],"breathe":"Exhale as you raise, inhale as you lower."},"db_lean_lateral":{"setup":"Hold a sturdy post with one hand, feet near its base, and lean away until that arm is straight. Let a light dumbbell hang in your free hand.","steps":["Keep a slight bend in your working elbow.","Raise the dumbbell out to your side until your arm is level with the floor.","Pause for 1 second.","Lower for 3 seconds. Finish all reps, then switch sides."],"feel":"You should feel the outside of your working shoulder, most near the bottom.","mistakes":[["Using a dumbbell that's too heavy","Go lighter than your normal lateral raise."],["Rushing through the bottom","Move slowly through the whole range."]],"breathe":"Exhale as you raise, inhale as you lower."},"cable_upright_row":{"setup":"Attach a straight bar to a low cable. Stand facing it and grab the bar overhand, hands a few inches wider than your shoulders.","steps":["Stand tall with soft knees.","Pull the bar up by lifting your elbows up and out.","Stop when your elbows reach shoulder height.","Lower for 2–3 seconds until your arms are straight."],"feel":"You should feel the sides of your shoulders and upper traps, with no pinch in front.","mistakes":[["Hands too close together","Grip a few inches wider than your shoulders."],["Pulling elbows above shoulder height","Stop when your elbows are level with your shoulders."]],"breathe":"Exhale as you pull, inhale as you lower."},"db_front_raise":{"setup":"Stand tall, feet hip-width apart. Hold a light dumbbell in each hand in front of your thighs, palms facing your legs.","steps":["Brace your core and keep your body still.","Raise both dumbbells straight out in front of you.","Stop at shoulder height, arms level with the floor.","Lower for 2–3 seconds back to your thighs."],"feel":"You should feel the front of your shoulders, not your lower back.","mistakes":[["Swinging with your hips and back","Stand still, squeeze your glutes, and go lighter."],["Raising above shoulder height","Stop when your hands reach shoulder level."]],"breathe":"Exhale as you raise, inhale as you lower."},"cable_front_raise":{"setup":"Attach a handle to a low cable. Face away, cable running between your legs, and hold the handle in front of your thighs.","steps":["Brace your core and keep a soft bend in your elbows.","Raise the handle straight forward, arms long.","Stop at shoulder height and pause for 1 second.","Lower for 2–3 seconds back to your thighs."],"feel":"You should feel the front of your shoulders, not your lower back.","mistakes":[["Leaning forward to lift the weight","Keep your torso upright; go lighter if you tip."],["Raising past shoulder height","Stop when your hands reach shoulder level."]],"breathe":"Exhale as you raise, inhale as you lower."},"cable_face_pull":{"setup":"Set a rope at upper-chest height. Grab the ends, palms facing each other, and step back until your arms are straight.","steps":["Pull the rope toward your face, elbows high at shoulder level.","Split the rope so your hands finish beside your ears.","Squeeze your shoulder blades for 1 second.","Return for 2–3 seconds until your arms are straight."],"feel":"You should feel the back of your shoulders and upper back, not your neck.","mistakes":[["Elbows dropping below your shoulders","Keep elbows at shoulder height the whole rep."],["Leaning back to move the weight","Stand tall and lower the weight."]],"breathe":"Exhale as you pull, inhale as you return."},"mach_reverse_fly":{"setup":"Set the seat so the handles are at shoulder height. Sit with your chest on the pad and arms straight out in front.","steps":["Keep a soft bend in your elbows.","Sweep your arms out and back, leading with your hands.","Stop when your arms line up with your body; squeeze 1 second.","Return for 2–3 seconds without letting the weights touch."],"feel":"You should feel the back of your shoulders and between your shoulder blades.","mistakes":[["Shrugging your shoulders up","Keep your shoulders low, away from your ears."],["Bending your elbows into a row","Keep arms long and push out with your hands."]],"breathe":"Exhale as you open, inhale as you return."},"db_rear_delt_fly":{"setup":"Hold light dumbbells. With soft knees, hinge at your hips until your chest is almost parallel to the floor, back flat, palms facing in.","steps":["Keep a slight bend in your elbows.","Raise the dumbbells out to the sides, pinkies leading.","Stop at back level and pause for 1 second.","Lower for 2–3 seconds."],"feel":"You should feel the back of your shoulders and upper back, not your lower back.","mistakes":[["Bouncing your torso to lift","Hold your hinge still and go lighter."],["Rounding your back","Keep a flat back; look at the floor a few feet ahead."]],"breathe":"Exhale as you raise, inhale as you lower."},"cable_rear_delt_fly":{"setup":"Set both pulleys to shoulder height. Stand centered and grab each cable with the opposite hand so they cross in front of you.","steps":["Keep your arms nearly straight.","Pull your hands out wide and back until your arms form a T.","Squeeze for 1 second.","Return for 2–3 seconds until your hands cross."],"feel":"You should feel the back of your shoulders and between your shoulder blades.","mistakes":[["Bending your elbows into a row","Keep arms long, like pushing open two doors."],["Leaning back to pull","Stand tall in a staggered stance and go lighter."]],"breathe":"Exhale as you pull out, inhale as you return."},"db_rear_delt_row":{"setup":"Hold a dumbbell in each hand, palms facing back. Hinge at your hips with soft knees, back flat, arms hanging straight.","steps":["Row the dumbbells up with your elbows flared wide.","Stop when the dumbbells reach chest level.","Pause for 1 second.","Lower for 2–3 seconds until your arms are straight."],"feel":"You should feel the back of your shoulders and upper back, not your lower back.","mistakes":[["Tucking elbows close to your sides","Flare your elbows out to the sides."],["Standing up as you pull","Hold your hinge; keep your chest facing the floor."]],"breathe":"Exhale as you row, inhale as you lower."},"bw_ytw":{"setup":"Lie chest-down on a bench set to 30–45 degrees, arms hanging, thumbs up. Use no weight or very light dumbbells.","steps":["Raise your arms overhead in a Y; hold 1 second.","Lower, then raise them out in a T; hold 1 second.","Lower, then pull bent elbows back into a W; squeeze.","Lower to hanging. That is one rep."],"feel":"You should feel it between your shoulder blades, not in your neck.","mistakes":[["Shrugging your shoulders to your ears","Keep your neck long and shoulders down."],["Swinging your arms up fast","Move slowly and hold each shape 1 second."]],"breathe":"Exhale as you raise, inhale as you lower."},"band_pull_apart":{"setup":"Stand tall and hold a light band in both hands, palms down, shoulder-width apart, arms straight out at shoulder height.","steps":["Keep your arms straight.","Pull the band apart, moving your hands out to the sides.","Stop when the band touches your chest; squeeze 1 second.","Return for 2–3 seconds."],"feel":"You should feel the back of your shoulders and between your shoulder blades.","mistakes":[["Bending your elbows","Keep arms straight; use a lighter band if needed."],["Shrugging as you pull","Keep your shoulders down and neck relaxed."]],"breathe":"Exhale as you pull apart, inhale as you return."},"cable_crunch_seated":{"setup":"Attach a rope to a high cable. Sit facing the machine, holding the rope ends by your ears with the rope behind your head.","steps":["Sit tall with your hands locked by your head.","Curl your ribs toward your hips, rounding your spine.","Squeeze your abs for 1 second.","Uncurl for 2–3 seconds back to tall."],"feel":"You should feel it in your abs, not your arms or hips.","mistakes":[["Pulling with your arms","Keep hands locked by your head; let your abs move."],["Bending at the hips instead of curling","Keep your hips still and round your spine like a C."]],"breathe":"Exhale hard as you crunch, inhale as you return."},"cable_kneeling_crunch":{"setup":"Attach a rope to a high cable. Kneel facing it about 2 feet away, rope ends by your head, hips high over your knees.","steps":["Brace and lock your hips in place.","Crunch down, ribs toward hips, elbows aiming at your thighs.","Squeeze for 1 second.","Uncurl for 2–3 seconds back to the start."],"feel":"You should feel it in your abs, not your arms or lower back.","mistakes":[["Sitting back on your heels","Keep your hips high and still."],["Pulling with your arms","Lock your hands by your head; move with your abs."]],"breathe":"Exhale as you crunch, inhale as you return."},"mach_crunch":{"setup":"Set the seat so the pads or handles sit at your upper chest. Sit back against the pad with your feet set.","steps":["Brace and hold the handles lightly.","Crunch forward, ribs toward hips.","Squeeze your abs hard for 1 second.","Return for 2–3 seconds without letting the weights touch."],"feel":"You should feel it in your abs, not your arms or hips.","mistakes":[["Pulling with your arms","Hold the handles lightly; let your abs work."],["Letting the weight snap back","Take 2–3 seconds to return each rep."]],"breathe":"Exhale fully as you crunch, inhale as you return."},"ab_crunch":{"setup":"Lie on your back, knees bent, feet flat and hip-width apart. Cross your arms on your chest or touch your fingertips behind your ears.","steps":["Keep a fist-sized space between chin and chest.","Curl your shoulders off the floor, ribs toward hips.","Pause 1 second with your shoulder blades just off the floor.","Lower for 2 seconds."],"feel":"You should feel it in your upper abs, not your neck.","mistakes":[["Pulling your head with your hands","Keep fingertips light; your hands only support."],["Sitting all the way up","Lift only until your shoulder blades clear the floor."]],"breathe":"Exhale as you curl up, inhale as you lower."},"decline_situp":{"setup":"Set a decline bench to a low angle to start. Hook your feet under the pads, arms crossed on your chest or holding a plate.","steps":["Tuck your chin and curl up one vertebra at a time.","Rise until your chest nears your thighs.","Lower for 3 seconds, rounding back down.","Touch down lightly, then go again."],"feel":"You should feel your abs, with some work in the front of your hips.","mistakes":[["Jerking up with a flat back","Round your spine and curl up smoothly."],["Dropping fast on the way down","Take 3 seconds to lower every rep."]],"breathe":"Exhale as you curl up, inhale as you lower."},"bicycle_crunch":{"setup":"Lie on your back, fingertips behind your ears. Lift your shoulders off the floor and raise your knees to 90 degrees.","steps":["Pull your right knee in as your left leg straightens just off the floor.","Twist your left elbow toward your right knee.","Switch sides slowly, about 1 second each.","Keep your shoulders up; count reps for each side."],"feel":"You should feel your abs and the sides of your waist.","mistakes":[["Pedaling fast","Slow down and hold each twist for a beat."],["Pulling on your neck","Keep fingertips light; turn from your ribs."]],"breathe":"Exhale as you twist, inhale as you switch."},"v_up":{"setup":"Lie flat on your back, legs straight, arms reaching past your head on the floor.","steps":["Brace and press your low back into the floor.","Lift your arms and straight legs together.","Reach your hands toward your toes over your hips.","Lower for 2–3 seconds without crashing down."],"feel":"You should feel your abs, with some work in the front of your hips.","mistakes":[["Swinging up with momentum","Move slowly; bend your knees a little if needed."],["Low back arching as you lower","Keep your low back pressed down."]],"breathe":"Exhale as you lift, inhale as you lower."},"front_plank":{"setup":"Set your forearms on the floor with your elbows under your shoulders. Step your feet back hip-width, toes down.","steps":["Lift your knees so you form a straight line from head to heels.","Squeeze your glutes, pull your ribs down, and look at the floor.","Hold for the target time.","Drop your knees to end."],"feel":"You should feel your abs and a bit of shoulder, not your lower back.","mistakes":[["Hips sagging toward the floor","Squeeze your glutes and tuck your tailbone slightly."],["Hips piked up high","Lower until shoulders, hips, and heels line up."]],"breathe":"Take short, steady breaths; keep your abs tight."},"side_plank":{"setup":"Lie on your side with your elbow under your shoulder and forearm on the floor. Stack your legs and feet.","steps":["Lift your hips until you form a straight line from head to feet.","Push the floor away with your forearm.","Hold for the target time.","Lower your hips, then switch sides."],"feel":"You should feel the side of your waist closest to the floor.","mistakes":[["Hips sagging toward the floor","Push your bottom hip up toward the ceiling."],["Rolling forward or back","Stack your top hip right over your bottom hip."]],"breathe":"Breathe slowly and steadily; don't hold your breath."},"hollow_hold":{"setup":"Lie on your back, arms reaching past your head, legs straight. Press your low back flat into the floor.","steps":["Lift your arms, shoulders, and legs a few inches off the floor.","Keep your low back down; bend your knees if it lifts.","Hold for the target time.","Lower your arms and legs to end."],"feel":"You should feel your abs working hard, not strain in your lower back.","mistakes":[["Low back arching off the floor","Raise your legs higher or bend your knees."],["Holding your breath","Take small, steady breaths through the hold."]],"breathe":"Take short breaths without letting your abs relax."},"mountain_climber":{"setup":"Start in a high plank, hands under your shoulders, body straight from head to heels.","steps":["Brace your abs.","Drive your right knee toward your chest, then return it.","Drive your left knee in, then return it.","Keep alternating steadily for the target time, then drop your knees to end."],"feel":"You should feel your abs and the front of your hips, with your shoulders holding you up.","mistakes":[["Hips bouncing or piking up","Keep your hips level with your shoulders."],["Going so fast it gets sloppy","Pick a pace you can hold with good form."]],"breathe":"Breathe steadily in rhythm with your legs."},"ab_wheel":{"setup":"Kneel on a pad, knees hip-width apart. Hold the wheel on the floor under your shoulders, arms straight.","steps":["Brace and pull your ribs down, back slightly rounded.","Roll forward slowly over 2–3 seconds.","Stop before your hips sag; start with a short range.","Pull the wheel back to your knees with your abs."],"feel":"You should feel your abs and a bit of your lats, not your lower back.","mistakes":[["Hips sagging at the far point","Roll out less; stop while your back stays rounded."],["Hips shooting back first on the return","Pull with your abs; let your hips follow."]],"breathe":"Inhale as you roll out, exhale as you pull back."},"russian_twist":{"setup":"Sit with knees bent, heels down or lifted for more challenge. Lean back about 45 degrees with a weight held at your chest.","steps":["Keep your chest tall and back straight.","Rotate your ribs and shoulders to one side.","Return to center, then rotate to the other side.","Keep a steady pace; count reps for each side."],"feel":"You should feel the sides of your waist and your abs, not your lower back.","mistakes":[["Only moving your arms","Turn your whole chest; the weight just follows."],["Rounding your back","Sit tall with your chest lifted."]],"breathe":"Exhale as you turn, inhale back to center."},"cable_woodchop":{"setup":"Set a single handle at the top of a cable. Stand sideways to it, feet shoulder-width, gripping with both hands above your near shoulder.","steps":["Brace your abs.","Pull the handle down across your body to your opposite hip, arms long.","Turn your torso and pivot your back foot as you go.","Return for 2–3 seconds. Finish all reps, then switch sides."],"feel":"You should feel the sides of your waist, not your arms or lower back.","mistakes":[["Pulling with your arms","Keep arms long; turn your chest to move the handle."],["Feet stuck flat","Pivot the foot nearest the machine so your hips turn."]],"breathe":"Exhale as you chop, inhale as you return."},"db_side_bend":{"setup":"Stand tall, feet hip-width apart, a dumbbell in one hand at your side and your other hand on your hip.","steps":["Bend sideways toward the dumbbell for 2 seconds, sliding it down your leg.","Stop when the other side of your waist stretches.","Pull back up to standing using that stretched side.","Finish all reps, then switch hands."],"feel":"You should feel the side of your waist opposite the dumbbell.","mistakes":[["Leaning forward or twisting","Bend straight sideways, like you're between two walls."],["Going too fast","Take 2 seconds down and 2 seconds up."]],"breathe":"Inhale as you bend, exhale as you come up."},"pallof_press":{"setup":"Set a single handle at chest height. Stand sideways to the machine, an arm's length away, holding the handle at the middle of your chest.","steps":["Brace your abs and squeeze your glutes.","Press the handle straight out until your arms are straight.","Hold 2 seconds without turning toward the machine.","Bring it back slowly. Finish all reps, then switch sides."],"feel":"You should feel your abs and sides working to stop you from twisting.","mistakes":[["Torso turning toward the cable","Step closer to the machine or lower the weight."],["Pressing up instead of straight out","Push straight ahead at chest height."]],"breathe":"Exhale as you press out, inhale as you return."},"dead_bug":{"setup":"Lie on your back, arms pointing at the ceiling. Lift your legs so your hips and knees bend to 90 degrees.","steps":["Press your low back flat into the floor.","Reach your right arm back and straighten your left leg, just above the floor.","Bring both back to the start.","Switch sides; count reps for each side."],"feel":"You should feel it deep in your abs, not your lower back.","mistakes":[["Low back arching off the floor","Shorten the reach so your back stays down."],["Moving too fast","Take 2–3 seconds out and 2–3 back."]],"breathe":"Exhale fully as you reach, inhale as you return."},"hanging_leg_raise":{"setup":"Hang from a pull-up bar with an overhand grip, hands shoulder-width, legs together, shoulders pulled down slightly.","steps":["Brace your abs and get still.","Raise your straight legs to hip height or higher.","At the top, curl your pelvis toward your ribs.","Lower for 3 seconds without swinging."],"feel":"You should feel your lower abs and the front of your hips.","mistakes":[["Swinging to get your legs up","Pause at the bottom until you're still."],["Lifting only from your hips","Curl your pelvis toward your ribs at the top."]],"breathe":"Exhale as you raise, inhale as you lower."},"hanging_knee_raise":{"setup":"Hang from a pull-up bar with an overhand grip, hands shoulder-width, shoulders pulled down slightly.","steps":["Brace your abs and get still.","Bend your knees and raise them toward your chest.","At the top, curl your hips up toward your ribs.","Lower for 2–3 seconds back to hanging."],"feel":"You should feel your lower abs and the front of your hips.","mistakes":[["Swinging back and forth","Lower slowly and pause at the bottom before each rep."],["Knees stopping at hip height","Keep going until your hips curl up."]],"breathe":"Exhale as you raise, inhale as you lower."},"captain_chair":{"setup":"Step up into the captain's chair, rest your forearms on the arm pads, and grip the handles. Press your back into the pad, legs hanging.","steps":["Brace your abs.","Lift your knees toward your chest.","At the top, curl your pelvis up while your upper back stays on the pad.","Lower for 2–3 seconds back to hanging."],"feel":"You should feel your lower abs and the front of your hips.","mistakes":[["Swinging your legs up","Lower slowly and pause at the bottom."],["Leaning forward off the pad","Keep your back pressed into the pad."]],"breathe":"Exhale as you lift, inhale as you lower."},"lying_leg_raise":{"setup":"Lie on your back with your legs straight. Slide your hands, palms down, under your hips.","steps":["Press your low back into the floor.","Raise your straight legs until they point at the ceiling.","Lower for 3 seconds, keeping your low back down.","Stop with your heels just above the floor, then lift again."],"feel":"You should feel your lower abs and the front of your hips, not your lower back.","mistakes":[["Low back arching as your legs lower","Stop higher or bend your knees slightly."],["Dropping your legs fast","Take 3 seconds to lower every rep."]],"breathe":"Exhale as you raise, inhale as you lower."},"reverse_crunch":{"setup":"Lie on your back with your arms flat at your sides. Lift your legs with knees bent at 90 degrees, shins parallel to the floor.","steps":["Press your arms into the floor.","Curl your hips off the floor, pulling your knees toward your chest.","Pause for 1 second at the top.","Lower your hips for 2–3 seconds until your tailbone touches down."],"feel":"You should feel it in your lower abs, not your neck or arms.","mistakes":[["Swinging your legs for momentum","Keep the same knee bend and curl your hips up."],["Dropping your hips fast","Lower one vertebra at a time."]],"breathe":"Exhale as you curl up, inhale as you lower."},"cat_cow":{"setup":"Get on your hands and knees, hands under shoulders, knees under hips. Pad your knees if the floor is hard.","steps":["Breathe out and round your back up. Tuck your chin and tailbone.","Breathe in and let your belly sink, chest forward, eyes ahead.","Move one section of your spine at a time, about one round every 4 seconds."],"feel":"You should feel it along your whole spine; sharp pain, pinching, or tingling means make the movement smaller.","mistakes":[["Moving only the low back","Start at your tailbone and roll up to your neck."],["Rushing the reps","Take one slow breath for each position."]],"easier":"Make the movement smaller, or do it seated with hands on your knees."},"leg_swing_fb":{"setup":"Stand sideways to a rack or wall and hold it with your near hand.","steps":["Swing your outside leg forward and back like a pendulum.","Start small and go a little higher each swing, about one per second.","Stay tall with your hips facing forward. The app switches sides for you."],"feel":"You should feel it in the back of the thigh and front of the hip; sharp pain, pinching, or tingling means swing smaller.","mistakes":[["Leaning back to kick higher","Stay tall. Let the height come from the hip."],["Big swings right away","Start small and add height each rep."]],"easier":"Keep a soft bend in the swinging knee and keep the swings low."},"leg_swing_lat":{"setup":"Face a rack and hold it with both hands. Stand on one leg.","steps":["Swing the free leg across your body, then out to the side.","Start small and widen a little each rep, about one swing per second.","Keep your hips and chest square to the rack. The app switches sides for you."],"feel":"You should feel it in your inner thigh and outer hip; sharp pain, groin pinching, or tingling means swing smaller.","mistakes":[["Twisting the hips with each swing","Keep your belt buckle pointed at the rack."],["Kicking hard at each end","Stay relaxed. Let the leg slow down on its own."]],"easier":"Keep the swings small and low, and grip the rack firmly."},"hip_cars":{"setup":"Stand tall beside a rack and hold it lightly. Stand on the leg nearest it.","steps":["Lift your outside knee in front of you to about hip height.","Move it out to the side, back, and down in the biggest slow circle you can.","Take about 5 seconds per circle and reverse halfway. The app switches sides for you."],"feel":"You should feel it deep in the hip, glute, and groin; sharp pain, pinching, or tingling means make the circle smaller.","mistakes":[["Tilting or twisting the pelvis","Keep your belt line level. Only the leg moves."],["Going too fast","Slow down. Slow and small beats fast and sloppy."]],"easier":"Hold the rack with both hands and keep the circles smaller and lower."},"hip_9090_switch":{"setup":"Sit with knees bent and feet flat, wider than your hips. Put your hands on the floor behind you.","steps":["Drop both knees to one side so each knee bends about 90 degrees.","Sit tall, then lift both knees and rotate them to the other side.","Switch smoothly, about every 3 seconds. Lift your hands off once it's easy."],"feel":"You should feel it in both hips and glutes; sharp pain, knee or hip pinching, or tingling means use less range.","mistakes":[["Slumping backward","Press into your hands and lift your chest."],["Forcing the knees to the floor","Let them drop only as far as they go."]],"easier":"Sit on a folded towel, keep your hands down, and drop the knees only partway."},"worlds_greatest":{"setup":"Step into a deep lunge, back leg long and back knee off the floor.","steps":["Put the hand opposite your front leg on the floor, inside your front foot.","Breathe out and rotate your other arm up, eyes following the hand.","Bring it down, shift your hips back, and straighten your front leg.","Lunge again and repeat, about 6 seconds a rep. The app switches sides for you."],"feel":"You should feel it in the back hip, mid-back, and front hamstring; sharp pain, pinching, or tingling means ease off.","mistakes":[["Back knee resting on the floor","Squeeze your back glute to keep it up."],["Twisting only at the low back","Turn your chest to follow the top hand."]],"easier":"Put your hand on a sturdy step and take a shorter lunge."},"spiderman_reach":{"setup":"Start in a push-up position with your body in a straight line.","steps":["Step one foot outside the same-side hand. Let your hips sink.","Keep your back leg long. Reach the hand beside your front foot to the ceiling.","Bring it down, step back, and repeat, about 5 seconds a rep. The app switches sides for you."],"feel":"You should feel it in the back hip, front inner thigh, and mid-back; sharp pain, pinching, or tingling means ease off.","mistakes":[["Hips staying high","Let your hips drop before you reach."],["Twisting from the low back","Turn from your mid-back and keep hips level."]],"easier":"Drop your back knee onto a pad, and skip the reach if it's hard."},"walking_knee_hug":{"setup":"Find a clear walking path and stand tall with your arms relaxed.","steps":["Step forward and pull the other knee to your chest with both hands.","Rise onto your standing toes and squeeze that glute for a second.","Lower, step, and switch legs, about one hug every 2 to 3 seconds."],"feel":"You should feel it in the glute and back of the hugged hip; sharp pain, hip pinching, or tingling means pull less.","mistakes":[["Rounding forward to grab the knee","Stand tall and bring the knee to your hands."],["Wobbling on the standing leg","Squeeze that glute and look at a fixed spot."]],"easier":"Do it in place with one hand on a wall, and keep your standing foot flat."},"walking_quad_pull":{"setup":"Find a clear walking path and stand tall.","steps":["Step forward, bend the other knee, and grab that ankle with the same-side hand.","Pull your heel to your glute, knee pointing down, and push that hip forward.","Reach your free arm up. Let go, step, and switch, about every 2 to 3 seconds."],"feel":"You should feel it in the front of the thigh and hip; sharp knee pain, pinching, or tingling means ease the pull.","mistakes":[["Knee drifting out to the side","Keep it pointing down, next to the standing knee."],["Arching the low back","Squeeze your glute and tuck your hips under."]],"easier":"Hold a wall and do it in place, or use a towel to reach your ankle."},"lateral_lunge_shift":{"setup":"Stand with your feet very wide, about twice shoulder width, toes forward.","steps":["Shift to one side, pushing your hips back and bending that knee.","Keep the other leg straight with its foot flat on the floor.","Push back through the middle to the other side, about every 3 seconds. Sink lower as you loosen."],"feel":"You should feel it in the inner thigh of the straight leg; sharp pain, knee pinching, or tingling means stay higher.","mistakes":[["Bent knee caving inward","Push that knee out over your toes."],["Chest folding toward the floor","Keep your chest up as you sit back."]],"easier":"Use a narrower stance, bend only partway, and hold a rack."},"cossack":{"setup":"Stand very wide with your toes slightly out. Hold a rack in front of you if you need balance.","steps":["Sink to one side, keeping that heel flat on the floor.","Let the other leg straighten, heel down and toes pointing up.","Go only as low as you control. Push up and switch, about 3 to 4 seconds a side."],"feel":"You should feel it in the straight leg's inner thigh; sharp pain, knee pinching, or tingling means stay higher.","mistakes":[["Bent-leg heel lifting up","Sink less, or turn that foot out more."],["Dropping too low, too fast","Only go as low as you can smoothly rise from."]],"easier":"Hold the rack with both hands and do a shallow side lunge instead."},"frog_rock":{"setup":"Get on your hands and knees with thick knee padding. Slide your knees wide, each ankle behind its knee.","steps":["Keep a flat back and your belly lightly tight.","Slowly rock your hips back toward your heels until you feel your inner thighs.","Rock forward again, about one rock every 3 to 4 seconds."],"feel":"You should feel it along both inner thighs; sharp pain, groin pinching, or tingling means bring your knees in.","mistakes":[["Feet drifting in toward each other","Line each ankle up behind its knee."],["Rounding your back as you rock","Only rock as far as your back stays flat."]],"easier":"Bring your knees closer together and rock back only partway."},"fire_hydrant":{"setup":"Get on your hands and knees, hands under shoulders, knees under hips. Pad your knees.","steps":["Keep the knee bent and lift one leg out to the side.","Draw big, slow circles with that knee, about one every 3 seconds.","Keep your weight centered and reverse halfway. The app switches sides for you."],"feel":"You should feel it in the outer hip and glute; sharp pain, pinching, or tingling means make the circles smaller.","mistakes":[["Shifting weight onto the other hip","Keep weight even on both hands and the down knee."],["Circling only one way","Reverse direction halfway through."]],"easier":"Make smaller, lower circles, or just lift and lower the leg."},"deep_squat_pry":{"setup":"Stand a bit wider than your shoulders with toes slightly out.","steps":["Sit into a deep squat with heels flat and chest tall.","Put your elbows inside your knees, palms together, and gently press the knees out.","Shift slowly side to side, about every 3 seconds. Relax deeper as you breathe, then stand slowly."],"feel":"You should feel it in your inner thighs, hips, and calves; sharp pain, knee pinching, or tingling means come up higher.","mistakes":[["Heels lifting off the floor","Turn your toes out more and squat less deep."],["Back rounding at the bottom","Lift your chest and stay a little higher."]],"easier":"Hold a rack and sit back, or put a thin plate under your heels."},"hip_flexor_pulse":{"setup":"Kneel on one knee on a pad with the other foot flat in front. Both knees bend about 90 degrees.","steps":["Tuck your tailbone under and squeeze your back glute.","Reach the kneeling-side arm straight overhead.","Pulse your hips forward an inch or two and back, about once a second. The app switches sides for you."],"feel":"You should feel it in the front of the back hip and thigh; sharp pain, pinching, or tingling means make the pulses smaller.","mistakes":[["Arching the low back","Keep ribs down, tailbone tucked, and glute squeezed."],["Big lunging pulses","Keep them small. The tuck does the work."]],"easier":"Add knee padding, hold a rack, and skip the arm reach."},"squat_to_stand":{"setup":"Stand with your feet shoulder width apart and toes slightly out.","steps":["Fold forward and grab your toes, bending your knees as much as needed.","Holding your toes, drop into a deep squat, chest up, elbows inside your knees.","Slowly lift your hips to straighten your legs as far as is comfortable. Squat and repeat, about 5 seconds a rep."],"feel":"You should feel it in the backs of your thighs as you straighten; sharp pain, pinching, or tingling means straighten less.","mistakes":[["Letting go of your toes","Keep your grip, or hold your shins instead."],["Snapping your knees straight","Straighten slowly and stop at a mild stretch."]],"easier":"Hold your ankles or shins and straighten only partway."},"inchworm":{"setup":"Stand tall with a body length or two of open floor in front of you.","steps":["Fold at the hips and put your hands down, bending your knees as needed.","Walk your hands out to a tight plank, shoulders over hands.","With legs as straight as you can, walk your feet in with small steps. Repeat, about 10 seconds a rep."],"feel":"You should feel it in your hamstrings and core; sharp pain, low back pinching, or tingling means bend your knees more.","mistakes":[["Hips sagging in the plank","Squeeze your glutes and brace your belly."],["Rushing the walk-in","Take small steps. Stop when your hamstrings get tight."]],"easier":"Bend your knees more and don't walk out as far."},"hamstring_sweep":{"setup":"Stand tall with a clear walking path in front of you.","steps":["Step one heel forward, leg straight and toes pulled up.","Bend your back knee slightly and hinge, pushing your hips back with a flat back.","Sweep your hands low past the front foot. Rise, step, and switch, about every 3 seconds."],"feel":"You should feel it along the back of the front thigh; sharp pain, knee pinching, or tingling down the leg means hinge less.","mistakes":[["Rounding your back to reach low","Push your hips back and sweep higher."],["Front toes pointing down","Pull the toes up toward your shin."]],"easier":"Do it in place and sweep your hands only past your knees."},"toy_soldier":{"setup":"Stand tall with a clear walking path. Hold one arm straight out in front.","steps":["Step and kick the opposite leg up straight toward that hand.","Keep your chest tall. Don't bend down to meet the foot.","Switch arm and leg each step, about one kick every 2 seconds. Start low and let the kicks rise."],"feel":"You should feel it in the back of the kicking thigh; sharp pain, hip pinching, or tingling means kick lower.","mistakes":[["Rounding your back to reach the foot","Stay tall and kick lower."],["Swinging wildly for height","Kick with control, so you could stop anytime."]],"easier":"Do it in place holding a wall, kicking to waist height or lower."},"bw_good_morning":{"setup":"Stand with feet hip width apart, knees soft, and fingertips lightly behind your head.","steps":["Push your hips straight back and tip your chest forward with a flat back.","Stop at a solid hamstring pull, before your back rounds.","Squeeze your glutes to stand up, about one smooth rep every 3 seconds."],"feel":"You should feel it in the backs of your thighs; sharp pain, back pinching, or tingling down the leg means hinge less.","mistakes":[["Rounding your back to go lower","Stop as soon as your back wants to round."],["Squatting instead of hinging","Keep shins upright. Push hips back, not down."]],"easier":"Cross your arms over your chest and hinge only halfway."},"sl_rdl_reach":{"setup":"Stand by a rack for balance. Shift your weight onto one leg with a soft knee.","steps":["Hinge forward, reaching your hand toward the floor as your free leg lifts behind you.","Keep your hips square. Don't let the lifted hip open up.","Stand up slowly, about 4 seconds a rep. The app switches sides for you."],"feel":"You should feel it in the back of the standing thigh; sharp pain, back pinching, or tingling means don't reach as low.","mistakes":[["Lifted hip rotating open","Point the lifted foot's toes at the floor."],["Locking the standing knee","Keep a small bend in it."]],"easier":"Hold the rack and keep your back toes on the floor like a kickstand."},"reverse_lunge_reach":{"setup":"Stand tall with room behind you to step back.","steps":["Step one foot back into a lunge, lowering the back knee toward the floor.","Squeeze the back glute, reach both arms up, and lean slightly away from the back leg.","Push through the front foot to stand. Switch legs, about every 3 to 4 seconds."],"feel":"You should feel it in the front of the back hip; sharp pain, pinching, or tingling means take a shorter step.","mistakes":[["Arching your low back as you reach","Squeeze the glute and pull your ribs down."],["Leaning your chest forward","Stay tall. Lean to the side, not forward."]],"easier":"Hold a rack with one hand, lunge shallower, and reach one arm up."},"butt_kicks":{"setup":"Stand tall with feet hip width apart and arms loose at your sides.","steps":["Jog in place on the balls of your feet.","Bring each heel up toward your glute with the knee pointing down.","Start slow. Build to light, quick kicks, about two per second, with relaxed arms."],"feel":"You should feel it in the fronts of your thighs; sharp knee pain, pinching, or tingling means slow down.","mistakes":[["Leaning forward at the waist","Stand tall with your chest up and eyes ahead."],["Landing heavy and loud","Stay on the balls of your feet and land softly."]],"easier":"Walk in place instead, pulling one heel up at a time."},"ankle_rock":{"setup":"Kneel on one knee facing a wall, with a pad under it. Set your front foot flat, about a hand's width from the wall.","steps":["Drive your front knee toward the wall, over your middle toes.","Keep that heel pressed down the whole time.","Rock in and out, about every 2 seconds, a bit farther each time. The app switches sides for you."],"feel":"You should feel it in your lower calf and ankle; sharp pain, pinching at the front of the ankle, or tingling means rock less.","mistakes":[["Heel lifting to reach the wall","Go only as far as your heel stays down."],["Knee caving inward","Aim your knee over your second and third toes."]],"easier":"Move your front foot closer to the wall."},"calf_pedal":{"setup":"From your hands and knees, tuck your toes and lift your hips up and back into an upside-down V.","steps":["Keep your hips high and your arms straight.","Bend one knee while pressing the other heel toward the floor.","Switch in a slow pedal, about every 2 seconds, pausing as each heel presses down."],"feel":"You should feel it in the calf and hamstring of the straight leg; sharp pain, pinching, or tingling means ease the press.","mistakes":[["Hips dropping toward a plank","Push the floor away and lift your hips."],["Rushing the pedal","Pause as each heel presses down."]],"easier":"Put your hands on a bench and bend your knees more."},"ankle_circles":{"setup":"Hold a rack or wall lightly and lift one foot a few inches off the floor.","steps":["Keep your leg still and draw big, slow circles with your toes.","Take 2 to 3 seconds per circle and reverse halfway.","The app switches sides for you. Circle the other ankle next."],"feel":"You should feel it around your ankle and lower calf; sharp pain, pinching, or tingling means make the circles smaller.","mistakes":[["Moving the whole leg","Hold your shin still. Only the foot moves."],["Tiny, rushed circles","Point, pull, and turn the foot as far as it goes."]],"easier":"Sit in a chair and cross one leg over to do the circles."},"toe_heel_walk":{"setup":"Stand tall with a clear walking path in front of you.","steps":["Rise onto the balls of your feet and walk forward with short steps.","After 8 to 10 steps, walk on your heels with your toes pulled up.","Keep switching until time is up. Stay tall with your eyes ahead."],"feel":"You should feel it in your calves and the fronts of your shins; sharp pain, ankle pinching, or tingling means walk normally.","mistakes":[["Leaning forward or sticking your butt out","Keep your hips under your shoulders."],["Heels sinking during toe walks","Stay high on the balls of your feet."]],"easier":"Stay in place by a wall, rocking from toes to heels."},"pelvic_tilt":{"setup":"Lie on your back with knees bent and feet flat, hip width apart.","steps":["Gently tighten your belly and press your low back flat into the floor.","Tilt the other way, letting your low back arch slightly.","Rock slowly between the two, about 4 seconds a round. Breathe out as you flatten."],"feel":"You should feel gentle motion in your low back and lower belly; sharp pain, pinching, or tingling means go smaller.","mistakes":[["Lifting your hips off the floor","Keep your butt down. Just tilt."],["Big, forceful arches","Keep it small, slow, and pain-free."]],"easier":"Make the tilt smaller and rest your head on a folded towel."},"windshield_wiper":{"setup":"Lie on your back with knees bent, feet flat and wide, and arms out to the sides.","steps":["Let both knees slowly drop to one side.","Keep both shoulders on the floor.","Bring the knees back through the middle to the other side, about 3 to 4 seconds each way, relaxing more each time."],"feel":"You should feel it in your low back, sides, and outer hips; sharp pain, pinching, or tingling means drop less.","mistakes":[["Shoulder lifting off the floor","Press your arms down and drop the knees less."],["Letting the knees crash down","Lower them slowly and with control."]],"easier":"Let your knees drop only partway."},"bird_dog":{"setup":"Get on your hands and knees, hands under shoulders, knees under hips. Pad your knees.","steps":["Brace your belly lightly. Reach one arm forward and the opposite leg back.","Reach long, level with your back, and hold for one breath.","Return slowly and switch, about 4 to 5 seconds a rep."],"feel":"You should feel it in your belly, low back, and glute; sharp pain, back pinching, or tingling means reach lower.","mistakes":[["Arching your low back","Lift the leg only to hip height."],["Hips tipping to one side","Keep hips level, like balancing a cup on your back."]],"easier":"Move only the leg or only the arm, sliding it along the floor."},"child_cobra_flow":{"setup":"Start on your hands and knees with your knees padded and hands slightly ahead of your shoulders.","steps":["Breathe out and sit your hips back to your heels, arms long, in child's pose.","Breathe in, shift forward, and drop your hips as your chest lifts into a gentle cobra.","Flow with your breath, about 5 seconds a round, shoulders away from your ears."],"feel":"You should feel it in your lats and low back, then your belly; sharp pain, back pinching, or tingling means arch less.","mistakes":[["Pushing too high in cobra","Keep the arch gentle and elbows soft."],["Moving faster than your breath","Breathe out going back, in coming forward."]],"easier":"Rock only partway each way, and lift your chest just a little."},"dead_bug_d":{"setup":"Lie on your back with arms reaching up and knees bent 90 degrees over your hips.","steps":["Press your low back flat into the floor and keep it there.","Breathe out and slowly lower one arm overhead as the opposite leg straightens.","Stop before your back lifts. Return and switch, about 4 seconds a rep."],"feel":"You should feel your belly working to keep your back flat; sharp pain, back pinching, or tingling means reach less.","mistakes":[["Low back arching off the floor","Don't reach as far."],["Holding your breath","Breathe out as you reach, in as you return."]],"easier":"Keep the knee bent and just tap your heel to the floor."},"glute_bridge_d":{"setup":"Lie on your back with knees bent, feet flat and hip width apart, heels near your butt.","steps":["Squeeze your glutes and lift until knees, hips, and shoulders line up.","Keeping hips level, lift one foot a few inches, set it down, then lift the other.","March slowly, about one lift every 2 seconds. Lower slowly at the end."],"feel":"You should feel it in your glutes and hamstrings; sharp pain, back pinching, or tingling means lower down and rest.","mistakes":[["Hips dropping when a foot lifts","Squeeze the standing side harder and lift less."],["Arching your low back at the top","Lift with your glutes and keep ribs down."]],"easier":"Hold the bridge with both feet down, or do tiny heel lifts."},"open_book":{"setup":"Lie on your side with your head on a pillow, knees bent and stacked, arms out front, palms together.","steps":["Breathe out and open the top arm over to the other side, eyes on your hand.","Open only as far as your knees stay stacked, then return slowly.","Go slow, about 5 seconds a rep. The app switches sides for you."],"feel":"You should feel it across your chest and mid-back; sharp pain, shoulder pinching, or tingling in the hand means open less.","mistakes":[["Top knee sliding back","Hold your knees together with your bottom hand."],["Forcing the arm to the floor","Let it rest where it stops."]],"easier":"Bend your top elbow and lead with it, or open only partway."},"thread_needle_d":{"setup":"Get on your hands and knees, hands under shoulders, knees under hips. Pad your knees.","steps":["Slide one arm under your body, palm up, letting that shoulder dip.","Sweep the same arm up and open your chest to the ceiling, eyes on your hand.","Keep it smooth, about 3 seconds a rep. The app switches sides for you."],"feel":"You should feel it in your mid-back and the back of your shoulder; sharp pain, pinching, or tingling means reach less.","mistakes":[["Hips swaying side to side","Keep hips over knees. Only your upper body turns."],["Sinking into the support arm","Press the floor away with that hand."]],"easier":"Keep both reaches small until your upper back loosens up."},"quad_tspine_rot":{"setup":"Get on your hands and knees with your knees padded. Put one hand behind your head, elbow out.","steps":["Sit your hips back a little toward your heels.","Turn so your elbow drops toward the opposite wrist.","Rotate up, elbow to the ceiling, eyes following, about 3 seconds a rep. The app switches sides for you."],"feel":"You should feel it in your mid-back, around your shoulder blades; sharp pain, pinching, or tingling means turn less.","mistakes":[["Hips drifting forward over the hands","Sit them back toward your heels."],["Pulling on your head","Rest your hand lightly. Your chest does the turning."]],"easier":"Sit back farther and rotate only partway."},"foam_tspine":{"setup":"Lie back over a foam roller at your upper back, hands behind your head, feet flat.","steps":["Breathe out and arch back over the roller for a second, butt on the floor.","Come up, lift your hips slightly, and scoot the roller about an inch.","Repeat at 3 or 4 spots, about 3 seconds a rep, staying above your low back."],"feel":"You should feel it in your upper and mid-back; sharp pain, back or neck pinching, or tingling means ease off.","mistakes":[["Rolling down onto your low back","Keep the roller above your lowest ribs."],["Letting your head drop back","Support your head and bend at the upper back."]],"easier":"Use a rolled-up towel instead, or lean back only a little."},"arm_circles":{"setup":"Stand tall with your arms straight out to your sides at shoulder height.","steps":["Make small forward circles, about one per second.","Grow the circles a little bigger every few rounds.","Halfway through, circle backward, starting small again. Keep your shoulders down and neck relaxed."],"feel":"You should feel it all around your shoulders as they warm up; sharp pain, pinching, or tingling means make the circles smaller.","mistakes":[["Shrugging your shoulders up","Keep them low and your neck loose."],["Starting big and fast","Start small and slow. Grow the size gradually."]],"easier":"Put your fingertips on your shoulders and circle your elbows instead."},"band_dislocate":{"setup":"Stand tall holding a band, towel, or PVC pipe at your hips with a very wide grip.","steps":["Keep your arms straight and lift it up over your head.","Keep going until it's behind you, then reverse. Take 3 to 4 seconds per pass.","Once it feels easy, bring your hands slightly closer."],"feel":"You should feel it in the fronts of your shoulders and chest; sharp pain, pinching, or tingling means widen your grip.","mistakes":[["Bending the elbows to get over","Widen your grip until your arms stay straight."],["Arching your low back","Keep your ribs down and belly lightly tight."]],"easier":"Use a very wide grip and stop at overhead."},"band_pull_apart_d":{"setup":"Stand tall holding a light band at shoulder height, hands shoulder width apart.","steps":["Keeping your arms straight, pull the band apart until it touches your chest.","Squeeze your shoulder blades together for a second.","Return slowly, about one rep every 2 to 3 seconds."],"feel":"You should feel it in the backs of your shoulders and upper back; sharp pain, pinching, or tingling means use a lighter band.","mistakes":[["Shrugging toward your ears","Keep your shoulders down and neck long."],["Letting the band snap back","Take two slow seconds on the way back."]],"easier":"Use a lighter band, or grip it wider."},"wall_slide":{"setup":"Stand with your back, butt, and head against a wall, feet a step out, arms in a goalpost on the wall.","steps":["Pull your ribs down so your low back stays near the wall.","Slowly slide your arms overhead, wrists and elbows touching the wall.","Stop where contact breaks, then slide back down, about 3 seconds each way."],"feel":"You should feel it in your upper back, shoulders, and chest; sharp pain, pinching, or tingling in the hands means stay lower.","mistakes":[["Low back arching off the wall","Pull your ribs down and step your feet out more."],["Wrists peeling off the wall","Slide only as high as they stay touching."]],"easier":"Slide only partway up, or do it lying on the floor."},"scap_pushup":{"setup":"Get in a push-up plank with hands under shoulders, arms locked, and body straight.","steps":["Keeping your arms straight, let your chest sink so your shoulder blades pinch together.","Push the floor away so your shoulder blades spread apart.","Keep it small and controlled, about one rep every 2 seconds."],"feel":"You should feel it around your shoulder blades and chest; sharp pain, pinching, or tingling in the hands means stop.","mistakes":[["Bending your elbows","Lock your arms. Only the shoulder blades move."],["Hips sagging","Squeeze your glutes and brace your belly."]],"easier":"Do it from your knees, or with your hands on a bench."},"shoulder_cars":{"setup":"Stand tall. Make a light fist and let one arm hang straight at your side.","steps":["Slowly raise the straight arm forward and up past your ear.","Keep circling back and down behind you in the biggest slow circle you can.","Take about 5 seconds per circle, torso still, and reverse halfway. The app switches sides for you."],"feel":"You should feel your shoulder working through its whole range; sharp pain, pinching, or tingling means make the circle smaller.","mistakes":[["Leaning or twisting your torso","Brace your belly and keep your ribs facing forward."],["Rushing the circle","Slow down and feel every part of it."]],"easier":"Bend your elbow slightly and make a smaller circle."},"cross_arm_swing":{"setup":"Stand tall with your arms straight out to your sides at shoulder height.","steps":["Swing your arms in to cross in front of your chest, like a hug.","Swing them back open wide with your chest up.","Switch which arm is on top each time, about one swing per second. Start small, then go wider."],"feel":"You should feel it in your chest and the backs of your shoulders; sharp pain, pinching, or tingling means swing smaller.","mistakes":[["Flinging your arms back hard","Let them swing open. Don't snap at the end."],["Hunching forward","Stay tall with your chest up."]],"easier":"Make smaller swings with your elbows slightly bent."},"doorway_pulse":{"setup":"Stand in a doorway with forearms on the frame, elbows at shoulder height, and one foot forward.","steps":["Gently shift your weight forward until you feel a light chest stretch.","Ease back, then forward again in small pulses, about one every 2 seconds.","Keep your neck relaxed and your shoulders down."],"feel":"You should feel it across your chest and front shoulders; sharp pain, pinching, or tingling in the arms means ease back.","mistakes":[["Elbows higher than your shoulders","Set your elbows level with your shoulders."],["Pushing your head forward","Keep your ears over your shoulders."]],"easier":"Use one arm at a time and make smaller pulses."},"neck_cars":{"setup":"Stand or sit tall with your shoulders relaxed and down.","steps":["Drop your chin toward your chest.","Slowly roll your head in a half circle to one shoulder, then back across to the other.","After a few, slowly look up, then down. Take about 4 seconds per half circle and never force it."],"feel":"You should feel it in the sides and back of your neck; sharp pain, pinching, dizziness, or tingling into the arms means stop.","mistakes":[["Rolling your head all the way back","Keep to half circles in front."],["Shoulders creeping up","Let your shoulders drop and your arms hang loose."]],"easier":"Make the half circles smaller, or just do slow side tilts."},"chin_tuck":{"setup":"Stand or sit tall with your shoulders relaxed and your eyes looking straight ahead.","steps":["Gently pull your chin straight back, like making a double chin.","Hold for 2 seconds, then release.","Repeat slowly for the full time, keeping your eyes level."],"feel":"You should feel it at the back of your neck, where it meets your skull; sharp pain, pinching, or tingling means tuck less.","mistakes":[["Tipping your chin down","Keep your eyes level and slide your head straight back."],["Pushing too hard","Use gentle effort, about half your strength."]],"easier":"Stand with your back to a wall and slide your head back toward it."},"neck_tilt":{"setup":"Stand or sit tall with your shoulders down and eyes ahead.","steps":["Slowly tilt one ear toward that shoulder without lifting the shoulder.","Pause for a breath at the end.","Come back through the middle and tilt the other way, about 3 to 4 seconds each way."],"feel":"You should feel it along the side of your neck opposite the tilt; sharp pain, pinching, or tingling into the arm means tilt less.","mistakes":[["Lifting the shoulder to meet the ear","Keep both shoulders down."],["Turning your face while tilting","Keep your nose pointing straight ahead."]],"easier":"Sit in a chair so your shoulders can relax, and tilt only partway."},"overhead_side_bend":{"setup":"Stand tall and reach both arms overhead with your hands clasped.","steps":["Slowly lean your upper body to one side, reaching long.","Keep your hips centered. Don't lean forward or back.","Return to the middle and lean the other way, about 3 to 4 seconds each side. Breathe steadily."],"feel":"You should feel it along your side, from hip to armpit; sharp pain, back pinching, or tingling means lean less.","mistakes":[["Hips pushing out to the side","Keep hips centered. Bend from the ribs up."],["Leaning forward as you bend","Picture bending between two panes of glass."]],"easier":"Put one hand on your hip and reach only the other arm up."},"lat_rockback":{"setup":"Kneel facing a bench with your knees padded. Put your elbows on the bench, palms together.","steps":["Keep your back flat and your head between your arms.","Slowly rock your hips back toward your heels, letting your chest sink.","Pause for a breath at the stretch, then rock forward, about 3 to 4 seconds a rep."],"feel":"You should feel it in the sides of your back and backs of your arms; sharp pain, pinching, or tingling means rock back less.","mistakes":[["Lifting your head to look forward","Let your head drop between your arms."],["Arching your low back","Keep your belly lightly tight."]],"easier":"Rock back only partway, or use a chair seat instead."},"wrist_rocks":{"setup":"Kneel on a padded mat with your hands free in front of you.","steps":["Slowly circle both wrists, about 10 seconds each way.","Put your hands under your shoulders, fingers forward. Gently rock your weight over your palms and back.","Turn your fingers back toward your knees and rock again, about every 2 seconds."],"feel":"You should feel it in your forearms and wrists; sharp pain, pinching, or tingling in the fingers means shift less weight.","mistakes":[["Putting full weight on your wrists","Keep most of your weight on your knees."],["Rushing the circles","Make slow, full circles both ways."]],"easier":"Stand and do the rocks with your hands on a table."},"pigeon":{"setup":"From your hands and knees, bring one knee forward behind that wrist, shin angled across your body.","steps":["Slide your back leg straight back and square your hips to the floor.","Over a few breaths, ease your hips down to mild tension, about 5 out of 10.","Hold still. Fold forward a little on each breath out. No bouncing.","Press up on your hands to come out. The app switches sides for you."],"feel":"You should feel it in the front leg's glute and outer hip; sharp pain, knee pinching, or tingling means back off.","mistakes":[["Hips tilting to one side","Put a folded towel under the front hip."],["Front knee twisting or aching","Bring the front heel closer to your hips."]],"easier":"Do a figure-4 stretch lying on your back instead."},"hold_9090":{"setup":"Sit with both knees bent 90 degrees, one leg in front and one out to the side.","steps":["Sit up tall and face your chest over the front shin.","Over a few breaths, hinge forward from the hips to mild tension, about 5 out of 10.","Hold still and breathe out to relax deeper. No bouncing.","Come up slowly to sit tall. The app switches sides for you."],"feel":"You should feel it in the front leg's outer hip and glute; sharp pain, knee pinching, or tingling means back off.","mistakes":[["Rounding your back to go lower","Lead with your chest and hinge from the hips."],["Leaning onto one hip","Keep both sit bones heavy on the floor."]],"easier":"Sit on a folded towel and stay tall without leaning forward."},"couch":{"setup":"Kneel on a pad, back shin up a wall or bench, front foot forward.","steps":["Lean forward, hands on your front knee. Squeeze the back glute and keep ribs down.","Ease your chest up over a few breaths, to mild tension. Hold still, exhale to relax deeper, no bouncing.","Lean forward to exit. The app switches sides for you."],"feel":"Feel it in the front of your back thigh and hip; sharp pain, pinching, or tingling means back off.","mistakes":[["Arching the low back","Ribs down; squeeze the glute first."],["Sitting up too fast","Stay forward until the tension eases."]],"easier":"Move the back knee farther from the wall."},"hk_hip_flexor":{"setup":"Kneel on a pad, one knee down, other foot forward, both knees at 90 degrees.","steps":["Tuck your tailbone under and squeeze the back glute.","Keep the tuck and ease forward a few inches. Reach the kneeling-side arm up.","Hold still, exhale to relax deeper, no bouncing.","Shift back to exit. The app switches sides for you."],"feel":"Feel it in the front of the kneeling-side hip; sharp pain, pinching, or tingling means back off.","mistakes":[["Arching the low back","Tuck first and keep ribs down."],["Lunging too far forward","Shift only a few inches."]],"easier":"Hold a chair for balance and skip the arm reach."},"lizard":{"setup":"From hands and knees, step one foot outside your hand. Keep your back knee on a pad.","steps":["Put both hands inside your front foot.","Sink your hips over a few breaths. Drop to your forearms only if easy.","Hold still, exhale to relax deeper, no bouncing.","Press up to exit. The app switches sides for you."],"feel":"Feel it in the back hip and inner front thigh; sharp pain, pinching, or tingling means back off.","mistakes":[["Forcing down to the forearms","Stay on your hands until the hips sink easily."],["Front knee caving in","Keep it over your toes."]],"easier":"Put your hands on blocks or a step."},"figure4":{"setup":"Lie on your back, knees bent, feet flat. Cross one ankle over the other knee.","steps":["Flex the top foot, toes toward your shin.","Hold behind the bottom thigh and ease it toward your chest, head down.","Hold still, exhale to relax deeper, no bouncing.","Lower your feet to exit. The app switches sides for you."],"feel":"Feel it deep in the crossed leg's butt and outer hip; sharp pain, pinching, or tingling means back off.","mistakes":[["Lifting your head to reach","Loop a towel around the thigh instead."],["Floppy top foot","Flex it to keep the knee comfortable."]],"easier":"Skip the pull; keep the bottom foot down."},"seated_glute":{"setup":"Sit tall near the edge of a chair. Cross one ankle over the other knee.","steps":["Flex the top foot.","Keep your chest tall and ease forward from the hips to mild tension.","Hold still, exhale to relax deeper, no bouncing.","Sit up to exit. The app switches sides for you."],"feel":"Feel it in the butt and outer hip of the crossed leg; sharp pain, pinching, or tingling means back off.","mistakes":[["Rounding your back","Lead with your chest; fold at the hips."],["Pushing hard on the top knee","Use light hand pressure or none."]],"easier":"Sit upright without leaning forward."},"butterfly":{"setup":"Sit on the floor with the soles of your feet together. Hold your ankles.","steps":["Sit tall and let your knees drop.","Hinge forward from the hips over a few breaths, chest long.","Press gently with your elbows. Hold still, exhale to relax deeper, no bouncing.","Sit up slowly to exit."],"feel":"Feel it in your inner thighs and groin; sharp pain, pinching, or tingling means back off.","mistakes":[["Hunching the upper back","Sit tall and lead with your belly button."],["Shoving the knees down","Let gravity work; use only gentle elbow pressure."]],"easier":"Sit on a folded blanket and slide your feet farther out."},"frog":{"setup":"Pad your knees. Get on your forearms and knees, then slide your knees wide.","steps":["Line up your ankles with your knees, feet turned out.","Slowly sink your hips back over a few breaths, to mild tension.","Hold still, exhale to relax deeper, no bouncing.","Shift forward and bring your knees in to exit."],"feel":"Feel it in your inner thighs and groin; sharp pain, pinching, or tingling means back off.","mistakes":[["Knees too wide too soon","Start a bit wider than your hips; widen over weeks."],["Low back sagging","Keep your belly lightly tight."]],"easier":"Stay on your hands and bring your knees closer."},"supine_butterfly":{"setup":"Lie on your back with knees bent. Put the soles of your feet together.","steps":["Let your knees fall open slowly. Don't push or bounce.","Rest your hands on your belly.","Hold still and breathe slowly. Relax your hips more on each exhale.","Use your hands to bring your knees together to exit."],"feel":"Feel a gentle stretch in your inner thighs and groin; sharp pain, pinching, or tingling means back off.","mistakes":[["Pressing the knees down","Let gravity do it; hands stay on your belly."],["Arching the low back","Let it rest flat and heavy."]],"easier":"Put pillows or folded towels under your knees."},"deep_squat_hold":{"setup":"Face a rack or sturdy post. Stand with feet a bit wider than hips, toes slightly out.","steps":["Holding the rack, ease your hips down between your heels.","Lift your chest. If you're steady, let go and press your elbows into your knees.","Hold still, exhale to relax deeper, no bouncing.","Grab the rack and stand up slowly."],"feel":"Feel it in your hips, inner thighs, and calves; sharp pain, pinching, or tingling means back off.","mistakes":[["Heels lifting","Keep holding the rack and widen your stance."],["Knees caving in","Push them out over your toes."]],"easier":"Put a small plate under your heels."},"happy_baby":{"setup":"Lie on your back and grab the outsides of your feet, knees bent, soles up.","steps":["Open your knees wide and ease them toward your armpits, low back down.","Hold and exhale to relax. Rock gently side to side if you like, no bouncing.","Let go and lower your feet to exit."],"feel":"Feel it in your inner thighs, hips, and low back; sharp pain, pinching, or tingling means back off.","mistakes":[["Tailbone lifting off the floor","Pull less so your low back stays down."],["Tense neck and shoulders","Rest your head down and relax."]],"easier":"Hold your shins, or loop a towel around each foot."},"seated_fold":{"setup":"Sit on the floor with your legs straight out in front, and sit tall.","steps":["Keep a soft bend in your knees if you're tight.","Hinge from the hips and reach toward your feet, chest leading, to mild tension.","Hold still. Exhale to fold a little deeper, no bouncing.","Roll up slowly to exit."],"feel":"Feel it in the backs of your thighs and low back; sharp pain, pinching, or tingling means back off.","mistakes":[["Hunching to reach your toes","Keep your chest long; reaching your shins is fine."],["Locking the knees","Keep a soft bend."]],"easier":"Sit on a folded blanket and loop a towel around your feet."},"ragdoll":{"setup":"Stand with feet hip-width apart and knees softly bent.","steps":["Fold forward from the hips and hold opposite elbows.","Let your head hang. Shift your weight a little toward your toes.","Hold and exhale to hang heavier. Sway gently if you like, no bouncing.","Bend your knees and roll up slowly, head last."],"feel":"Feel it in the backs of your legs and low back; sharp pain, pinching, or tingling means back off.","mistakes":[["Standing up too fast","Roll up slowly with bent knees to avoid dizziness."],["Holding the neck stiff","Let your head hang heavy."]],"easier":"Bend your knees more, or rest your hands on a bench."},"supine_ham":{"setup":"Lie on your back, legs straight. Loop a towel or band around one foot.","steps":["Keep your other leg flat on the floor.","Raise the looped leg, knee straight, easing up to mild tension.","Pull gently. Hold still, exhale to relax deeper, no bouncing.","Lower the leg to exit. The app switches sides for you."],"feel":"Feel it in the back of the raised thigh; sharp pain, pinching, or tingling means back off.","mistakes":[["Bottom leg lifting or bending","Press that knee toward the floor."],["Yanking the towel","Pull gently; let the leg relax."]],"easier":"Let the raised knee bend a little and don't lift as high."},"half_split":{"setup":"Kneel on a pad in a low lunge, hands on blocks or the floor.","steps":["Shift your hips back over your back knee.","Straighten your front leg, toes up, and ease forward with a flat back.","Hold still, exhale to relax deeper, no bouncing.","Bend the front knee to exit. The app switches sides for you."],"feel":"Feel it in the back of your front thigh and calf; sharp pain, pinching, or tingling means back off.","mistakes":[["Rounding your back to go lower","Lift your chest and use blocks."],["Hips drifting forward","Keep them over your back knee."]],"easier":"Keep a small bend in the front knee."},"wide_fold":{"setup":"Stand with feet wide, about a leg-length apart, toes forward, hands on hips.","steps":["Hinge forward from the hips with a flat back first.","Halfway down, slowly walk your hands toward the floor or blocks.","Hold still, exhale to relax deeper, no bouncing.","Hands to hips, soften your knees, and rise slowly."],"feel":"Feel it in the backs and insides of your thighs; sharp pain, pinching, or tingling means back off.","mistakes":[["Rounding the back right away","Hinge flat first, then relax down."],["Feet too wide to control","Narrow your stance until you feel stable."]],"easier":"Rest your hands on a bench and bend your knees slightly."},"legs_up_wall":{"setup":"Sit sideways with one hip against a wall. Swing your legs up as you lie back.","steps":["Scoot your hips close to the wall.","Rest your legs straight up the wall, arms relaxed.","Hold still and breathe slowly, relaxing more on each exhale.","Bend your knees, roll to your side, and sit up slowly."],"feel":"Feel a gentle stretch in the backs of your thighs; sharp pain, pinching, or numb, tingling legs mean back off.","mistakes":[["Tensing your legs","Let the wall hold them."],["Sitting up too fast","Roll to your side first."]],"easier":"If it pulls too much, scoot back a few inches or bend your knees."},"standing_quad":{"setup":"Stand beside a rack and hold it with one hand.","steps":["Bend the knee away from the rack and grab that ankle behind you.","Keep your knees together, tuck your pelvis, and ease that hip forward.","Hold still, exhale to relax deeper, no bouncing.","Let go slowly. The app switches sides for you."],"feel":"Feel it in the front of your thigh; sharp pain, pinching, or tingling means back off.","mistakes":[["Knee drifting out or forward","Keep your knees side by side."],["Arching the low back","Tuck the pelvis and squeeze your glute."]],"easier":"Loop a towel around your ankle if you can't reach it."},"side_lying_quad":{"setup":"Lie on your side, head on your bottom arm, legs stacked.","steps":["Bend the top knee and grab that ankle with your top hand.","Keep your knees together and push your hips slightly forward.","Ease your heel toward your glute. Hold still, exhale to relax deeper, no bouncing.","Let go slowly. The app switches sides for you."],"feel":"Feel it in the front of your top thigh and hip; sharp pain, pinching, or tingling means back off.","mistakes":[["Top knee lifting away","Keep it level with the bottom knee."],["Arching your back","Push your hips forward."]],"easier":"Loop a towel around your ankle if you can't reach it."},"wall_calf":{"setup":"Face a wall, hands on it at chest height. Step one foot back about two feet.","steps":["Point both feet forward and press the back heel down.","Keep the back knee straight and bend the front knee.","Ease your hips toward the wall. Hold still, exhale to relax deeper, no bouncing.","Step in to exit. The app switches sides for you."],"feel":"Feel it in the upper calf of your back leg; sharp pain, pinching, or tingling means back off.","mistakes":[["Back heel lifting","Take a shorter step."],["Back toes turned out","Point them straight at the wall."]],"easier":"Take a shorter step and lean in less."},"soleus":{"setup":"Face a wall, hands on it. Take a shorter step back than in the wall calf stretch.","steps":["Keep both heels down and toes forward.","Bend the back knee and ease in until you feel the lower calf.","Hold still, exhale to relax deeper, no bouncing.","Stand up to exit. The app switches sides for you."],"feel":"Feel it low in your back calf, just above the heel; sharp pain, pinching, or tingling means back off.","mistakes":[["Heel lifting as the knee bends","Shorten your step."],["Keeping the back knee straight","Bend it to move the stretch lower."]],"easier":"Bend the knee less and lean in less."},"step_calf":{"setup":"Stand on a step, holding a rail. Put the ball of one foot on the edge.","steps":["Keep that knee straight.","Slowly let the heel drop below the step.","Relax into it. Hold still, exhale to sink a little more, no bouncing.","Lift the heel to exit. The app switches sides for you."],"feel":"Feel it in your calf and the back of your heel; sharp pain, pinching, or tingling means back off.","mistakes":[["Bouncing the heel","Lower once, slowly, then hold still."],["Letting go of the rail","Hold on the whole time."]],"easier":"Keep both feet on the edge to share the weight."},"down_dog":{"setup":"Start on hands and knees, hands a little ahead of your shoulders, toes tucked.","steps":["Lift your knees and push your hips up and back.","Push the floor away. Bend your knees if needed and ease your heels down.","Hold still, exhale to relax deeper, no bouncing.","Lower your knees to exit."],"feel":"Feel it in your calves, the backs of your thighs, and under your arms; sharp pain, pinching, or tingling means back off.","mistakes":[["Rounded back with straight legs","Bend your knees so your hips stay high."],["Sinking into the shoulders","Push the floor away with straight arms."]],"easier":"Put your hands on a bench or chair seat."},"toe_extension":{"setup":"Kneel on a pad, knees and feet together, with all your toes tucked under.","steps":["Check that every toe is tucked, even the little ones.","Hands on the floor, slowly sit back toward your heels.","Ease in over a few breaths. Hold still, exhale to relax deeper, no bouncing.","Lean forward onto your hands to exit."],"feel":"Feel it in the soles of your feet and toes; sharp pain, pinching, or tingling means back off.","mistakes":[["Pinky toes rolling out","Tuck them under with your hand."],["Dropping your weight all at once","Add weight slowly."]],"easier":"Keep more weight in your hands and sit back only partway."},"childs_pose":{"setup":"Kneel on a pad, big toes touching, knees hip-width or wider.","steps":["Sit your hips back toward your heels.","Walk your hands forward, arms long, and rest your forehead down.","Hold still, no bouncing. Breathe into your back and sink your hips on each exhale.","Walk your hands back and sit up slowly."],"feel":"Feel it in your low back and along your sides; sharp pain, pinching, or tingling means back off.","mistakes":[["Hips lifting off your heels","Sink back; spread your knees wider if needed."],["Shoulders shrugged up","Let them melt away from your ears."]],"easier":"Put a pillow between your heels and butt, or under your forehead."},"knees_chest":{"setup":"Lie on your back with knees bent and feet flat.","steps":["Slowly hug both knees in, hands on your shins or behind your thighs.","Relax your head and shoulders on the floor.","Hold and exhale to let the knees come closer. Rock gently if you like, no bouncing.","Lower one foot at a time to exit."],"feel":"Feel it in your low back and butt; sharp pain, pinching, or tingling means back off.","mistakes":[["Lifting your head","Keep it down and relaxed."],["Pulling hard on the knees","Hug gently; let your breath do it."]],"easier":"Hug one knee at a time, holding behind the thigh."},"supine_twist":{"setup":"Lie on your back, knees bent, feet flat, arms out wide.","steps":["Slowly lower both knees to one side.","Look the other way if your neck feels okay.","Keep both shoulders down. Hold still, exhale to relax deeper, no bouncing.","Bring your knees back to center. The app switches sides for you."],"feel":"Feel it in your low back, outer hip, and side of your waist; sharp pain, pinching, or tingling means back off.","mistakes":[["Opposite shoulder lifting","Keep the knees higher so both shoulders stay down."],["Knees crashing down","Lower them slowly with your belly."]],"easier":"Put a pillow under your knees so they drop less."},"sphinx":{"setup":"Lie face down. Put your elbows under your shoulders, forearms flat and pointing forward.","steps":["Press lightly into your forearms to ease your chest up.","Pull your shoulders down, away from your ears.","Relax your belly and legs. Hold still, exhale to relax deeper, no bouncing.","Slide your elbows forward and lower down to exit."],"feel":"Feel a gentle stretch in your belly and low back; sharp pain, pinching, or tingling means back off.","mistakes":[["Shrugging into your shoulders","Press your forearms down and lengthen your neck."],["Tensing your butt and legs","Let them go soft."]],"easier":"Slide your elbows farther forward so you're lower."},"cobra":{"setup":"Lie face down, legs straight, hands under your shoulders.","steps":["Press into your hands and slowly lift your chest.","Keep your hips on the floor and shoulders down.","Rise only as high as comfortable; bent elbows are fine. Hold still, exhale to relax deeper, no bouncing.","Lower slowly to exit."],"feel":"Feel it in your belly and the front of your hips; sharp pain, pinching in your low back, or tingling means back off.","mistakes":[["Hips lifting off the floor","Rise less; keep your hips down."],["Locking your arms to go higher","Keep elbows bent; stop when comfortable."]],"easier":"Rise only a few inches, or do sphinx instead."},"seated_twist":{"setup":"Sit tall on the floor, legs straight. Bend one knee and cross that foot over the other leg.","steps":["Put the bent-knee side hand behind you. Hug the knee with your other arm.","Turn slowly from your mid-back. Inhale to sit taller, exhale to turn more. No bouncing.","Unwind to center. The app switches sides for you."],"feel":"Feel it in your mid-back and side of your waist; sharp pain, pinching, or tingling means back off.","mistakes":[["Slumping as you twist","Sit on a folded towel to sit taller."],["Cranking with your neck","Let your head follow your mid-back."]],"easier":"Sit sideways on a chair and use the backrest."},"thread_needle_s":{"setup":"Start on hands and knees with padded knees, hips over knees.","steps":["Slide one arm under your body, palm up, and ease that shoulder and head down.","Keep your hips over your knees. Hold still, exhale to relax deeper, no bouncing.","Press up with your other hand. The app switches sides for you."],"feel":"Feel it in your upper back and rear shoulder; sharp pain, pinching, or tingling means back off.","mistakes":[["Hips shifting back","Keep them stacked over your knees."],["Weight on your neck","Rest on your shoulder; pad your head with a towel."]],"easier":"Slide the arm only partway and keep your head up."},"bench_tspine":{"setup":"Kneel on a pad facing a bench. Rest your elbows on it, hands together behind your head.","steps":["Walk your knees back and sit your hips back.","Keep your elbows close and ease your chest toward the floor.","Hold still, exhale to relax deeper, no bouncing.","Lift your chest and sit up to exit."],"feel":"Feel it in your armpits, backs of your arms, and upper back; sharp pain, pinching, or tingling means back off.","mistakes":[["Elbows flaring apart","Keep them shoulder-width or closer."],["Arching your low back","Brace your belly so the upper back sinks."]],"easier":"Use a chair seat instead and sink less."},"foam_chest_opener":{"setup":"Lie back on a foam roller along your spine, head supported, knees bent, feet flat.","steps":["Open your arms wide, palms up, a little below shoulder height.","Let your arms sink. Don't push or bounce.","Hold still and breathe slowly. Let your chest open on each exhale.","Bring your arms in and roll off sideways."],"feel":"Feel it across your chest and front shoulders; sharp pain, pinching, or tingling in your hands means back off.","mistakes":[["Head hanging off the roller","Slide down so your head is supported."],["Arms high enough to pinch","Lower them toward your hips."]],"easier":"Lie on a rolled towel along your spine instead."},"puppy":{"setup":"Start on hands and knees with padded knees, hips over knees.","steps":["Walk your hands forward, arms long.","Keep your hips up and ease your chest toward the floor.","Rest your forehead down if you can. Hold still, exhale to relax deeper, no bouncing.","Walk your hands back to exit."],"feel":"Feel it in your armpits, shoulders, and upper back; sharp pain, pinching, or tingling means back off.","mistakes":[["Hips sinking back to your heels","Keep your thighs upright."],["Low back sagging","Brace your belly lightly so your chest sinks."]],"easier":"Put your hands on a bench or couch edge."},"doorway_pec":{"setup":"Stand in a doorway. Put one forearm on the frame, elbow bent at shoulder height.","steps":["Take a small step through with the same-side foot.","Slowly turn your chest away, shoulder down, to gentle tension.","Hold still, exhale to relax deeper, no bouncing.","Step back to exit. The app switches sides for you."],"feel":"Feel it in your chest and front of your shoulder; sharp pain, pinching, or tingling in your hand means back off.","mistakes":[["Elbow above shoulder height","Lower it level with your shoulder."],["Shrugging the shoulder","Pull it down and back before turning."]],"easier":"Lower the elbow a bit and take a smaller step."},"corner_chest":{"setup":"Face a corner. Put one forearm on each wall, elbows at or below shoulder height.","steps":["Stagger your feet, one in front.","Tuck your chin and keep your shoulders down.","Lean your chest slowly into the corner. Hold still, exhale to relax deeper, no bouncing.","Push off the walls to exit."],"feel":"Feel it across your chest and front shoulders; sharp pain, pinching, or tingling in your hands means back off.","mistakes":[["Poking your head forward","Tuck your chin."],["Leaning in too fast","Shift your weight slowly over a few breaths."]],"easier":"Lean in less, or place your forearms lower."},"clasp_opener":{"setup":"Stand tall, feet hip-width apart. Clasp your hands behind your low back.","steps":["Straighten your arms and squeeze your shoulder blades together.","Lift your chest and slowly raise your hands a little away from your back.","Keep your neck relaxed. Hold still, exhale to relax deeper, no bouncing.","Lower your hands and let go."],"feel":"Feel it across your chest and front shoulders; sharp pain, pinching, or tingling in your hands means back off.","mistakes":[["Leaning forward or poking your head out","Stand tall, chest up, chin level."],["Yanking your arms up high","Lift only a little."]],"easier":"Hold a towel between your hands instead of clasping."},"front_delt_wall":{"setup":"Stand beside a wall. Reach back and put the near hand on it at shoulder height.","steps":["Keep your arm straight and shoulder down.","Slowly turn your body away from the wall to mild tension.","Hold still, exhale to relax deeper, no bouncing.","Turn back to exit. The app switches sides for you."],"feel":"Feel it in the front of your shoulder and chest; sharp pain, pinching, or tingling in your hand means back off.","mistakes":[["Shoulder rolling forward","Set it down and back before turning."],["Turning too far, too fast","Turn in small steps."]],"easier":"Put your hand lower on the wall and turn less."},"cross_body_shoulder":{"setup":"Stand tall. Bring one straight arm across your chest at shoulder height.","steps":["Hold it at the elbow with your other hand.","Keep the shoulder down and gently ease the arm closer.","Hold still, exhale to relax deeper, no bouncing.","Let go slowly. The app switches sides for you."],"feel":"Feel it in the back of your shoulder; sharp pain, pinching, or tingling in your hand means back off.","mistakes":[["Pulling at the wrist","Hold at the elbow for control."],["Shoulder shrugging up","Push it down before you pull."]],"easier":"Let the arm cross lower and pull more lightly."},"sleeper":{"setup":"Lie on the side you're stretching, that arm in front at shoulder height, elbow bent 90 degrees.","steps":["Roll back slightly and set your shoulder blade back.","With your top hand, gently ease the forearm down to mild tension.","Hold still, exhale to relax deeper, no bouncing.","Let the forearm rise to exit. The app switches sides for you."],"feel":"Feel it in the back of your shoulder; sharp pain, a pinch in front, or tingling means stop.","mistakes":[["Pressing too hard","Use light pressure; this needs only a little."],["Pushing through a pinch","Stop, roll back more, and press less."]],"easier":"Roll farther back and press only a little."},"towel_ir":{"setup":"Stand tall. Hold a towel over one shoulder and grab the low end behind your back with the other hand.","steps":["Walk the bottom hand up until the towel is snug.","Gently pull up with the top hand, easing to mild tension.","Hold still, exhale to relax deeper, no bouncing.","Ease off and let go. The app switches sides for you."],"feel":"Feel it in the front of the bottom shoulder and back of the top arm; sharp pain, pinching, or tingling means back off.","mistakes":[["Hunching forward","Stand tall, chest up."],["Yanking the towel","Pull gently."]],"easier":"Hold the towel lower and pull very lightly."},"dead_hang":{"setup":"Stand on a box under a pull-up bar. Grab it shoulder-width, palms facing away.","steps":["Bend your knees slowly until you hang.","Let your shoulders relax and your body hang long.","Hold still and breathe slowly. No swinging or kicking.","Put your feet on the box before you let go."],"feel":"Feel it under your arms, along your back, and in your forearms; sharp pain, pinching, or tingling means come down.","mistakes":[["Dropping into the hang fast","Lower slowly by bending your knees."],["Letting go and landing hard","Feet on the box first."]],"easier":"Keep your toes on the box to take some weight off."},"overhead_tricep":{"setup":"Stand tall, feet hip-width apart. Reach one arm straight up.","steps":["Bend that elbow so your hand drops behind your head.","Hold the elbow with your other hand and gently ease it back.","Keep the elbow pointing up. Hold still, exhale to relax deeper, no bouncing.","Release slowly. The app switches sides for you."],"feel":"Feel it in the back of your upper arm and your side; sharp pain, pinching, or tingling means back off.","mistakes":[["Pushing your head forward","Keep your head tall."],["Arching your low back","Brace your belly and keep ribs down."]],"easier":"Hang a towel from the top hand and gently pull its low end."},"rack_lat":{"setup":"Face a rack post and grab it with one hand at chest height.","steps":["Step back and slowly push your hips back and away from the post.","Let your arm get long as you lean away.","Breathe into your side. Hold still, exhale to relax deeper, no bouncing.","Step in to exit. The app switches sides for you."],"feel":"Feel it under your arm and along the side of your back; sharp pain, pinching, or tingling means back off.","mistakes":[["Bending the arm","Keep it long to reach your side."],["Hips staying under you","Push them back and away."]],"easier":"Stay closer to the post and sit back less."},"child_side":{"setup":"Kneel on a pad and sit back into child's pose, arms forward.","steps":["Slowly walk both hands over to one side.","Keep your hips sinking back toward your heels.","Reach long and breathe into the stretching side. Hold still, exhale to relax deeper, no bouncing.","Walk your hands back to center. The app switches sides for you."],"feel":"Feel it along your side, opposite your hands; sharp pain, pinching, or tingling means back off.","mistakes":[["Hips lifting off your heels","Sink back first, then walk over."],["Walking the hands too far","Stop once you feel your side."]],"easier":"Put a pillow between your heels and butt."},"standing_side":{"setup":"Stand tall, feet hip-width apart. Reach one arm straight overhead.","steps":["Reach up long through your fingers.","Lean slowly to the other side, hips centered.","Stop at mild tension. Hold still, exhale to relax deeper, no bouncing.","Come back to center. The app switches sides for you."],"feel":"Feel it along the side of your body under the raised arm; sharp pain, pinching, or tingling means back off.","mistakes":[["Hips sliding out to the side","Keep them over your feet; lean from your ribs."],["Leaning forward","Stay flat, like between two panes of glass."]],"easier":"Rest your other hand on your hip and lean less."},"wall_bicep":{"setup":"Stand beside a wall. Reach back and put the near palm on it at shoulder height, thumb up.","steps":["Keep your arm straight.","Turn your body slowly away from the wall.","Stop at gentle tension. Hold still, exhale to relax deeper, no bouncing.","Turn back to exit. The app switches sides for you."],"feel":"Feel it in the front of your upper arm and chest; sharp pain, pinching, or tingling in your hand means back off.","mistakes":[["Bending the elbow","Keep it straight to reach the biceps."],["Turning too far","Turn slowly; stop at gentle tension."]],"easier":"Put your hand lower on the wall and turn less."},"wrist_flexor":{"setup":"Stand tall. Hold one arm straight out in front, palm up.","steps":["Hold those fingers with your other hand.","Gently ease them down and back toward you.","Keep your elbow straight. Hold still, exhale to relax deeper, no bouncing.","Let go slowly. The app switches sides for you."],"feel":"Feel it along the inside of your forearm; sharp pain, pinching in the wrist, or tingling in your fingers means back off.","mistakes":[["Bending the elbow","Straighten it so the stretch runs up the forearm."],["Pulling the fingers too hard","Pull gently, just to mild tension."]],"easier":"Bend the elbow slightly and pull more lightly."},"wrist_extensor":{"setup":"Stand tall. Hold one arm straight out in front, palm down.","steps":["Let your hand drop at the wrist.","With your other hand, gently ease the back of the hand toward you.","Keep your elbow straight and fingers relaxed. Hold still, exhale to relax deeper, no bouncing.","Let go slowly. The app switches sides for you."],"feel":"Feel it along the top of your forearm; sharp pain, pinching in the wrist, or tingling in your fingers means back off.","mistakes":[["Bending the elbow","Straighten it to reach the top of the forearm."],["Making a tight fist","Keep your fingers loose."]],"easier":"Bend the elbow slightly and press more lightly."},"upper_trap":{"setup":"Sit tall in a chair and tuck one hand under your thigh.","steps":["Slowly tilt your head away from that hand, ear toward the other shoulder.","Rest your free hand lightly on your head, never pulling hard.","Hold still, exhale, and let the shoulder drop. No bouncing.","Remove the hand, then lift your head. The app switches sides for you."],"feel":"Feel it along the side of your neck and top of your shoulder; sharp pain, pinching, or tingling means back off.","mistakes":[["Pulling your head hard","Just rest the hand there."],["Shoulder creeping up","Keep sitting on your hand."]],"easier":"Skip the hand and just tilt your head."},"levator":{"setup":"Sit tall in a chair and hold the seat with one hand.","steps":["Turn your head about 45 degrees toward the other armpit and slowly look down.","Rest your free hand lightly on your head, never pulling hard.","Hold still, exhale to relax deeper, no bouncing.","Remove the hand, then lift your head. The app switches sides for you."],"feel":"Feel it in the back of your neck toward your shoulder blade; sharp pain, pinching, or tingling means back off.","mistakes":[["Pulling with your hand","Just let it rest there."],["Shoulder lifting up","Hold the seat to keep it down."]],"easier":"Skip the hand and just look down slowly."},"chin_tuck_hold":{"setup":"Sit tall in a chair, shoulders relaxed, eyes straight ahead.","steps":["Slowly glide your chin straight back, like making a double chin.","Keep your eyes level. A light finger on your chin can guide it; never push hard.","Hold still and breathe normally. No jerking.","Let your head ease forward to its normal spot."],"feel":"Feel a mild stretch at the back of your neck; sharp pain, pinching, or tingling means back off.","mistakes":[["Nodding your chin down","Move straight back, eyes level."],["Pushing too hard","Use gentle effort; it should feel easy."]],"easier":"Sit with your head against a wall and glide back toward it."},"scalene":{"setup":"Sit tall in a chair with one hand flat on your collarbone.","steps":["Hold the collarbone down with a light hand.","Slowly tilt your head away from your hand, then tip it slightly back.","Hold still, exhale to relax deeper, no bouncing.","Return to center slowly. The app switches sides for you."],"feel":"Feel it in the front and side of your neck; sharp pain, pinching, or tingling means back off.","mistakes":[["Pressing hard on the collarbone","Just keep it from lifting."],["Tipping your head too far back","Go only a little, and slowly."]],"easier":"Tilt your head to the side only, with no tip back."}};
+
+/* ============ INGREDIENTS ============
+   I(id, name, unit, kcal, protein, carbs, fat, section, buy)
+   buy: 'lb/16/0.25'  -> show purchase in lb (units per lb, round step)
+        '~bag (12 oz)/4' -> hint: how many containers (units per container)          */
+const ING = {};
+const SECTIONS = ['Produce','Meat & Seafood','Dairy & Eggs','Bakery','Grains, Pasta & Beans','Canned & Jarred','Frozen','Pantry & Snacks','Spices & Sauces'];
+function I(id, name, unit, kcal, p, c, f, sec, buy) {
+  let b = null;
+  if (buy) {
+    const parts = buy.split('/');
+    if (parts[0].startsWith('~')) b = { hint: parts[0].slice(1), per: +parts[1] };
+    else b = { unit: parts[0], per: +parts[1], step: +(parts[2] || 1), name: parts[3] || null };
+  }
+  ING[id] = { id, name, unit, kcal, p, c, f, sec, buy: b };
+}
+/* Produce */
+I('banana','Bananas','each',105,1.3,27,0.4,'Produce');
+I('apple','Apples','each',95,0.5,25,0.3,'Produce');
+I('potato','Russet potatoes','each',164,4.3,37,0.2,'Produce','lb/2.1/1');
+I('baby_pot','Baby potatoes','oz',22,0.6,5,0,'Produce','lb/16/0.5');
+I('sweet_pot','Sweet potatoes','each',112,2,26,0.1,'Produce','lb/3.3/0.5');
+I('pepper','Bell peppers','each',30,1,7,0.3,'Produce');
+I('onion','Yellow onions','each',44,1.2,10,0.1,'Produce');
+I('spinach','Baby spinach','cup',7,0.9,1.1,0.1,'Produce','~bag (5 oz)/5');
+I('romaine','Romaine lettuce','cup',8,0.6,1.5,0.1,'Produce','~head/6');
+I('slaw','Coleslaw mix','cup',20,1,5,0,'Produce','~bag (14 oz)/6');
+I('tomato','Tomatoes','each',22,1,5,0.2,'Produce');
+I('carrots','Baby carrots','cup',45,0.8,10,0.2,'Produce','~bag (1 lb)/3.5');
+I('lime','Limes','each',20,0.5,7,0.1,'Produce');
+I('garlic','Garlic','clove',4,0.2,1,0,'Produce','~head/10');
+I('avocado','Avocados','half',120,1.5,6,11,'Produce');
+I('orange','Oranges','each',62,1.2,15.4,0.2,'Produce');
+I('grapes','Grapes','cup',104,1.1,27,0.2,'Produce');
+/* Meat & Seafood */
+I('chx','Chicken breast','oz',34,6.4,0,0.7,'Meat & Seafood','lb/16/0.25');
+I('thigh','Chicken thighs (boneless)','oz',40,5.4,0,2,'Meat & Seafood','lb/16/0.25');
+I('gb','Ground beef 90/10','oz',50,5.6,0,2.8,'Meat & Seafood','lb/16/0.25');
+I('gt','Ground turkey 93/7','oz',42,5.3,0,2.1,'Meat & Seafood','lb/16/0.25');
+I('pork','Pork shoulder (smoked, pulled)','oz',65,7.5,0,3.8,'Meat & Seafood','lb/8/0.5/Pork shoulder, bone-in (raw)');
+I('chuck','Chuck roast (smoked)','oz',70,8,0,4,'Meat & Seafood','lb/10/0.5/Chuck roast (raw)');
+I('pork_tl','Pork tenderloin','oz',34,5.9,0,1,'Meat & Seafood','lb/16/0.25');
+I('sirloin','Top sirloin steak','oz',43,6.2,0,1.9,'Meat & Seafood','lb/16/0.25');
+I('salmon','Salmon fillets','oz',52,6,0,3,'Meat & Seafood','lb/16/0.25');
+I('kielbasa','Turkey kielbasa','oz',45,4,1.5,2.5,'Meat & Seafood','~rope (13 oz)/13');
+I('sausage','Turkey sausage links','link',40,3.5,0.3,2.7,'Meat & Seafood','~pack (10 links)/10');
+I('deli_turkey','Deli turkey','oz',30,5.5,1,0.5,'Meat & Seafood','lb/16/0.25');
+I('ham','Ham (deli or diced)','oz',35,5.5,0.8,1.2,'Meat & Seafood','lb/16/0.25');
+I('bacon','Bacon','slice',43,3,0.1,3.3,'Meat & Seafood','~pack (12 oz)/16');
+I('pork_sausage','Pork sausage patty','each',130,6,0.5,11,'Meat & Seafood','~pack (8)/8');
+I('hot_dog','Hot dogs','each',150,6,2,13,'Meat & Seafood','~pack (8)/8');
+/* Dairy & Eggs */
+I('egg','Eggs','each',72,6.3,0.4,4.8,'Dairy & Eggs','~dozen/12');
+I('ew','Liquid egg whites','cup',126,26,1.8,0.4,'Dairy & Eggs','~carton (32 oz)/4');
+I('gy','Greek yogurt, plain nonfat','cup',130,23,9,0.5,'Dairy & Eggs','~tub (32 oz)/3.75');
+I('cc','Cottage cheese 2%','cup',180,24,10,5,'Dairy & Eggs','~tub (24 oz)/3');
+I('milk','Milk 2%','cup',122,8,12,4.8,'Dairy & Eggs','~gallon/16');
+I('choc_milk','Chocolate milk 1%','cup',160,8,26,2.5,'Dairy & Eggs','~half gallon/8');
+I('cheddar','Shredded cheddar','oz',110,6.5,1,9,'Dairy & Eggs','~bag (8 oz)/8');
+I('string','String cheese','each',80,7,1,5.5,'Dairy & Eggs','~pack (12)/12');
+I('butter','Butter','tbsp',102,0.1,0,11.5,'Dairy & Eggs','~stick/8');
+I('hummus','Hummus','tbsp',35,1,2,2.5,'Dairy & Eggs','~tub (10 oz)/18');
+I('american','American cheese','slice',60,3.5,1.5,4.5,'Dairy & Eggs','~pack (16)/16');
+I('mozz','Mozzarella','oz',85,6,1,6,'Dairy & Eggs','~bag (8 oz)/8');
+I('sour_cream','Sour cream','tbsp',24,0.3,0.6,2.3,'Dairy & Eggs','~tub (16 oz)/32');
+I('cream_cheese','Cream cheese','tbsp',50,1,0.8,5,'Dairy & Eggs','~block (8 oz)/16');
+I('whole_milk','Milk (whole)','cup',150,8,12,8,'Dairy & Eggs','~gallon/16');
+I('creamer','Coffee creamer','tbsp',35,0,5,1.5,'Dairy & Eggs');
+/* Bakery */
+I('tortilla','Flour tortillas (burrito size)','each',210,5.5,35,5,'Bakery','~pack (8)/8');
+I('corn_tort','Corn tortillas','each',52,1.4,11,0.7,'Bakery','~pack (30)/30');
+I('bread','Whole wheat bread','slice',110,5,20,1.5,'Bakery','~loaf/20');
+I('bagel','Bagels','each',270,10,53,1.5,'Bakery','~pack (6)/6');
+I('bun','Hamburger buns','each',140,4,26,2,'Bakery','~pack (8)/8');
+I('eng_muffin','English muffins','each',130,5,26,1,'Bakery','~pack (6)/6');
+I('white_bread','White bread','slice',75,2.5,14,1,'Bakery','~loaf/22');
+I('hot_dog_bun','Hot dog buns','each',120,4,22,2,'Bakery','~pack (8)/8');
+/* Grains, pasta & beans */
+I('rice','Rice (cooked)','cup',205,4.3,45,0.4,'Grains, Pasta & Beans','lb/7/0.5/Rice (dry)');
+I('oats','Rolled oats','cup',300,10,54,6,'Grains, Pasta & Beans','~canister (42 oz)/15');
+I('pasta','Pasta (dry)','oz',100,3.5,21,0.5,'Grains, Pasta & Beans','~box (1 lb)/16');
+I('pancake_mix','Protein pancake mix','cup',380,28,60,4,'Grains, Pasta & Beans','~box/4.5');
+I('granola','Granola','cup',420,10,64,14,'Grains, Pasta & Beans','~bag (12 oz)/3');
+/* Canned & jarred */
+I('black_beans','Black beans','can',330,21,60,1.5,'Canned & Jarred');
+I('kidney','Kidney beans','can',330,21,57,1.5,'Canned & Jarred');
+I('diced_tom','Diced tomatoes','can',90,3.5,17,0.5,'Canned & Jarred');
+I('marinara','Marinara sauce','cup',140,4,20,5,'Canned & Jarred','~jar (24 oz)/3');
+I('salsa','Salsa','cup',80,4,16,0,'Canned & Jarred','~jar (16 oz)/2');
+I('tuna','Tuna in water (5 oz)','can',110,25,0,1,'Canned & Jarred');
+I('pineapple','Pineapple chunks','cup',110,1,28,0,'Canned & Jarred','~can (20 oz)/2');
+/* Frozen */
+I('broccoli','Broccoli (frozen)','cup',30,2.5,5,0.3,'Frozen','~bag (12 oz)/4');
+I('green_beans','Green beans (frozen)','cup',35,2,7,0,'Frozen','~bag (12 oz)/3.5');
+I('mixed_veg','Mixed vegetables (frozen)','cup',70,3,13,0.5,'Frozen','~bag (12 oz)/3');
+I('stirfry_veg','Stir-fry vegetables (frozen)','cup',40,2,7,0,'Frozen','~bag (16 oz)/4');
+I('berries','Mixed berries (frozen)','cup',70,1,17,0.5,'Frozen','~bag (16 oz)/3.5');
+I('hashbrowns','Shredded hash browns (frozen)','cup',70,1.5,15,0,'Frozen','~bag (30 oz)/10');
+I('tilapia','Tilapia fillets (frozen)','oz',27,5.7,0,0.5,'Frozen','lb/16/0.5');
+/* Pantry & snacks */
+I('pb','Peanut butter','tbsp',95,3.5,3.5,8,'Pantry & Snacks','~jar (16 oz)/28');
+I('honey','Honey','tbsp',64,0,17,0,'Pantry & Snacks','~bottle (12 oz)/16');
+I('maple','Maple syrup','tbsp',52,0,13,0,'Pantry & Snacks','~bottle (12 oz)/24');
+I('jam','Jam','tbsp',50,0,13,0,'Pantry & Snacks','~jar (18 oz)/26');
+I('oil','Olive oil','tbsp',119,0,0,13.5,'Pantry & Snacks','~bottle (17 oz)/34');
+I('whey','Whey protein','scoop',120,24,3,1.5,'Pantry & Snacks','~tub (≈30 scoops)/30');
+I('jerky','Beef jerky','oz',80,11,6,1,'Pantry & Snacks','~bag (10 oz)/10');
+I('trail_mix','Trail mix','oz',140,4,13,9,'Pantry & Snacks','~bag (26 oz)/26');
+I('pretzels','Pretzels','oz',110,3,23,1,'Pantry & Snacks','~bag (16 oz)/16');
+I('rice_cake','Rice cakes','each',35,0.7,7.3,0.3,'Pantry & Snacks','~sleeve (14)/14');
+I('protein_bar','Protein bars','each',200,20,22,7,'Pantry & Snacks','~box (12)/12');
+I('chips','Tortilla chips','oz',140,2,19,7,'Pantry & Snacks','~bag (13 oz)/13');
+I('mac_cheese','Mac & cheese (boxed, made)','cup',350,10,48,13,'Pantry & Snacks');
+/* Spices & sauces (assume pantry) */
+I('bbq','BBQ sauce','tbsp',35,0,8.5,0,'Spices & Sauces','~bottle (18 oz)/24');
+I('teriyaki','Teriyaki sauce','tbsp',15,1,3,0,'Spices & Sauces','~bottle (10 oz)/20');
+I('soy','Soy sauce','tbsp',10,1,1,0,'Spices & Sauces','~bottle (10 oz)/20');
+I('lite_mayo','Light mayo','tbsp',45,0,1,4.5,'Spices & Sauces','~jar (30 oz)/60');
+I('mustard','Mustard','tbsp',10,0.5,1,0.5,'Spices & Sauces');
+I('rub','BBQ rub','tbsp',15,0,3,0,'Spices & Sauces','~jar/16');
+I('taco','Taco seasoning','tbsp',20,0,4,0,'Spices & Sauces','~packet/2');
+I('fajita','Fajita seasoning','tbsp',20,0,4,0,'Spices & Sauces','~packet/2');
+I('italian','Italian seasoning','tsp',3,0,0.5,0,'Spices & Sauces');
+I('cinnamon','Cinnamon','tsp',6,0,2,0,'Spices & Sauces');
+I('ketchup','Ketchup','tbsp',20,0.2,5,0,'Spices & Sauces','~bottle (20 oz)/38');
+I('ranch','Ranch dressing','tbsp',70,0.2,1,7,'Spices & Sauces','~bottle (16 oz)/32');
+I('hot_sauce','Hot sauce','tsp',0,0,0,0,'Spices & Sauces');
+
+/* ============ MEALS ============
+   M(id, name, slots, tags, ingredients "id:qty,...", steps "a|b|c", minutes, batch "key=ing,key#count") */
+const MEALS = {};
+const MEAL_LIST = [];
+function M(id, name, slots, tags, ing, steps, min, batch) {
+  const items = ing.split(',').map(s => { const [k, q] = s.trim().split(':'); return [k, +q]; });
+  let kcal = 0, p = 0, c = 0, f = 0;
+  for (const [k, q] of items) { const g = ING[k]; if (!g) { console.warn('missing ing', k); continue; } kcal += g.kcal * q; p += g.p * q; c += g.c * q; f += g.f * q; }
+  const b = batch ? batch.split(',').map(s => { s = s.trim(); if (s.includes('#')) { const [k, n] = s.split('#'); return { k, n: +n }; } const [k, i] = s.split('='); return { k, ing: i }; }) : [];
+  const m = { id, name, slots: slots.split(' '), tags: tags ? tags.split(' ') : [], ing: items, steps: steps.split('|'), min, batch: b, kcal, p, c, f };
+  MEALS[id] = m; MEAL_LIST.push(m);
+}
+/* Breakfast */
+M('overnight_oats','Overnight Oats with Whey & PB','breakfast','portable batch nocook','oats:0.75,milk:1,whey:1,pb:1,banana:1','In a jar, stir the oats, milk and whey until smooth.|Top with the peanut butter and sliced banana.|Refrigerate overnight — make 3–4 jars at once and grab one on the way out.',5,'oats#1');
+M('bfast_burrito','Egg & Potato Breakfast Burritos','breakfast','portable batch whole','tortilla:1,egg:2,ew:0.25,hashbrowns:0.5,cheddar:0.5,sausage:2,salsa:0.125','Crisp the hash browns and brown the sausage (sliced) in one pan.|Scramble the eggs and whites soft.|Fill tortillas with eggs, potatoes, sausage, cheese and salsa; roll tight and wrap in foil.|Freeze. Reheat 2 minutes in the microwave (foil off) or 20 minutes on a hot grill in the foil.',30,'burritos#1');
+M('parfait','Greek Yogurt Parfait','breakfast snack','quick nocook portable','gy:1.5,granola:0.33,berries:0.75,honey:1','Layer yogurt, thawed berries and granola in a container.|Drizzle with honey. Keep the granola separate if packing for later.',3);
+M('protein_pancakes','Protein Pancakes & Berries','breakfast','batch','pancake_mix:0.75,egg:1,milk:0.5,berries:0.5,maple:1,butter:0.5,gy:0.5','Whisk the mix, egg and milk; rest 2 minutes.|Cook 3 pancakes on a buttered griddle over medium heat.|Top with warm berries, maple syrup and a scoop of Greek yogurt.|Extra pancakes freeze well — toast them straight from frozen.',15,'pancakes#3');
+M('eggs_toast','Scrambled Eggs, Toast & Fruit','breakfast','quick','egg:3,ew:0.5,bread:2,butter:0.5,apple:1','Scramble the eggs and egg whites low and slow in the butter.|Toast the bread.|Serve with an apple.',10);
+M('egg_muffins','Egg Muffin Cups & English Muffin','breakfast','portable batch whole','egg:3,ew:0.5,pepper:0.25,spinach:0.5,cheddar:0.5,eng_muffin:1,banana:1','Whisk eggs and whites; stir in diced pepper, chopped spinach and cheese.|Pour into a greased muffin tin and bake at 350°F for 20 minutes.|Eat 3 cups with a toasted English muffin and a banana. Keeps 4 days in the fridge.',30,'muffins#3');
+M('bagel_sandwich','Egg & Sausage Bagel Sandwich','breakfast','portable batch whole','bagel:1,egg:2,cheddar:0.5,sausage:2','Cook the eggs as a flat omelet and brown the sausage.|Stack on a toasted bagel with cheese.|Wrap in foil to freeze; reheat 90 seconds (foil off).',15,'bagels#1');
+M('chuck_hash','Smoked Chuck Hash & Eggs','breakfast','traeger','chuck:3,potato:1,onion:0.25,pepper:0.5,egg:2,oil:0.5','Dice the potato and microwave 3 minutes to par-cook.|Crisp potato, onion and pepper in oil, then add chopped leftover smoked chuck.|Top with two fried eggs.',20);
+M('oatmeal_eggs','Cinnamon Oatmeal & Eggs','breakfast','quick','oats:0.75,milk:1,banana:1,cinnamon:1,egg:2,ew:0.5','Cook the oats in milk with cinnamon and sliced banana.|Scramble the eggs and whites on the side.',10);
+M('cottage_bowl','Cottage Cheese Power Bowl','breakfast snack','nocook portable quick','cc:1.5,pineapple:0.5,granola:0.25,honey:0.5','Spoon cottage cheese into a container.|Top with pineapple, granola and a drizzle of honey.',3);
+M('pork_bfast_tacos','Pulled Pork Breakfast Tacos','breakfast','traeger quick whole','corn_tort:3,pork:3,egg:2,salsa:0.25','Warm leftover pulled pork in a skillet.|Scramble the eggs.|Fill warm corn tortillas with pork and eggs; top with salsa.',10);
+/* Lunch */
+M('chx_rice_broc','Chicken, Rice & Broccoli Bowl','lunch dinner','portable batch','chx:6,rice:1.5,broccoli:1,oil:0.5,teriyaki:1','Season and grill, bake (425°F, 20 min) or smoke the chicken; slice.|Cook the rice and steam the broccoli.|Portion into containers and finish with teriyaki. Reheat 2 minutes.',35,'chx=chx,rice=rice');
+M('pork_bowl','Smoked Pulled Pork Rice Bowl','lunch dinner','traeger batch portable','pork:5,rice:1.5,slaw:1,bbq:1.5','Portion pulled pork over rice.|Pack the slaw separately so it stays crunchy.|Reheat the pork and rice, then top with slaw and BBQ sauce.',10,'pork=pork,rice=rice');
+M('turkey_taco_bowl','Ground Turkey Taco Bowl','lunch dinner','portable batch','gt:6,rice:1,black_beans:0.25,salsa:0.25,cheddar:0.5,taco:0.5,romaine:1','Brown the turkey with taco seasoning and a splash of water.|Portion over rice and black beans.|Top with cheese; pack lettuce and salsa separately.',25,'gt=gt,rice=rice');
+M('beef_bean_burrito','Beef & Bean Freezer Burritos','lunch','portable batch whole','tortilla:1,gb:4,black_beans:0.25,rice:0.5,cheddar:0.5,salsa:0.125,taco:0.5','Brown the beef with taco seasoning; stir in beans and rice.|Fill tortillas with the mix, cheese and salsa; roll and wrap in foil.|Freeze. Reheat 2–3 minutes (foil off), or toss in the foil on a hot dash/grill.',35,'beefburritos#1,gb=gb,rice=rice');
+M('turkey_wrap','Turkey & Cheese Wraps + Apple','lunch','portable quick nocook whole','tortilla:1,deli_turkey:5,cheddar:0.75,lite_mayo:1,romaine:1,tomato:0.5,apple:1','Spread mayo on the tortilla.|Layer turkey, cheese, lettuce and tomato; roll tight and cut in half.|Pack with an apple.',5);
+M('tuna_wrap','Tuna Salad Wraps','lunch','portable quick nocook whole','tuna:1.5,lite_mayo:1.5,tortilla:1,romaine:1,apple:1','Mix the drained tuna with mayo, salt and pepper.|Roll into a tortilla with lettuce.|Pack with an apple and keep it cold.',5);
+M('teriyaki_thighs','Teriyaki Chicken Thighs & Rice','lunch dinner','batch portable','thigh:6,rice:1.5,stirfry_veg:1,teriyaki:2','Bake (425°F, 22 min) or smoke the thighs, then glaze with teriyaki.|Stir-fry the vegetables.|Portion over rice.',30,'thigh=thigh,rice=rice');
+M('turkey_chili','Turkey Chili & Rice','lunch dinner','batch portable','gt:5,kidney:0.33,diced_tom:0.33,onion:0.25,cheddar:0.5,rice:1','Brown the turkey with diced onion.|Add beans, tomatoes, chili powder and cumin; simmer 20 minutes.|Serve over rice with cheese. Pack hot in a thermos for the job site.',40,'chili#1,rice=rice');
+M('chx_pasta_salad','Chicken Pasta Salad','lunch','batch portable','pasta:3,chx:5,pepper:0.5,oil:1,italian:1,tomato:0.5','Cook the pasta, rinse cold.|Toss with diced chicken, pepper, tomato, olive oil, a splash of vinegar and Italian seasoning.|Eat cold — great for hot job sites.',25,'chx=chx,pasta=pasta');
+M('bbq_chx_sweet','BBQ Chicken & Sweet Potato','lunch dinner','batch portable traeger','chx:6,sweet_pot:1.5,bbq:2,green_beans:1,butter:0.5','Smoke the chicken at 250°F to 165°F internal (about 1 hr), brushing on BBQ sauce at the end.|Roast cubed sweet potatoes at 425°F for 25 minutes.|Portion with green beans and a little butter.',60,'chx=chx,sweet=sweet_pot');
+M('pulled_chx_sammies','Pulled BBQ Chicken Sandwiches','lunch dinner','traeger portable batch whole','thigh:6,bun:1,bbq:1.5,slaw:0.5,pretzels:1','Smoke the thighs at 250°F until 175°F internal; shred.|Toss with BBQ sauce.|Pack the chicken, bun and slaw separately; assemble at lunch. Pretzels on the side.',75,'thigh=thigh');
+/* Dinner */
+M('smoked_thighs_potatoes','Smoked Chicken Thighs, Potatoes & Green Beans','dinner','traeger batch','thigh:7,baby_pot:8,green_beans:1,oil:0.5,rub:1','Rub the thighs and smoke at 250°F for 60–75 minutes to 175°F internal.|Toss halved baby potatoes in oil and roast on the Traeger at 400°F while it heats up (35 minutes).|Serve with steamed green beans. Leftovers make great lunches.',80,'thigh=thigh');
+M('pork_tenderloin','Smoked Pork Tenderloin, Rice & Broccoli','dinner','traeger','pork_tl:7,rice:1.5,broccoli:1,rub:1,butter:0.5','Rub the tenderloin and smoke at 225°F to 145°F internal (about 1.5 hours).|Rest 10 minutes and slice.|Serve with buttered rice and broccoli.',100);
+M('traeger_salmon','Traeger Honey-Soy Salmon & Rice','dinner','traeger','salmon:6,rice:1.25,green_beans:1,honey:0.5,soy:0.5','Brush the salmon with honey and soy.|Smoke at 225°F for 30 minutes, then 375°F until it flakes (about 45 minutes total).|Serve with rice and green beans.',50);
+M('sirloin_potato','Reverse-Seared Sirloin & Baked Potato','dinner','traeger','sirloin:8,potato:1,butter:0.5,gy:0.25,broccoli:1','Smoke the steak at 225°F to 120°F internal.|Crank the grill (or use a cast-iron pan) and sear 1 minute per side.|Serve with a baked potato topped with butter and Greek yogurt, plus broccoli.',70);
+M('pulled_pork_dinner','Pulled Pork, Sweet Potato & Slaw','dinner','traeger batch','pork:6,sweet_pot:1,slaw:1,bbq:1.5','Smoke the shoulder at 225°F for about 1.5 hours per pound, wrap at 165°F, pull at 203°F.|Bake the sweet potato alongside for the last hour.|Serve the pork with BBQ sauce and slaw. Freeze extra pork in 5-oz portions.',600,'pork=pork');
+M('spaghetti','Spaghetti with Lean Meat Sauce','dinner','batch','pasta:4,gb:5,marinara:0.75,romaine:2','Brown the beef and drain.|Simmer with marinara for 10 minutes.|Toss with cooked spaghetti; side salad.',25,'gb=gb');
+M('beef_broccoli','Beef & Broccoli Stir-Fry','dinner','quick','sirloin:6,broccoli:1.5,rice:1.5,soy:1.5,honey:0.5,oil:0.5,garlic:1','Slice the steak thin against the grain.|Sear in a hot pan with oil; remove.|Stir-fry broccoli and garlic, return the beef with soy and honey.|Serve over rice.',20,'rice=rice');
+M('chx_fajitas','Sheet-Pan Chicken Fajitas','dinner','quick whole','chx:7,pepper:1,onion:0.5,oil:0.5,fajita:1,corn_tort:4,salsa:0.25,gy:0.25','Slice chicken, peppers and onion; toss with oil and fajita seasoning.|Roast at 425°F for 20 minutes (or grill in a basket).|Serve in warm tortillas with salsa and Greek yogurt.',30);
+M('turkey_burgers','Grilled Turkey Burgers & Sweet Potato Fries','dinner','grill whole','gt:6,bun:1,cheddar:0.5,sweet_pot:1,oil:0.5,tomato:0.5,mustard:1','Form patties and grill over medium-high to 165°F.|Toss sweet potato wedges in oil and roast at 425°F for 25 minutes.|Build the burger with cheese, tomato and mustard.',35);
+M('smoked_meatloaf','Smoked Meatloaf & Mashed Potatoes','dinner','traeger batch','gb:6,oats:0.125,egg:0.25,bbq:1,potato:1,milk:0.25,butter:0.5,green_beans:1','Mix the beef, oats, egg and seasoning; shape into a loaf.|Smoke at 225°F for 1 hour, glaze with BBQ sauce, then 350°F to 160°F internal.|Serve with mashed potatoes and green beans.',120,'gb=gb');
+M('sheet_pan_kielbasa','Sheet-Pan Chicken, Kielbasa & Potatoes','dinner','quick','kielbasa:5,chx:3,baby_pot:8,pepper:0.5,onion:0.25,oil:0.5','Toss halved potatoes in oil and roast at 425°F for 15 minutes.|Add sliced kielbasa, chicken, pepper and onion; roast 15 more minutes.',35);
+M('smoked_chx_tacos','Smoked Chicken Street Tacos','dinner','traeger whole','thigh:6,corn_tort:4,slaw:0.5,lime:0.5,salsa:0.25,gy:0.25,black_beans:0.25','Smoke the thighs at 250°F until 175°F; chop.|Warm tortillas on the grill.|Fill with chicken, slaw, salsa and a squeeze of lime; beans on the side.',80);
+M('smoked_chuck','Smoked Chuck Roast & Potatoes','dinner','traeger batch','chuck:6,baby_pot:8,green_beans:1,bbq:1','Rub a chuck roast and smoke at 250°F to 165°F, wrap, and cook to 203°F (6–8 hours).|Rest an hour, then slice or shred.|Serve with roasted potatoes and green beans. Leftovers become breakfast hash.',480,'chuck=chuck');
+M('chx_broc_pasta','Chicken & Broccoli Pasta','dinner','batch','pasta:3,chx:6,broccoli:1,milk:0.5,cheddar:0.5,butter:0.5,garlic:1','Cook the pasta, adding the broccoli for the last 3 minutes.|Sear diced chicken with garlic in butter.|Stir in the milk and cheese to make a light sauce; toss everything together.',25,'chx=chx');
+M('blackened_tilapia','Blackened Tilapia, Rice & Veggies','dinner','quick','tilapia:8,rice:1.5,mixed_veg:1,butter:0.5','Season the tilapia with blackening spice.|Sear in butter 3 minutes per side (or grill on foil).|Serve with rice and mixed vegetables.',15,'rice=rice');
+/* Snacks */
+M('yogurt_berries','Greek Yogurt & Berries','snack','nocook portable quick','gy:1,berries:0.5,honey:0.5','Top yogurt with berries and honey.',2);
+M('cc_pineapple','Cottage Cheese & Pineapple','snack','nocook portable quick','cc:1,pineapple:0.5','Top cottage cheese with pineapple.',2);
+M('pb_ricecakes','PB Banana Rice Cakes & Milk','snack pre','quick','rice_cake:2,pb:1.5,banana:0.5,milk:1','Spread peanut butter on the rice cakes and top with banana slices.|Glass of milk on the side.',3);
+M('jobsite_pack','Job-Site Snack Pack','snack','portable nocook','jerky:1.5,string:1,apple:1','Toss jerky, a cheese stick and an apple in your lunchbox. Shelf-stable except the cheese.',1);
+M('trail_cheese','Trail Mix & String Cheese','snack','portable nocook','trail_mix:1.5,string:1','Portion the trail mix into a bag; add a cheese stick.',1);
+M('hb_eggs','Hard-Boiled Eggs & Banana','snack','portable batch whole','egg:3,banana:1','Boil a dozen eggs for 10 minutes, then ice bath. Peel and keep up to a week.|Pack 3 with a banana.',15,'hbeggs#3');
+M('turkey_rollups','Turkey Roll-Ups, Hummus & Carrots','snack','portable nocook','deli_turkey:3,hummus:3,carrots:1','Roll the turkey slices.|Pack with hummus and baby carrots.',3);
+M('bar_banana','Protein Bar & Banana','snack pre','portable nocook whole','protein_bar:1,banana:1','Keep a box of bars in the truck.',0);
+/* Pre-workout */
+M('pb_banana_toast','PB & Banana Toast','pre','quick','bread:2,pb:1,banana:1,honey:0.5','Toast the bread; spread peanut butter.|Top with sliced banana and a drizzle of honey.',4);
+M('ricecake_whey','Honey Rice Cakes + Whey Shake','pre','quick','rice_cake:3,honey:1,whey:1,banana:1','Drizzle honey on the rice cakes.|Shake the whey with water.|Eat with a banana — light, fast-digesting carbs.',2);
+M('oat_cup','Honey Oatmeal Cup','pre','quick','oats:0.5,milk:0.75,honey:1,berries:0.5,whey:0.5','Microwave oats in milk for 90 seconds.|Stir in half a scoop of whey, honey and berries.',4);
+M('bagel_yogurt','Bagel & Jam + Greek Yogurt','pre','quick','bagel:1,jam:1,gy:0.75','Toast the bagel and spread jam.|Greek yogurt on the side.',3);
+M('eng_muffin_pb','English Muffin, PB & Banana','pre','quick','eng_muffin:1,pb:1,banana:1,gy:0.5','Toast the English muffin, spread peanut butter, add banana.|Greek yogurt on the side.',3);
+M('truck_pre','Banana, Pretzels & Jerky','pre snack','portable nocook','banana:1,pretzels:1,jerky:1','Easy to eat on the drive: banana, a handful of pretzels and jerky.',0);
+/* Post-workout */
+M('shake_milk_banana','Whey Shake with Milk & Banana','post snack','quick portable','whey:1.5,milk:1.5,banana:1','Shake the whey with milk.|Eat a banana with it within an hour of training.',2);
+M('chocmilk_sandwich','Chocolate Milk & Turkey Sandwich','post','quick portable whole','choc_milk:1.5,bread:2,deli_turkey:4,mustard:1','Build a turkey sandwich with mustard.|Drink the chocolate milk right after your session.',5);
+M('recovery_smoothie','Berry Recovery Smoothie','post','quick','whey:1.5,berries:1,milk:1,oats:0.25,banana:0.5','Blend everything until smooth. Add ice or water to thin.',5);
+M('protein_yogurt_bowl','Protein Yogurt Bowl','post snack','quick nocook','gy:1.5,granola:0.5,honey:0.5,berries:0.5','Top yogurt with granola, berries and honey.',3);
+M('shake_bagel','Whey Shake & Bagel','post','quick portable','whey:1.5,bagel:1,jam:1','Shake the whey with water.|Toast the bagel and spread jam.',3);
+M('chx_rice_cup','Quick Chicken & Rice Cup','post','portable batch','chx:5,rice:1.25,teriyaki:1','Use prepped chicken and rice — microwave 90 seconds with teriyaki.',3,'chx=chx,rice=rice');
+
+const SLOT_INFO = {
+  breakfast: { name:'Breakfast', share:0.24, compat:['breakfast'] },
+  lunch:     { name:'Lunch', share:0.27, compat:['lunch','dinner'] },
+  dinner:    { name:'Dinner', share:0.28, compat:['dinner','lunch'] },
+  snack1:    { name:'Snack', share:0.11, compat:['snack','pre','post'] },
+  snack2:    { name:'Snack', share:0.11, compat:['snack','pre','post'] },
+  pre:       { name:'Pre-workout', share:0.10, compat:['pre','snack'] },
+  post:      { name:'Post-workout', share:0.14, compat:['post','snack'] },
+};
+const BATCH_TASKS = {
+  chx:{ t:'Grill, bake or smoke chicken breast', ing:'chx' },
+  thigh:{ t:'Smoke or bake chicken thighs', ing:'thigh' },
+  rice:{ t:'Cook rice', ing:'rice' },
+  gt:{ t:'Brown ground turkey', ing:'gt' },
+  gb:{ t:'Brown lean ground beef', ing:'gb' },
+  pork:{ t:'Smoke a pork shoulder (225°F, ~1.5 hr/lb)', ing:'pork' },
+  chuck:{ t:'Smoke a chuck roast (250°F, 6–8 hr)', ing:'chuck' },
+  sweet:{ t:'Roast sweet potatoes', ing:'sweet_pot' },
+  pasta:{ t:'Cook pasta', ing:'pasta' },
+  chili:{ t:'Make a pot of turkey chili', unit:'servings' },
+  burritos:{ t:'Roll & freeze breakfast burritos', unit:'burritos' },
+  beefburritos:{ t:'Roll & freeze beef & bean burritos', unit:'burritos' },
+  muffins:{ t:'Bake egg muffin cups', unit:'cups' },
+  oats:{ t:'Mix overnight oats jars', unit:'jars' },
+  bagels:{ t:'Assemble & freeze bagel sandwiches', unit:'sandwiches' },
+  pancakes:{ t:'Cook & freeze protein pancakes', unit:'pancakes' },
+  hbeggs:{ t:'Hard-boil eggs', unit:'eggs' },
+};
+
+/* ---------- ADD-ONS: simple sides that top a day up instead of odd portions ---------- */
+const ADDONS = {};
+function A(id, name, ing, cats, needs) {
+  const items = ing.split(',').map(s => { const [k, q] = s.split(':'); return [k, +q]; });
+  let kcal = 0, p = 0, c = 0, f = 0;
+  for (const [k, q] of items) { const g = ING[k]; kcal += g.kcal * q; p += g.p * q; c += g.c * q; f += g.f * q; }
+  ADDONS[id] = { id, name, ing: items, cats: cats.split(' '), needs: needs || null, kcal, p, c, f };
+}
+A('milk', 'Glass of whole milk', 'whole_milk:1', 'breakfast lunch dinner snack post');
+A('banana', 'Banana', 'banana:1', 'breakfast lunch snack pre post');
+A('pbb', 'Banana with 1 tbsp peanut butter', 'banana:1,pb:1', 'breakfast snack');
+A('whey', 'Whey shake (1 scoop)', 'whey:1', 'breakfast snack post');
+A('eggs', '2 hard-boiled eggs', 'egg:2', 'breakfast lunch snack');
+A('rice', 'Extra ½ cup rice', 'rice:0.5', 'lunch dinner', 'rice');
+A('toast', '2 slices of toast', 'white_bread:2', 'breakfast', 'egg');
+A('string', '2 string cheese', 'string:2', 'lunch snack');
+A('trail', '1 oz trail mix', 'trail_mix:1', 'lunch snack');
+A('orange', 'Orange', 'orange:1', 'lunch snack');
+A('gy', 'Cup of Greek yogurt', 'gy:1', 'breakfast snack');
+A('jerky', '1 oz beef jerky', 'jerky:1', 'lunch snack');
+
+/* ---------- STAFF LUNCH: estimates for a normal plate ---------- */
+const STAFF_LUNCH = [
+  { id: 'pizza', name: 'Pizza', note: '3 slices', p: 36, c: 99, f: 36 },
+  { id: 'subs', name: 'Subs or sandwiches', note: 'with chips', p: 36, c: 88, f: 32 },
+  { id: 'tacos', name: 'Tacos / Mexican', note: 'with rice & beans', p: 40, c: 90, f: 34 },
+  { id: 'bbq', name: 'BBQ plate', note: 'meat + 2 sides', p: 48, c: 90, f: 40 },
+  { id: 'burgers', name: 'Burgers or hot dogs', note: 'with a side', p: 44, c: 76, f: 52 },
+  { id: 'pasta', name: 'Pasta or lasagna', note: 'with bread', p: 38, c: 100, f: 32 },
+  { id: 'asian', name: 'Chinese / Asian', note: 'entrée + rice', p: 38, c: 115, f: 34 },
+  { id: 'chicken', name: 'Fried chicken', note: 'with sides', p: 50, c: 70, f: 54 },
+  { id: 'potluck', name: 'Potluck / casserole', note: 'a full plate', p: 36, c: 85, f: 38 },
+  { id: 'brunch', name: 'Breakfast for lunch', note: 'eggs, meat, pancakes', p: 36, c: 80, f: 40 },
+  { id: 'soup', name: 'Soup + sandwich', note: 'bowl and a half', p: 34, c: 80, f: 26 },
+  { id: 'salad', name: 'Salad bar or wraps', note: 'loaded', p: 34, c: 45, f: 32 },
+].map(x => Object.assign(x, { kcal: x.p * 4 + x.c * 4 + x.f * 9 }));
+const STAFF_TYPICAL = { id: 'typical', name: 'Staff lunch', p: 38, c: 95, f: 40, kcal: 38 * 4 + 95 * 4 + 40 * 9 };
+const STAFF_PORTIONS = [['0.7', 'Light'], ['1', 'Normal'], ['1.35', 'Big plate'], ['1.7', 'Went back for seconds']];
+
+/* ============ FOOD DATABASE (for logging off-plan food) ============
+   name | unit | kcal | protein | carbs | fat [| default amount]
+   Values are per ONE unit. Generic foods follow USDA reference values;
+   restaurant items are approximate and menus change.                    */
+const FOOD_CATS = [];
+function FDB(cat, rows) {
+  FOOD_CATS.push(cat);
+  for (const line of rows.trim().split('\n')) {
+    const [name, unit, kcal, p, c, f, def] = line.split('|').map(s => s.trim());
+    const id = 'd_' + name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    if (ING[id]) continue;
+    ING[id] = { id, name, unit, kcal: +kcal, p: +p, c: +c, f: +f, sec: 'Pantry & Snacks', buy: null, db: true, cat, def: def ? +def : null };
+  }
+}
+
+FDB('Meat & poultry', `
+Chicken breast, grilled|oz|47|8.8|0|1|4
+Chicken thigh, boneless, cooked|oz|55|7.7|0|2.5|4
+Chicken drumstick, with skin|drumstick|155|19|0|8
+Chicken wing, plain|wing|80|7|0|5.5|6
+Rotisserie chicken, meat and skin|oz|60|7.5|0|3.2|4
+Rotisserie chicken breast, no skin|oz|45|8.5|0|1|4
+Ground chicken, cooked|oz|54|6.6|0|3|4
+Ground turkey 93% lean, cooked|oz|50|6.5|0|2.6|4
+Ground turkey 99% lean, cooked|oz|34|7.5|0|0.4|4
+Turkey breast, roasted|oz|38|8.5|0|0.5|4
+Ground beef 80/20, cooked|oz|77|7.3|0|5|4
+Ground beef 85/15, cooked|oz|70|7.4|0|4.4|4
+Ground beef 90/10, cooked|oz|61|7.6|0|3.2|4
+Ground beef 93/7, cooked|oz|55|7.8|0|2.4|4
+Ribeye steak, cooked|oz|83|6.8|0|6|8
+Sirloin steak, cooked|oz|56|8.5|0|2.2|6
+New York strip steak, cooked|oz|70|7.5|0|4.3|8
+Flank steak, cooked|oz|55|8|0|2.3|6
+Beef brisket, smoked|oz|82|7.5|0|5.5|4
+Chuck roast / pot roast|oz|70|8|0|4|4
+Beef stew meat, cooked|oz|60|8.5|0|2.7|4
+Pork chop, boneless, cooked|oz|55|8|0|2.3|5
+Pork tenderloin, cooked|oz|40|7.5|0|1|4
+Pulled pork, plain|oz|70|7|0|4.5|4
+Pork ribs, cooked|oz|82|6.8|0|6|6
+Ham steak|oz|35|5.5|0.5|1.2|4
+Deli roast beef|oz|35|6|0.5|1|3
+Deli chicken breast|oz|30|5.5|0.5|0.5|3
+Bologna|slice|90|3|1|8
+Salami|oz|110|6|0.5|9.5
+Pepperoni|oz|140|6|0|13
+Canadian bacon|slice|30|4.5|0.5|1|2
+Turkey bacon|slice|35|2.5|0.5|2.5|2
+Breakfast sausage link|link|85|4|0.5|7.5|2
+Italian sausage, cooked|link|250|13|2|21
+Bratwurst|link|280|12|2|25
+Smoked sausage|oz|90|4|1|8|3
+Meatballs, beef|meatball|70|4.5|2|5|4
+Venison, cooked|oz|45|8.5|0|1|4
+Elk, cooked|oz|42|8.5|0|0.6|4
+Bison, ground, cooked|oz|58|8|0|2.7|4
+Lamb, cooked|oz|75|7.3|0|4.8|4
+Turkey jerky|oz|80|12|6|1
+Meat stick|stick|100|6|1|8
+`);
+
+FDB('Seafood', `
+Salmon, baked|oz|58|6.3|0|3.5|5
+Cod, baked|oz|30|6.5|0|0.3|5
+Trout, cooked|oz|48|6.8|0|2.1|5
+Shrimp, cooked|oz|28|6.7|0|0.1|4
+Tuna steak, cooked|oz|37|8.5|0|0.3|5
+Tuna pouch (2.6 oz)|pouch|70|17|0|0.5
+Canned salmon|oz|40|5.8|0|1.8|3
+Canned chicken breast|oz|30|5.5|0|0.8|3
+Crab meat|oz|25|5|0|0.3|3
+Sardines (canned)|can|190|22|0|11
+Fish sticks|stick|50|2.5|4.5|2.5|6
+Breaded fish fillet|fillet|240|11|18|14
+`);
+
+FDB('Eggs & dairy', `
+Liquid egg substitute|cup|100|20|2|0|0.25
+Milk, skim|cup|85|8.5|12|0.2
+Milk, 1%|cup|105|8.5|12.5|2.4
+Fairlife 2% milk|cup|120|13|6|4.5
+Half and half|tbsp|20|0.5|0.6|1.7
+Heavy cream|tbsp|51|0.4|0.4|5.4
+Almond milk, unsweetened|cup|30|1|1|2.5
+Oat milk|cup|120|3|16|5
+Soy milk|cup|100|7|8|4
+Greek yogurt, 2% plain|cup|190|23|9|6
+Oikos Triple Zero yogurt|container|90|15|7|0
+Flavored Greek yogurt (5.3 oz)|container|130|12|16|2.5
+Regular yogurt, flavored (6 oz)|container|150|6|27|2
+Cottage cheese, 4%|cup|220|25|8|10|0.5
+Swiss cheese|oz|110|8|0.4|8.8
+Pepper jack cheese|oz|110|7|0|9
+Colby jack cheese|oz|110|7|0.5|9
+Provolone|slice|70|5|0.5|5.3
+Parmesan, grated|tbsp|22|1.5|0.2|1.4
+Feta|oz|75|4|1.2|6
+Shredded Mexican cheese|oz|110|6|1|9
+Babybel|piece|70|5|0|6
+Queso dip|tbsp|25|0.6|1.5|1.8|2
+Whipped cream|tbsp|8|0|0.5|0.6|2
+Coffee creamer, flavored|tbsp|35|0|5|1.5
+Vanilla ice cream|cup|275|4.6|31|14.5|0.5
+Halo Top (pint)|pint|280|20|56|8
+`);
+
+FDB('Breads & grains', `
+Whole wheat bread|slice|80|4|14|1|2
+Sourdough bread|slice|120|4.5|23|0.8|2
+Dave's Killer Bread|slice|110|5|22|1.5|2
+Brioche bun|bun|190|6|32|4
+Large flour tortilla (burrito)|tortilla|300|8|50|8
+Small flour tortilla (taco)|tortilla|90|2.5|15|2.3|2
+Low-carb tortilla|tortilla|70|5|19|3
+Pita bread|pita|165|5.5|33|0.7
+Naan|piece|260|8.7|45|5
+Croissant|each|230|4.7|26|12
+Biscuit|each|180|3.5|22|9
+Dinner roll|each|85|2.5|14|2
+Garlic bread|slice|150|3|17|8
+Cornbread|piece|200|4|28|8
+Brown rice, cooked|cup|218|4.5|46|1.6
+Fried rice|cup|280|6.5|40|10
+Spanish rice|cup|240|5|44|5
+Quinoa, cooked|cup|222|8|39|3.6
+Pasta, cooked|cup|220|8|43|1.3
+Whole wheat pasta, cooked|cup|175|7.5|37|0.8
+Egg noodles, cooked|cup|220|7|40|3.3
+Couscous, cooked|cup|176|6|36|0.3
+Instant ramen|pack|380|8|52|14
+Saltine crackers|cracker|12|0.3|2.1|0.3|5
+Ritz crackers|cracker|16|0.2|2.1|0.9|5
+Triscuit|cracker|20|0.5|3.2|0.7|6
+Graham cracker|sheet|60|1|11|1.5
+`);
+
+FDB('Breakfast', `
+Oatmeal, cooked|cup|166|6|28|3.6
+Instant oatmeal packet, flavored|packet|160|4|32|2.5
+Grits, cooked|cup|150|3.5|32|0.5
+Pancake (6 inch)|pancake|175|5|22|7|3
+Waffle (frozen)|waffle|90|2|15|3|2
+French toast|slice|150|5|16|7|2
+Pancake syrup|tbsp|52|0|13|0|2
+Cheerios|cup|100|3|20|2|1.5
+Honey Nut Cheerios|cup|140|3|30|2
+Frosted Flakes|cup|150|1.5|35|0
+Raisin Bran|cup|190|5|46|1
+Special K|cup|120|6|23|0.5
+Cinnamon Toast Crunch|cup|170|2|33|4
+Lucky Charms|cup|140|3|29|1.5
+Grape-Nuts|cup|420|12|94|2|0.5
+Scrambled eggs (2 eggs, butter, milk)|serving|200|13|2|15
+Omelet (3 eggs, ham, cheese)|each|450|32|3|34
+Breakfast burrito, homemade|each|550|25|40|32
+Biscuits and gravy|serving|650|15|60|38
+Pop-Tarts (2 pastries)|pack|370|4|69|9
+Muffin, blueberry (bakery)|each|440|6|62|18
+Glazed donut|each|240|3.5|31|11.5
+Cinnamon roll (bakery)|each|420|6|60|17
+`);
+
+FDB('Fruit', `
+Strawberries|cup|50|1|12|0.5
+Blueberries|cup|85|1.1|21|0.5
+Raspberries|cup|64|1.5|15|0.8
+Blackberries|cup|62|2|14|0.7
+Watermelon|cup|46|0.9|11.5|0.2
+Cantaloupe|cup|55|1.3|13|0.3
+Mango|cup|99|1.4|25|0.6
+Peach|each|60|1.4|15|0.4
+Pear|each|100|0.6|27|0.2
+Plum|each|30|0.5|7.5|0.2
+Kiwi|each|42|0.8|10|0.4
+Cherries|cup|87|1.5|22|0.3
+Clementine|each|35|0.6|9|0.1|2
+Grapefruit, half|each|52|1|13|0.2
+Raisins|oz|85|0.9|22|0.1
+Dried cranberries|oz|92|0|25|0.4
+Medjool date|each|66|0.4|18|0|2
+Applesauce cup|container|50|0.2|13|0.1
+Fruit cup in juice|container|60|0.5|15|0
+Orange juice|cup|112|1.7|26|0.5
+Apple juice|cup|114|0.2|28|0.3
+Cranberry juice cocktail|cup|137|0|34|0.3
+Lemonade|cup|99|0.2|26|0.1
+`);
+
+FDB('Vegetables & beans', `
+Corn|cup|130|4.7|29|1.8|0.5
+Corn on the cob|ear|90|3.3|19|1.4
+Peas|cup|134|8.6|25|0.4|0.5
+Cauliflower|cup|27|2|5|0.3
+Cauliflower rice|cup|25|2|5|0.2
+Brussels sprouts|cup|56|4|11|0.8
+Asparagus|cup|40|4.3|7.4|0.4
+Zucchini|cup|20|1.5|3.9|0.4
+Cucumber|cup|16|0.7|3.8|0.1
+Celery|stalk|6|0.3|1.2|0.1|2
+Mushrooms|cup|15|2.2|2.3|0.2
+Cabbage|cup|22|1.1|5|0.1
+Kale, raw|cup|8|0.6|1.2|0.3|2
+Salad mix|cup|5|0.5|1|0.1|2
+Pickle spear|spear|4|0.1|0.8|0|2
+Guacamole|tbsp|25|0.3|1.3|2.2|2
+Pico de gallo|cup|40|1.5|9|0.2|0.25
+Coleslaw, prepared|cup|180|1.5|16|12.5|0.5
+Potato salad|cup|360|6.7|28|20.5|0.5
+Mashed potatoes|cup|237|4|35|9
+French fries, oven-baked|oz|42|0.6|6.3|1.7|3
+Tater tots|oz|55|0.6|7|2.8|3
+Baked beans|cup|280|12|58|1|0.5
+Refried beans|cup|220|13|36|3|0.5
+Pinto beans|cup|245|15|45|1.1|0.5
+Chickpeas|cup|269|14.5|45|4.2|0.5
+Lentils, cooked|cup|230|18|40|0.8
+Edamame, shelled|cup|188|18.5|14|8|0.5
+`);
+
+FDB('Nuts & spreads', `
+Almonds|oz|164|6|6|14
+Peanuts|oz|166|7|6|14
+Cashews|oz|157|5|9|12.4
+Walnuts|oz|185|4.3|3.9|18.5
+Pistachios|oz|159|5.7|7.7|12.9
+Sunflower seeds, shelled|oz|165|5.5|6.8|14.1
+Pumpkin seeds|oz|160|8.5|3|14
+Mixed nuts|oz|170|5|6|15
+Chia seeds|tbsp|60|2|5|3.8
+Ground flaxseed|tbsp|37|1.3|2|3
+Almond butter|tbsp|98|3.4|3|8.9|2
+PB2 powdered peanut butter|tbsp|30|3|2.5|0.8|2
+Nutella|tbsp|100|1|11|5.5|2
+`);
+
+FDB('Sauces & dressings', `
+Mayonnaise|tbsp|94|0.1|0.1|10.3
+Honey mustard|tbsp|60|0|6|4
+Blue cheese dressing|tbsp|75|0.7|0.6|8|2
+Caesar dressing|tbsp|78|0.3|0.5|8.5|2
+Thousand Island dressing|tbsp|55|0.2|2.5|5|2
+Balsamic vinaigrette|tbsp|45|0|3|3.5|2
+Buffalo wing sauce|tbsp|25|0|0.5|2.5|2
+Sriracha|tsp|5|0.1|1|0.1
+Chick-fil-A sauce|packet|140|0|6|13
+Sweet chili sauce|tbsp|40|0|10|0
+Alfredo sauce|cup|390|4|12|36|0.25
+Pesto|tbsp|80|1.5|1|8
+Brown gravy|cup|120|5|12|5|0.25
+Sausage gravy|cup|350|9|20|26|0.5
+Tzatziki|tbsp|15|0.6|0.8|1|2
+Olive oil|tbsp|119|0|0|13.5
+Sugar|tsp|16|0|4|0
+Brown sugar|tsp|17|0|4.5|0
+`);
+
+FDB('Soups', `
+Chicken noodle soup, canned|cup|90|6|10|3|2
+Chili with beans, canned|cup|270|15|30|10
+Beef stew, canned|cup|220|11|16|12
+Tomato soup, made with milk|cup|160|6|22|6
+Clam chowder|cup|200|8|20|10
+Broccoli cheddar soup|cup|280|10|16|20
+Chicken tortilla soup|cup|200|12|20|8
+`);
+
+FDB('Frozen & packaged', `
+Hot Pocket, pepperoni pizza|each|320|12|38|14
+Uncrustables PB and J|each|210|6|26|9
+Frozen burrito, bean and cheese|each|290|9|40|10
+Frozen burrito, beef and bean|each|300|9|38|12
+Frozen breakfast burrito|each|300|11|28|16
+Sausage egg and cheese biscuit (frozen)|each|430|14|27|30
+Frozen pepperoni pizza|slice|330|14|36|14|2
+Totino's Party Pizza (whole)|pizza|710|22|74|36
+Pizza rolls|roll|37|1|4.5|1.5|6
+Frozen chicken nuggets|nugget|50|2.8|3|3|6
+Frozen breaded chicken strips|strip|90|6|5|5|3
+Corn dog|each|230|7|25|11
+Frozen lasagna|cup|290|18|30|11
+Lean Cuisine-style frozen meal|meal|280|16|38|7
+Chicken pot pie (frozen)|each|390|10|36|22
+Egg roll|each|180|6|24|6
+Potstickers / dumplings|each|45|2|5|2|6
+Canned ravioli|cup|230|8|34|7
+SpaghettiOs|cup|160|5|32|1
+Tuna salad|cup|380|33|19|19|0.5
+Chicken salad|cup|400|28|6|30|0.5
+`);
+
+FDB('Protein', `
+Quest bar|bar|200|21|22|8
+Clif Bar|bar|250|10|44|5
+RXBAR|bar|210|12|23|9
+ONE protein bar|bar|220|20|24|8
+Pure Protein bar|bar|200|20|17|6
+Barebells protein bar|bar|200|20|18|8
+KIND bar|bar|200|6|16|14
+Premier Protein shake|bottle|160|30|5|3
+Fairlife Core Power (26 g)|bottle|170|26|8|4.5
+Fairlife Core Power Elite (42 g)|bottle|230|42|8|3.5
+Fairlife Nutrition Plan shake|bottle|150|30|3|2.5
+Muscle Milk shake|bottle|160|25|9|4.5
+Casein protein|scoop|120|24|3|1
+Plant protein powder|scoop|120|20|5|2.5
+Collagen peptides|scoop|70|18|0|0
+`);
+
+FDB('Drinks', `
+Coca-Cola (12 oz)|can|140|0|39|0
+Coca-Cola (20 oz)|bottle|240|0|65|0
+Diet soda|can|0|0|0|0
+Mountain Dew (12 oz)|can|170|0|46|0
+Dr Pepper (12 oz)|can|150|0|40|0
+Sprite (12 oz)|can|140|0|38|0
+Root beer (12 oz)|can|170|0|46|0
+Gatorade (20 oz)|bottle|140|0|36|0
+Gatorade Zero|bottle|10|0|2|0
+Red Bull (8.4 oz)|can|110|0.5|28|0
+Monster Energy (16 oz)|can|210|0|54|0
+Monster Zero Ultra|can|10|0|3|0
+Celsius|can|10|0|2|0
+Sweet tea|cup|90|0|22|0|2
+Hot chocolate (packet)|packet|120|2|23|2.5
+Beer, regular|can|153|1.6|12.6|0
+Beer, light|can|103|0.9|5.8|0
+IPA|can|200|2|17|0
+Wine|glass|125|0.1|4|0
+Hard seltzer|can|100|0|2|0
+Whiskey (1.5 oz)|shot|97|0|0|0
+Black coffee|cup|2|0.3|0|0
+`);
+
+FDB('Snacks & sweets', `
+Tortilla chips|oz|140|2|18|7
+Doritos|oz|150|2|18|8
+Cheetos|oz|160|2|15|10
+Fritos|oz|160|2|16|10
+SunChips|oz|140|2|19|6
+Pringles|oz|150|1.5|15|9.5
+Takis|oz|150|2|17|8
+Goldfish crackers|oz|140|4|20|5
+Cheez-It|oz|150|3|17|8
+Popcorn, air-popped|cup|31|1|6.2|0.4|3
+Microwave popcorn, butter|cup|35|0.6|4|2|4
+Nature Valley Crunchy (2 bars)|pouch|190|4|29|7
+Chewy granola bar|bar|100|1|17|3.5
+Rice Krispies Treat|bar|90|0.5|17|2.5
+Oatmeal Creme Pie|each|170|1|27|7
+Honey bun (large, packaged)|each|510|6|62|27
+Snickers|bar|250|4|33|12
+Reese's cups (2 pack)|pack|210|5|24|13
+Peanut M&M's|pack|250|5|30|13
+Kit Kat|bar|210|3|27|11
+Payday|bar|240|7|27|13
+Oreo|cookie|53|0.5|8.3|2.3|3
+Chocolate chip cookie|cookie|150|1.5|20|7.5|2
+Brownie|piece|230|3|30|11
+Cheesecake|slice|400|7|32|28
+Apple pie|slice|300|2.5|43|14
+Ice cream sandwich|each|170|3|27|6
+Dark chocolate|oz|170|2|13|12
+Gummy bears|oz|100|2|23|0
+`);
+
+FDB('Home-style dishes', `
+Hamburger, homemade (1/4 lb)|each|500|28|25|30
+Cheeseburger, homemade (1/4 lb)|each|570|32|26|37
+Grilled cheese sandwich|sandwich|380|14|30|22
+PB and J sandwich|sandwich|380|12|48|16
+Turkey sandwich|sandwich|320|22|32|10
+Ham and cheese sandwich|sandwich|350|20|30|16
+BLT|sandwich|420|14|30|27
+Cheese quesadilla|each|500|20|40|28
+Beef taco, hard shell|taco|190|9|12|11|3
+Spaghetti with meat sauce|cup|330|15|40|12|2
+Lasagna|piece|400|24|35|18
+Chili, homemade beef and bean|cup|300|22|25|12|1.5
+Meatloaf|slice|250|18|10|15
+Chicken stir-fry (no rice)|cup|250|25|10|12|1.5
+Chicken Caesar salad|bowl|450|35|15|28
+Pasta salad|cup|300|6|36|15
+Mac and cheese, boxed|cup|350|10|47|13
+`);
+
+FDB('Fast food', `
+McDonald's Big Mac|each|590|25|46|34
+McDonald's Quarter Pounder with Cheese|each|520|30|42|26
+McDonald's Double Quarter Pounder with Cheese|each|740|48|43|42
+McDonald's McDouble|each|400|22|33|20
+McDonald's Cheeseburger|each|300|15|32|13
+McDonald's Hamburger|each|250|12|31|9
+McDonald's McChicken|each|400|14|39|21
+McDonald's Filet-O-Fish|each|390|16|39|19
+McDonald's 10 pc McNuggets|order|410|23|26|24
+McDonald's fries, medium|order|320|5|43|15
+McDonald's fries, large|order|480|7|65|23
+McDonald's Egg McMuffin|each|310|17|30|13
+McDonald's Sausage McMuffin with Egg|each|480|20|30|31
+McDonald's Sausage Biscuit with Egg|each|530|18|37|35
+McDonald's hash brown|each|140|1|16|8
+McDonald's Hotcakes (syrup and butter)|order|580|9|101|15
+McDonald's Oreo McFlurry (regular)|each|510|12|80|16
+Wendy's Dave's Single|each|590|29|39|35
+Wendy's Dave's Double|each|850|49|40|54
+Wendy's Baconator|each|950|57|38|63
+Wendy's Jr. Bacon Cheeseburger|each|370|19|25|22
+Wendy's Spicy Chicken Sandwich|each|500|29|49|20
+Wendy's 10 pc nuggets|order|440|22|26|28
+Wendy's chili, small|cup|240|17|23|8
+Wendy's plain baked potato|each|270|7|61|0
+Wendy's Frosty, small chocolate|each|350|9|56|9
+Taco Bell Crunchy Taco|each|170|8|13|9
+Taco Bell Soft Taco|each|180|9|18|8
+Taco Bell Bean Burrito|each|350|13|55|9
+Taco Bell Beefy 5-Layer Burrito|each|490|18|62|18
+Taco Bell Burrito Supreme|each|390|16|51|14
+Taco Bell Crunchwrap Supreme|each|530|16|71|21
+Taco Bell Chicken Quesadilla|each|510|27|37|27
+Taco Bell Mexican Pizza|each|540|20|46|30
+Taco Bell Cheesy Gordita Crunch|each|500|20|41|28
+Taco Bell Nachos BellGrande|order|740|16|80|38
+Taco Bell chicken power bowl|bowl|470|26|50|19
+Chick-fil-A Chicken Sandwich|each|420|29|41|18
+Chick-fil-A Spicy Chicken Sandwich|each|450|28|45|19
+Chick-fil-A Grilled Chicken Sandwich|each|390|28|44|12
+Chick-fil-A 8 ct nuggets|order|250|27|11|11
+Chick-fil-A 12 ct nuggets|order|380|40|16|17
+Chick-fil-A 8 ct grilled nuggets|order|130|25|1|3
+Chick-fil-A 12 ct grilled nuggets|order|200|38|2|4.5
+Chick-fil-A 3 ct Chick-n-Strips|order|310|29|16|15
+Chick-fil-A waffle fries, medium|order|420|5|45|24
+Chick-fil-A mac and cheese, medium|order|450|20|29|28
+Chick-fil-A Chicken Biscuit|each|460|19|45|23
+Subway 6-inch turkey|sub|270|18|41|3.5
+Subway 6-inch Italian B.M.T.|sub|400|19|42|17
+Subway 6-inch sweet onion chicken teriyaki|sub|330|25|53|4
+Subway 6-inch steak and cheese|sub|380|25|43|12
+Subway 6-inch meatball marinara|sub|470|20|55|19
+Subway 6-inch tuna|sub|480|19|40|26
+Burger King Whopper|each|670|31|54|40
+Burger King Whopper Jr.|each|330|15|28|18
+Burger King Original Chicken Sandwich|each|670|28|60|36
+Arby's Classic Roast Beef|each|360|23|37|14
+Arby's Classic Beef 'n Cheddar|each|450|23|45|20
+Arby's curly fries, medium|order|550|6|65|29
+Panda Express Orange Chicken|entrée|490|25|51|23
+Panda Express Beijing Beef|entrée|480|14|46|27
+Panda Express Broccoli Beef|entrée|150|9|13|7
+Panda Express Grilled Teriyaki Chicken|entrée|300|36|8|13
+Panda Express Kung Pao Chicken|entrée|290|16|14|19
+Panda Express String Bean Chicken|entrée|210|12|13|12
+Panda Express Chow Mein|side|510|13|80|20
+Panda Express Fried Rice|side|520|11|85|16
+Panda Express White Rice|side|380|7|87|0
+Panda Express Super Greens|side|90|6|10|2.5
+Panda Express Cream Cheese Rangoon (3)|order|190|5|24|8
+Chipotle chicken|serving|180|32|0|7
+Chipotle steak|serving|150|21|1|6
+Chipotle barbacoa|serving|170|24|2|7
+Chipotle carnitas|serving|210|23|0|12
+Chipotle white rice|serving|210|4|40|4
+Chipotle brown rice|serving|210|4|36|6
+Chipotle black beans|serving|130|8|22|1.5
+Chipotle pinto beans|serving|130|8|21|1.5
+Chipotle fajita veggies|serving|20|1|5|0
+Chipotle tomato salsa|serving|25|0|4|0
+Chipotle corn salsa|serving|80|3|16|1.5
+Chipotle sour cream|serving|110|2|2|9
+Chipotle cheese|serving|110|6|1|8
+Chipotle guacamole|serving|230|2|8|22
+Chipotle queso blanco|serving|120|5|4|9
+Chipotle burrito tortilla|tortilla|320|8|50|9
+Chipotle chips|bag|540|7|73|25
+KFC Original Recipe breast|piece|390|39|11|21
+KFC Original Recipe thigh|piece|280|19|8|19
+KFC Original Recipe drumstick|piece|130|12|4|8
+KFC Extra Crispy breast|piece|530|35|18|35
+KFC mashed potatoes and gravy|side|130|2|19|4.5
+KFC coleslaw|side|170|1|14|12
+KFC biscuit|each|180|4|22|8
+KFC Famous Bowl|bowl|740|26|81|34
+Five Guys Cheeseburger|each|840|47|40|55
+Five Guys Little Cheeseburger|each|550|27|40|32
+Five Guys fries, regular|order|950|13|131|41
+Pizza, cheese (large chain, 1 slice)|slice|285|12|36|10|2
+Pizza, pepperoni (large chain, 1 slice)|slice|310|13|35|13|2
+Pizza, supreme (large chain, 1 slice)|slice|330|14|36|15|2
+Little Caesars pepperoni (1 slice)|slice|280|12|32|11|2
+Costco pepperoni pizza slice|slice|700|37|60|34
+Costco hot dog with bun|each|570|24|46|32
+Costco chicken bake|each|800|50|70|35
+Starbucks latte, grande 2%|grande|190|13|19|7
+Starbucks caramel macchiato, grande|grande|250|10|35|7
+Starbucks mocha, grande|grande|370|14|43|15
+Starbucks sweetened iced coffee, grande|grande|80|0|20|0
+Starbucks caramel Frappuccino, grande|grande|380|4|55|16
+Starbucks bacon and Gruyère egg bites (2)|order|300|19|9|20
+Starbucks sausage, cheddar and egg sandwich|each|480|17|41|28
+Gas station hot dog|each|300|10|25|18
+Roller grill taquito|each|240|8|22|13
+`);
+const FOOD_COUNT = Object.values(ING).length;
+
+/* ============ CORE UTILITIES ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const clone = o => JSON.parse(JSON.stringify(o));
+const uid = (p = '') => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const sum = a => a.reduce((x, y) => x + y, 0);
+const fmtInt = n => Math.round(n).toLocaleString('en-US');
+function nice(v, dp = 1) {
+  if (v == null || isNaN(v)) return '';
+  const r = Math.round(v * Math.pow(10, dp)) / Math.pow(10, dp);
+  return String(r);
+}
+
+/* ---- dates (local, YYYY-MM-DD strings) ---- */
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseD = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parseD(s); d.setDate(d.getDate() + n); return ymd(d); };
+const today = () => ymd(new Date());
+const dow = s => parseD(s).getDay();
+const mondayOf = s => addDays(s, -((dow(s) + 6) % 7));
+const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 864e5);
+const monthKey = s => s.slice(0, 7);
+const DOW_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DOW_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MON_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fmtDate(s, style = 'short') {
+  const d = parseD(s);
+  if (style === 'short') return `${MON_SHORT[d.getMonth()]} ${d.getDate()}`;
+  if (style === 'dow') return `${DOW_SHORT[d.getDay()]}, ${MON_SHORT[d.getMonth()]} ${d.getDate()}`;
+  if (style === 'long') return `${DOW_LONG[d.getDay()]}, ${MON_LONG[d.getMonth()]} ${d.getDate()}`;
+  if (style === 'full') return `${MON_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return s;
+}
+function relDay(s) {
+  const n = daysBetween(today(), s);
+  if (n === 0) return 'Today'; if (n === 1) return 'Tomorrow'; if (n === -1) return 'Yesterday';
+  return DOW_LONG[dow(s)];
+}
+function fmtClock(min) { // minutes since midnight -> "5:40 AM"
+  min = ((Math.round(min) % 1440) + 1440) % 1440;
+  const h = Math.floor(min / 60), m = min % 60;
+  return `${(h % 12) || 12}:${pad(m)} ${h < 12 ? 'AM' : 'PM'}`;
+}
+function fmtDur(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}:${pad(s)}`;
+}
+
+/* ---- seeded random ---- */
+function hashStr(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } return (h >>> 0); }
+function rng(seed) { let a = typeof seed === 'string' ? hashStr(seed) : seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function pickWeighted(items, weightFn, r) {
+  const ws = items.map(weightFn); const tot = sum(ws); if (!tot) return null;
+  let x = r() * tot; for (let i = 0; i < items.length; i++) { x -= ws[i]; if (x <= 0) return items[i]; }
+  return items[items.length - 1];
+}
+
+/* ---- fractions for recipe quantities ---- */
+function fracStr(x) {
+  if (x >= 10) return String(Math.round(x));
+  const whole = Math.floor(x + 1e-6); const f = x - whole;
+  const opts = [[0,''],[0.125,'⅛'],[0.25,'¼'],[0.333,'⅓'],[0.5,'½'],[0.667,'⅔'],[0.75,'¾'],[1,'']];
+  let best = opts[0], bd = 9; for (const o of opts) { const d = Math.abs(f - o[0]); if (d < bd) { bd = d; best = o; } }
+  const w = best[0] === 1 ? whole + 1 : whole;
+  if (!best[1]) return String(w || (x > 0 ? '⅛' : '0'));
+  return (w ? w : '') + best[1];
+}
+
+/* ============ ICONS ============ */
+const ICONS = {
+  sunrise:'<path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 4v4M9.5 6.5L12 4l2.5 2.5M4.2 12.2l1.6 1M19.8 12.2l-1.6 1"/>',
+  apple:'<path d="M12 7.5c-1.6-1.3-5.2-1.4-6.4 1.6-1.3 3.4.9 10.4 3.9 10.4 1.1 0 1.4-.6 2.5-.6s1.4.6 2.5.6c3 0 5.2-7 3.9-10.4-1.2-3-4.8-2.9-6.4-1.6z"/><path d="M12 7.5c0-1.9.9-3.4 2.8-4"/>',
+  walk:'<circle cx="13.5" cy="4.5" r="1.8"/><path d="M9 21l2.2-6.2 2.6 2.4V21M7.5 12.5l2.8-4.3 3.6 1.4 2.1 3.4M12.4 8.6l-1.2 6.2"/>',
+  wave:'<path d="M3 12c1.6-3.5 3.4-3.5 5 0s3.4 3.5 5 0 3.4-3.5 5 0 2.2 2.3 3 1.6"/>',
+  wind:'<path d="M3 9h10.5a2.75 2.75 0 1 0-2.7-3.3M3 14.5h14a3 3 0 1 1-2.9 3.7M3 12h6"/>',
+  shield:'<path d="M12 3l7 2.8v5.4c0 4.4-2.9 8.1-7 9.8-4.1-1.7-7-5.4-7-9.8V5.8L12 3z"/><path d="M9.2 12l2 2 3.6-3.8"/>',
+  chart:'<path d="M5 19.5v-7M11 19.5V5M17 19.5v-10M3 19.5h18"/>',
+  leaf:'<path d="M5 19c0-8.3 5-13.2 14-14 0 9-5 14-13.2 14H5z"/><path d="M5 19l7.5-7.5"/>',
+  gauge:'<path d="M4 16.5a8 8 0 1 1 16 0"/><path d="M12 16.5l3.6-4.2"/><circle cx="12" cy="16.5" r="1"/>',
+  user:'<circle cx="12" cy="8" r="3.6"/><path d="M5 20.5c.9-3.9 3.7-6.2 7-6.2s6.1 2.3 7 6.2"/>',
+  hold:'<path d="M8.5 6v12M15.5 6v12"/>',
+  arrowR:'<path d="M4.5 12h15M13.5 6l6 6-6 6"/>',
+  arrowL:'<path d="M19.5 12h-15M10.5 6l-6 6 6 6"/>',
+  repeat:'<path d="M17 3.5l3 3-3 3"/><path d="M4 11.5v-1a4 4 0 0 1 4-4h12M7 20.5l-3-3 3-3"/><path d="M20 12.5v1a4 4 0 0 1-4 4H4"/>',
+  pencil:'<path d="M14.5 5.5l4 4L8 20H4v-4L14.5 5.5z"/><path d="M12.5 7.5l4 4"/>',
+  sparkle:'<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8L12 3.5z"/><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z"/>',
+  bell:'<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  people:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c.7-3.4 3.1-5.4 6-5.4s5.3 2 6 5.4"/><path d="M15.5 4.9a3.2 3.2 0 0 1 0 6.2M17.5 14.9c1.8.7 3 2.4 3.5 5.1"/>',
+  home:'<path d="M4 11l8-6.5 8 6.5V20h-5.5v-5.5h-5V20H4v-9z"/>',
+  box:'<path d="M4 7.5L12 4l8 3.5v9L12 20l-8-3.5v-9z"/><path d="M4 7.5L12 11l8-3.5M12 11v9"/>',
+  scan:'<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M8 12h8"/>',
+  cup:'<path d="M5 8h11v5.5a5.5 5.5 0 0 1-11 0V8zM16 9.5h1.5a2.5 2.5 0 0 1 0 5H16M7.5 3.5v2M10.5 3.5v2M13.5 3.5v2"/>',
+  moonzz:'<path d="M18 14.5A7 7 0 0 1 9.5 6a7 7 0 1 0 8.5 8.5z"/>',
+  dumbbell:'<path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"/>',
+  stretch:'<circle cx="12" cy="4.6" r="2"/><path d="M4 9.5l8 1 8-1M12 10.5v4.5l-4.5 6M12 15l4.5 6"/>',
+  meals:'<path d="M7 3v7.5M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 10.5V21M17.5 3c-2.2 1.2-3.2 3.8-3.2 7.5h3.2V21"/>',
+  sliders:'<path d="M4 6.5h9M18 6.5h2M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15.5" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/>',
+  back:'<path d="M15 4.5L7.5 12l7.5 7.5"/>',
+  chev:'<path d="M9 5l7 7-7 7"/>',
+  chevDown:'<path d="M5 9l7 7 7-7"/>',
+  chevUp:'<path d="M5 15l7-7 7 7"/>',
+  dots:'<circle cx="5.5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  minus:'<path d="M5 12h14"/>',
+  swap:'<path d="M7.5 4L4 7.5 7.5 11M4 7.5h13M16.5 20l3.5-3.5-3.5-3.5M20 16.5H7"/>',
+  timer:'<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M18.5 6l1.5-1.5"/>',
+  target:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  heart:'<path d="M12 20s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+  grip:'<path d="M5 9h14M5 15h14"/>',
+  play:'<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
+  pause:'<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="3"/>',
+  next:'<path d="M6 6l8.5 6L6 18z" fill="currentColor"/><path d="M18 5.5v13"/>',
+  prev:'<path d="M18 6l-8.5 6L18 18z" fill="currentColor"/><path d="M6 5.5v13"/>',
+  close:'<path d="M6 6l12 12M18 6L6 18"/>',
+  drop:'<path d="M12 3.5s6 6.3 6 10.8a6 6 0 0 1-12 0c0-4.5 6-10.8 6-10.8z"/>',
+  flame:'<path d="M12 21c3.9 0 6.8-2.7 6.8-6.6 0-3.1-1.9-5.5-3.9-7.5 0 2.4-1.4 3.9-2.9 4.4.2-3.3-.8-6.2-3.7-8.3.4 3.4-3.1 5.9-3.1 10.3C5.2 17.8 8.1 21 12 21z"/>',
+  trophy:'<path d="M8 4h8v5.5a4 4 0 0 1-8 0V4zM8 6.5H5a3 3 0 0 0 3.2 3.4M16 6.5h3a3 3 0 0 1-3.2 3.4M12 13.5v3.5M8.5 20.5h7M10 17h4"/>',
+  barcode:'<path d="M4 6v12M7.5 6v12M11 6v12M13.5 6v12M17 6v12M20 6v12"/>',
+  flag:'<path d="M5.5 21V4.5M5.5 4.5h11l-2 4 2 4h-11"/>',
+  calendar:'<rect x="4" y="5" width="16" height="15.5" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  list:'<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>',
+  scale:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 10a4.5 4.5 0 0 1 7 0l-2.2 1.8"/>',
+  cart:'<path d="M3 4.5h2.2l2.3 10.5h10L20 7.5H6.2"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+  refresh:'<path d="M19.5 11.5a7.5 7.5 0 1 0-2.2 5.3M19.5 4.5v7h-7"/>',
+  info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8h.01"/>',
+  edit:'<path d="M4.5 19.5h3.8L19 8.8 15.2 5 4.5 15.7v3.8z"/>',
+  trash:'<path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/>',
+  bolt:'<path d="M13 3L5.5 13.5H11L10 21l8-11h-5.5z"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  copy:'<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6.5A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2"/>',
+  download:'<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/>',
+  upload:'<path d="M12 20V9M7.5 13.5L12 9l4.5 4.5M5 4h14"/>',
+  sound:'<path d="M4 10v4h4l5 4V6L8 10H4zM16.5 9a4.2 4.2 0 0 1 0 6"/>',
+  body:'<circle cx="12" cy="4.6" r="2"/><path d="M7 8.5h10M12 8.5v6M9 21l3-6.5 3 6.5M7 8.5l-1.5 6M17 8.5l1.5 6"/>',
+  star:'<path d="M12 4l2.4 5 5.3.6-4 3.7 1.1 5.3L12 16l-4.8 2.6 1.1-5.3-4-3.7 5.3-.6z"/>',
+  ruler:'<path d="M4 15.5L15.5 4 20 8.5 8.5 20z"/><path d="M8 11.5l2 2M10.5 9l1.5 1.5M13 6.5l2 2"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+  moon:'<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
+};
+/* ---- symbol helpers (fewer words, same meaning) ---- */
+const MACRO_TIP = { p: 'protein', c: 'carbs', f: 'fat' };
+function macroDots(o, x = 1) { return `<span class="mdots">${['p', 'c', 'f'].map(k => `<span class="md ${k}" title="${MACRO_TIP[k]}"><i></i>${Math.round(o[k] * x)}</span>`).join('')}</span>`; }
+function kcalTag(n) { return `<span class="kc">${fmtInt(n)}</span>`; }
+function mins(n) { return `${Math.round(n)}m`; }
+const SLOT_ICON = { pre: 'bolt', post: 'dumbbell', breakfast: 'sunrise', lunch: 'sun', dinner: 'moon', snack1: 'apple', snack2: 'apple' };
+function ic(name, size = 22, extra = '') {
+  return `<svg class="ic ${extra}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+
+/* ============ MUSCLE MAP (front / back figure) ============
+   Artwork lives in BODY_ART (04b_bodyart.js). Each body part is drawn once in a
+   hidden sprite and reused with <use>, so a list of 100 figures stays light.   */
+const FRONT_ONLY = ['chest','frontDelts','biceps','abs','obliques','quads','hipFlexors'];
+const BACK_ONLY = ['traps','rearDelts','triceps','lats','midBack','lowerBack','glutes','hamstrings'];
+// app muscle -> artwork parts, per view (front delts only light up on the front, rear delts on the back)
+const PART_MAP = {
+  front: { chest: ['chest'], frontDelts: ['deltoids'], sideDelts: ['deltoids'], biceps: ['biceps'], triceps: ['triceps'], forearms: ['forearm'],
+    abs: ['abs'], obliques: ['obliques'], quads: ['quadriceps'], hipFlexors: ['quadriceps'], adductors: ['adductors'], calves: ['calves', 'tibialis'],
+    traps: ['trapezius'], neck: ['neck'] },
+  back: { rearDelts: ['deltoids'], sideDelts: ['deltoids'], triceps: ['triceps'], forearms: ['forearm'], traps: ['trapezius'], lats: ['upper-back'],
+    midBack: ['upper-back', 'trapezius'], lowerBack: ['lower-back'], glutes: ['gluteal'], hamstrings: ['hamstring'], adductors: ['adductors'],
+    calves: ['calves'], neck: ['neck'] },
+};
+const NEUTRAL_PARTS = new Set(['knees', 'hands', 'ankles', 'feet', 'head', 'hair']);
+const BODY_RATIO = 669 / 1293;
+let bodySprite = null;
+function ensureBodySprite() {
+  if (bodySprite && bodySprite.isConnected) return;
+  const defs = ['front', 'back'].map(v => BODY_ART[v].parts.map(([p, d]) => `<path id="bp-${v[0]}-${p}" d="${d}"/>`).join('')).join('');
+  const box = document.createElement('div');
+  box.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none" aria-hidden="true" focusable="false"><defs>
+    <linearGradient id="bp-hi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="bp-hi1"/><stop offset="1" class="bp-hi2"/></linearGradient>${defs}</defs></svg>`;
+  bodySprite = box.firstChild;
+  document.body.insertBefore(bodySprite, document.body.firstChild);
+}
+function bodySVG(view, prim = [], sec = [], size = 80) {
+  ensureBodySprite();
+  const map = PART_MAP[view], P = new Set(), S = new Set();
+  for (const k of prim) for (const p of map[k] || []) P.add(p);
+  for (const k of sec) for (const p of map[k] || []) if (!P.has(p)) S.add(p);
+  const A = BODY_ART[view], v = view[0];
+  let g = '', hi = '';
+  for (const [p] of A.parts) {
+    const c = NEUTRAL_PARTS.has(p) ? 'b-n' : P.has(p) ? 'b-p' : S.has(p) ? 'b-s' : 'b-m';
+    const u = `<use href="#bp-${v}-${p}" class="${c}"/>`;
+    if (c === 'b-p' || c === 'b-s') hi += u; else g += u; // lit muscles drawn last so their edge sits on top
+  }
+  const w = Math.round(size * BODY_RATIO);
+  return `<svg class="body" width="${w}" height="${size}" viewBox="${A.vb}" role="img" aria-label="${view} muscle map">${g}${hi}</svg>`;
+}
+function bestView(prim) {
+  const f = prim.filter(m => FRONT_ONLY.includes(m)).length, b = prim.filter(m => BACK_ONLY.includes(m)).length;
+  return b > f ? 'back' : 'front';
+}
+function miniBody(prim, sec, size = 46) { return bodySVG(bestView(prim), prim, sec, size); }
+function dualBody(prim, sec, size = 150) {
+  return `<div class="bodypair">${bodySVG('front', prim, sec, size)}${bodySVG('back', prim, sec, size)}</div>`;
+}
+
+/* ============ SOUND / HAPTICS ============ */
+let AC = null;
+function audio() {
+  try {
+    if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); }
+    if (AC && AC.state === 'suspended') AC.resume();
+  } catch (e) {}
+  return AC;
+}
+function tone(freq = 880, dur = 0.14, when = 0, vol = 0.28, type = 'sine') {
+  const a = audio(); if (!a) return;
+  try {
+    const t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.03);
+  } catch (e) {}
+}
+function buzz(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+function soundOn() { return Store.d.settings?.stretch?.sound !== false; }
+function cue(kind) {
+  if (!soundOn()) { if (kind === 'done' || kind === 'switch') buzz(kind === 'done' ? [180, 80, 180] : 120); return; }
+  if (kind === 'tick') tone(660, 0.08, 0, 0.18);
+  else if (kind === 'go') { tone(740, 0.12); tone(988, 0.2, 0.13); buzz(120); }
+  else if (kind === 'switch') { tone(880, 0.12); tone(660, 0.18, 0.14); buzz(120); }
+  else if (kind === 'done') { tone(880, 0.16); tone(880, 0.16, 0.22); tone(1175, 0.32, 0.44); buzz([180, 80, 180]); }
+  else if (kind === 'water') { tone(660, 0.07, 0, 0.16); tone(990, 0.12, 0.07, 0.16); }
+  else if (kind === 'pr') { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, i * 0.09, 0.22, 'triangle')); buzz([60, 40, 60, 40, 120]); }
+}
+function say(text) {
+  try {
+    if (!Store.d.settings?.stretch?.voice || !window.speechSynthesis) return;
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 1.02; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+/* ============ BODY ARTWORK ============
+   Front/back figure from react-native-body-highlighter (MIT License,
+   Copyright (c) 2022 ELABBASSI Hicham). One path per body part; the
+   renderer lights parts up by class. */
+const BODY_ART = {"front":{"vb":"30 78 669 1293","parts":[["chest","M272.91 422.84c-18.95-17.19-22-57-12.64-78.79 5.57-12.99 26.54-24.37 39.97-25.87q20.36-2.26 37.02.75c9.74 1.76 16.13 15.64 18.41 25.04 3.99 16.48 3.23 31.38 1.67 48.06q-1.35 14.35-2.05 16.89c-6.52 23.5-38.08 29.23-58.28 24.53-9.12-2.12-17.24-4.38-24.1-10.61zM416.04 435c-15.12.11-34.46-6.78-41.37-21.48q-1.88-3.99-2.84-12.18c-2.89-24.41-5.9-53.65 8.44-74.79 4.26-6.26 10.49-7.93 18.36-8.56q11.66-.92 23.32-.35c10.58.53 18.02 2.74 26.62 7.87 12.81 7.65 19.73 14.52 22.67 29.75 4.94 25.57.24 64.14-28.21 74.97q-12.26 4.67-26.99 4.77z"],["obliques","M264.21 435.53c-4.88-3.13-5.75-12.11-5.39-17.36q.03-.53.51-.75 1.8-.84 3.43.85 10.05 10.45 22.57 16.9c3.64 1.89 5.54 3.62 4.79 7.8q-.42 2.35-2.82 1.87-12.45-2.49-23.09-9.31zM287.33 452.44c-4.05 4.46-10.38 11.38-16.28 14.3a.84.83 51.1 01-.9-.1c-6.29-5.17-12.54-18.97-14.21-25.09q-.91-3.34.85-8.81.12-.39.35-.05c2.41 3.65 4.59 7.74 8.67 9.76q10.18 5.05 21.27 9.01a.61.61 0 01.25.98zM297.3 487.82c-7.36-4.23-16.68-11.37-20.55-17.57q-.32-.5.09-.92 8.72-9.04 19.84-17.87 1.46-1.17 2.81-1.67a.44.44 0 01.59.43c-.28 10.08-.4 20.42.65 30.43q.34 3.26-.68 6.15a1.9 1.9 0 01-2.75 1.02zM257.35 456.18l13.68 16.63a1.86 1.82 22.9 01.4.95c.59 5.4-2.02 12.71-3.8 17.56q-.3.84-.84.13-11.85-15.55-9.77-35.17.04-.45.33-.1zM271.69 494.07a1.53 1.52-61.8 01-.49-1.64l4.2-13.58a.98.98 0 011.51-.5c3.2 2.32 21.89 14.05 22.26 16.7q1.15 8.32.66 16.79a.9.9 0 01-1.34.73q-14.24-8.05-26.8-18.5zM299.35 544.62c-7.52-6.03-16.15-13.43-24.23-21.24-6.93-6.7-6-17.19-4.88-26.06a.44.44 0 01.72-.28q13.31 11.88 28.41 21.38.43.27.6.75c2.33 6.49.95 18.37-.07 25.23q-.09.59-.55.22zM299.09 575.53c-7.98-3.65-27.57-15.86-28.06-26.2q-.57-11.91.46-24.3a.36.36 0 01.67-.15q.84 1.36 2.17 2.54 10.59 9.45 21.68 18.31c4.37 3.49 4.34 6.46 4.16 11.74q-.3 8.82-.42 17.64-.01.72-.66.42zM308.17 657.58c-7.39-.13-12.41-4.13-17.14-9.39q-11.86-13.22-23.92-26.37-.33-.36-.33-.85.09-23.18 1.81-46.22.53-7.13 2.49-14.41a.71.71 0 011.2-.3q11.54 12.06 25.82 21.1 3.36 2.12 3.62 5.17 2.06 23.67 3.86 47.36c.58 7.62 2.31 13.36 4.43 20.82q.47 1.66-.96 2.79-.39.31-.88.3zM438.7 444.36c-2.09-4.03-.13-6.83 3.63-8.81 10.22-5.36 16.79-11 24.23-18.07a1.71 1.71 0 012.89 1.12c.33 4.74-.81 14.39-5.53 17.22-4.68 2.82-18.74 10.02-24.39 9.14q-.57-.09-.83-.6zM457.39 466.73c-3.72-1.02-13.2-10.29-16.5-14.49a.52.52 0 01.24-.81q10.94-3.75 21.31-9c3.96-2.01 6.3-5.98 8.57-9.58q.38-.59.55.09c.82 3.33 1.54 6.17.38 9.58-2.55 7.44-7.62 18.79-13.66 24.01a.96.96 0 01-.89.2zM428.43 487.22c-1.01-1.79-.82-4.55-.71-6.72q.78-15.08.48-30.27-.01-.59.55-.4 1.72.59 3.02 1.64 11.58 9.37 18.82 16.95c3.86 4.05-16.2 17.42-19.56 19.48a1.87 1.86 59.6 01-2.6-.68zM470.76 456.28a.25.25 0 01.44.13q2.03 19.67-9.8 35.22-.37.48-.6-.08c-1.37-3.29-5.86-16.13-3.51-18.91q6.3-7.47 13.47-16.36zM452.27 478.5c1.13.49 4.28 12.47 4.78 14.38q.14.5-.23.88-1.29 1.35-2.65 2.41-10.44 8.12-21.76 14.97-1.49.9-2.91 1.33a.81.81 0 01-1.05-.71q-.73-8.62.67-17.15.08-.47.44-.8c1.74-1.6 21.96-15.73 22.34-15.51a.58.03 31 00.37.2zM428.22 519.14q.11-.36.43-.56 15.3-9.66 28.83-21.69a.43.42-22.6 01.71.29c.51 8.26 2.25 18.67-4.46 25.4q-11.8 11.84-25.03 22.09-.43.34-.49-.2c-.75-6.82-1.97-18.92.01-25.33zM456.54 524.55a.04.04 0 01.07.02q1.52 13.67.41 27.4-.04.47-.28.88c-4.97 8.3-18.23 19.62-27.88 22.63q-.57.17-.58-.43-.05-10.31-.27-20.53-.1-4.8 2.63-7.09c8.54-7.13 18.56-14.62 25.9-22.88zM418.89 657.11q-1.12-1.67-.43-3.63 3.27-9.38 4.04-18.23 1.97-22.81 3.58-45.65c.16-2.32.72-6.41 2.84-7.71q14.97-9.23 27.16-21.93.41-.42.71.08 1.29 2.15 1.53 4.2 3.23 27.74 3.13 56.8a1.3 1.28-24.5 01-.33.86q-12.74 13.93-25.55 27.75c-4.8 5.17-9.09 7.87-15.73 7.96q-.61.01-.95-.5z"],["abs","M311.02 531.71a.23.23 0 01-.19-.21q-.39-10.47 1.9-20.76c1.26-5.69 7.66-9.9 13.1-12.9 9.09-5.01 18.93-11.15 28.56-14.92a1.24 1.21-42.6 01.94.03c3.28 1.52 4.78 3.87 4.82 7.68q.13 13.16-.15 26.31c-.08 3.85.78 8.39-.87 13.1q-.17.46-.59.72-2.65 1.65-4.29 1.82-21.06 2.22-43.23-.87zM321 577.76c-5.17-.33-8.71-.44-10-6.26q-3.2-14.44-.59-27.83.11-.53.64-.63c7.58-1.44 13.62-2.45 22.45-4.56q11.5-2.76 23.94-1.88c3.67.26 3.3 3.46 3.4 6.21q.46 12.55-.33 26.94-.25 4.41-1.81 8.08-.21.49-.73.6-1.39.28-3.22.29-16.89.14-33.75-.96zM347.73 429.25c7.46-3.61 10.5 6.27 10.99 11.52.48 5.06 3.46 30.61-2.78 32.93q-4.17 1.55-6.89 3.33-17.56 11.54-35.88 21.46a1.6 1.59-21.9 01-2.3-.98c-2.87-10.41-10.59-43.96 1.66-50.95 11.3-6.45 23.96-11.86 35.2-17.31zM350.35 712.81c-29.15-9.93-37.98-100.69-39.47-126.61a.99.99 0 01.33-.8c3.58-3.26 27.61-1.47 34.62-.93 4.41.34 15.27 1.31 15.26 7.53-.05 40.77.64 82.05-1.96 122.72a1.29 1.29 0 01-1.86 1.08c-2.3-1.14-4.12-2.04-6.92-2.99zM371.94 473.31c-5.46-2.59-2.97-24.26-2.77-29.56.25-6.8 2.41-18.63 12.64-13.8q16.26 7.67 32.34 15.72 6.18 3.1 7.13 10.05c.58 4.26 1.35 8.49 1.07 12.72q-.84 12.55-4.33 26.56-.54 2.16-1.1 3.44-.25.58-.81.31c-15.78-7.29-30.79-19.08-44.17-25.44zM382.57 533.27c-4.17-.18-9.56-.3-13.15-2.69q-.17-.11-.24-.31c-1.82-5.55-.86-11.17-.96-15.66-.18-8.4-.78-17.36.06-25.71.29-2.85 1.88-4.42 4.15-5.79q.42-.26.91-.19 1.71.25 3.21 1.03 12.48 6.44 24.75 13.26c4.96 2.75 12.21 7.02 13.72 12.41q2.93 10.56 2.39 21.49a.77.76-1.8 01-.67.71q-16.89 2.18-34.17 1.45zM373.75 578.69c-2.47 0-4.31.22-5-2.7-1.8-7.7-3.05-34.29-.19-38.81q.27-.43.77-.47 13.14-1.24 25.77 1.83c8.41 2.04 14.51 3.01 21.85 4.36a1.29 1.28.6 011.05 1.07q2.16 14.12-.73 28.07c-1.08 5.24-5.22 5.26-10.36 5.63q-14.26 1.04-33.16 1.02zM416.32 584.73q1.14.41 1.07 1.62c-1.62 26.44-9.96 116.68-40.43 126.74-2.27.75-4.15 2.12-6.35 2.73q-1.18.33-1.3-.89-.86-9.2-1.06-17.75c-.83-35.67-.91-71.2-1.01-106.88q0-.5.31-.89c4.95-6.46 41.69-7.25 48.77-4.68z"],["biceps","M189.52 492.51c-2.43.62-7.38.57-7.51-3.08-.56-16.01-.42-35.49 5.11-50.26 3.19-8.54 13.89-30.22 23.27-32.72 10.08-2.68 12.68 16.59 12.6 22.8-.22 15.98-7.51 34.79-15.05 48.71-4.29 7.94-9.95 12.38-18.42 14.55zM526.69 486.31c-9.9-8.61-17.75-33.21-20.65-47.73-1.41-7.06-1.34-29.61 8.58-32.16 10.33-2.66 23.81 25.34 26.6 32.91q2.6 7.04 3.6 16.13 1.62 14.66 1.66 32.28c.03 11.04-16.45 1.48-19.79-1.43z"],["triceps","M206.2 514.2c-5.41-.67-6.55-7.29-4.69-11.42 11.08-24.55 22.84-50.62 30.54-75.51 1.37-4.41 3.08-8.59 3.95-12.45q2.94-13.12 5.79-26.26.42-1.98 1.82-3.39a.52.52 0 01.81.1q1.04 1.69 1.94 4.56 4.63 14.65 5.15 24.92c.57 11.36-5.11 24.55-8.65 35.5q-7.69 23.78-20.25 45.39c-2.45 4.23-11.51 19.18-16.41 18.56zM517.69 512.06c-20.07-22.12-28.95-51.73-38.01-79.03-3.27-9.87-3.58-19.18-1.34-29.38 1.29-5.88 2.49-13.03 5.61-18.52q.32-.57.72-.06 1.35 1.67 1.79 3.69c2.67 12.33 5.14 24.49 9.07 36.52 8.25 25.28 18.58 49.8 31.1 77.2q1.42 3.1 1.05 5.33c-.81 4.89-5.46 9.25-9.99 4.25z"],["neck","M362.65 290.52q-1.14-1.37-1.86-3.41-5.33-15.15-12.14-29.75c-2.37-5.06-1.07-9.07-7.92-10.99q-1.01-.28.02-.47c5.98-1.08 15.25.91 21.33 2q2.37.42 4.81-.09 10.09-2.13 20.45-2.12a.37.37 0 01.08.73c-6.34 1.46-5.45 5.64-7.57 10.21q-6.1 13.1-11 26.69-1.3 3.62-2.9 6.81a1.99 1.99 0 01-3.3.39zM354.01 315.07q-3.49-3.65-5.9-8.23c-6.46-12.3-11.03-25.42-16.12-38.77-2.92-7.66-1.98-19.44-1.61-27.6q.03-.58.47-.21c9.06 7.39 11.33 17.46 15.67 27.62 5.4 12.61 15.4 33.31 9.11 46.92a1 .99 35.5 01-1.62.27zM345.77 316c-4.12-1.96-12.78-6.76-15.07-11.38-4.29-8.65-2.69-16.02-2.28-25.25a1 1 0 011.95-.28c4.29 12.42 10.5 24.4 15.71 36.61q.23.55-.31.3zM372.75 314.71c-5.78-9.67 1.71-31.17 6.17-40.68 5.95-12.68 8.21-24.68 18.35-33.9a.49.49 0 01.82.35c.28 8.68.84 19.39-1.97 27.72-5.26 15.58-11.39 33.46-21.42 46.62a1.18 1.18 0 01-1.95-.11zM398.01 278.49a.5.49 35.5 01.87-.14c2.01 2.7 1.62 11.6 1.61 15.13-.04 12.42-8.2 17.45-17.9 22.58a.35.35 0 01-.48-.46c5.51-12.02 11.85-24.46 15.9-37.11z"],["trapezius","M285.01 307.01a.89.89 0 01-.11-1.64q19.44-9.61 35.65-24.8 1.68-1.57 3.31-.31.4.32.45.82 1.25 12.61-1.57 25.41c-.74 3.32-2.55 4.23-5.9 4.48q-16.02 1.24-31.83-3.96zM414 311.19c-5.24-.12-7.81-.64-8.9-6.27q-2.33-12.09-1.17-23.94.06-.61.61-.89 1.66-.85 3.65.99 16.12 14.87 33.97 23.63 3.65 1.79-.27 2.89-13.88 3.91-27.89 3.59z"],["deltoids","M274.06 311.69q3.94 2.77 4.33 8.14.04.48-.38.73c-9.98 5.88-24.35 7.45-28.82 19.75-2.31 6.36-.97 17.35-1.43 23.68q-.55 7.51-5.73 14.07-10.37 13.11-13.81 16.67c-3.41 3.53-6.81 1.76-10.69-.47-15.42-8.87-24.95-25.45-22.52-43.22 2.05-14.92 12.71-25.79 24.06-35.02 16.99-13.82 35.58-17.99 54.99-4.33zM450.39 320.75q-.95-.52-.7-1.58c1.57-6.61 5.8-9.1 12.14-11.9 24.99-11.03 43.76 3.33 60.17 20.74 20.73 21.99 11.81 56.44-14.82 68.19-4.41 1.94-6.79-1.03-9.81-4.51-5.81-6.7-13.46-14.12-15.99-22.8-3.93-13.43 4.32-27.54-9.64-37.62q-8.22-5.93-17.99-9.08-1.84-.59-3.36-1.44z"],["adductors","M280.26 647.4c11.65 10.74 22.18 21.04 31.02 34.3 15.82 23.72 27.55 49.72 34.01 77.58 1.34 5.79-6.14 20.34-12.62 20.22q-.52-.01-.72-.49-.67-1.59-1.21-3.13c-14.68-41.71-27.96-79.71-46.87-117.01-1.9-3.74-3.05-7.33-4.06-11.2a.27.27 0 01.45-.27zM331.64 898.32q-.17.57-.23-.02c-2.23-25.01-8.47-50.09-14.25-74.53q-19.4-82.1-42.46-163.69-.58-2.08.33-.13c19.88 42.53 38.94 86.51 51.64 132.07 9.49 34.06 15.59 71.67 4.97 106.3zM334.46 789.17c1.56-2.63 14.39-20.38 16.2-20.37a1.71 1.7-89.2 011.7 1.76q-1.12 34.88-7.4 68.95c-.38 2.06-1.41 4.27-2.16 6.23q-.24.62-.34-.04-3.68-25.45-8.44-50.7c-.34-1.79-.63-4 .44-5.83zM395.47 779.4c-5.7 1.33-11.34-11.87-12.46-15.86q-.61-2.18-.02-4.65 10.17-42.64 35.06-78.81c9.47-13.77 18.83-22.36 29.85-32.56q.55-.5.4.22-1.12 5.7-3.73 10.83c-19.44 38.38-33.3 79.2-47.77 119.65a1.84 1.83-86.4 01-1.33 1.18zM453.65 658.99q.67-1.43.23.09-26.73 93.75-48.63 189.74c-1.98 8.7-3.66 17.9-5.44 26.84q-2.19 11.05-2.78 22.43a.15.15 0 01-.3.04c-8.18-24.48-6.74-51.98-1.87-76.86 11.07-56.49 34.44-110.42 58.79-162.28zM377.91 768.67c1.49.84 1.76 1.49 2.66 2.66q6.16 8.04 12.23 16.13c1.88 2.52 1.97 4.18 1.38 7.45q-4.57 25.23-8.43 50.57-.11.71-.4.05-1.89-4.29-2.54-8.09-5.57-32.28-6.98-65.01-.09-2 .81-3.44a.95.94 30.8 011.27-.32z"],["quadriceps","M292.42 935.6q-.95-.52-1.57-1.4-4.1-5.79-7-13.53-7.8-20.79-13.3-42.33c-9.06-35.53-19.33-71.36-25.03-107.59-5.33-33.86 4-74.19 20.7-103.37q.35-.62.53.07c14.44 55.57 39.03 107.94 41.45 165.34 1.11 26.34.66 52.96-3.6 79.03-.63 3.83-4.73 27.81-12.18 23.78zM275.11 942.93q-2.42-2.18-3.57-5.24c-3.98-10.61-7.68-21.02-12.81-31.32-7.85-15.76-10.77-34.56-13.2-51.46-2.11-14.63-2.31-31.47-3.93-47.18-.22-2.16-1.04-12.78.46-13.79q1.36-.92 2.08.55c1.5 3.08 3.12 6.12 3.66 9.58q8.21 52.38 26.36 102.15c2.87 7.87 9.98 30.5 1.85 36.74a.71.7-42.5 01-.9-.03zM322.69 945.72c-3.73 6.14-10.77-2.43-12.6-5.6-3.16-5.47-2.62-14.93-1.78-20.81 4.03-28.09 5.6-52.81 3.48-80.78q-.06-.79.28-.08 15.77 32.83 14.26 68.9c-.4 9.54-2.94 22.48-2.91 34.13q.01 3.02-.73 4.24zM437.82 933.52c-8.9 14.18-15.15-26.74-15.46-29.25q-5.26-43.04-1.19-86.08c4.9-51.8 26.91-99.32 40.38-150.92q.18-.66.5-.06c17.25 31.67 25.39 68.28 20.54 104.36q-2.29 17.02-8.71 42.76-7.56 30.25-15.2 60.47-6.13 24.25-15.06 47.61-1.83 4.79-5.8 11.11zM451.79 942.6c-9.95-10.01 4.97-42.91 8.94-55.41q12.55-39.53 19.27-80.47c.49-2.97 2.64-12.34 5.41-13.28a.83.83 0 011.09.64q.74 4 .45 7.92c-1.99 26.52-3.37 58.99-11.01 87.73q-2.53 9.5-7.46 18.8c-4.38 8.24-6.97 16.72-10.08 25.27q-1.66 4.54-4.55 8.63a1.35 1.35 0 01-2.06.17zM406.69 946.81c-3.24-2.77-1.48-10.64-2.01-14.71q-2.23-17.18-2.57-22.16c-1.75-25.07 3.61-49.11 13.98-71.92q.23-.51.2.05c-1.2 19.15-1.28 38.18.83 57.38q1.68 15.4 3.39 30.8c.43 3.92-.31 9.71-2.09 13.33-1.62 3.28-7.58 10.77-11.73 7.23z"],["knees","M297.69 1008.37c-7.27 7.29-16.34 3.42-19.64-5.18q-6.18-16.11-9.57-30.68c-1.99-8.6-2.24-19.68 9.72-19.91q13.12-.24 26.05 2.15 1.71.32 3.29 1.02a1.17 1.15 4.2 01.63.72c3.17 10.27 2.5 23.36.05 33.69q-2.37 10.01-10.53 18.19zM288.03 1059.54c-6.99-5.81 13.75-46.43 17.3-53.91q7.3-15.38 10.9-32.01c.74-3.42 2-6.31 4.18-8.64a1.36 1.35 54.7 012.23.39c3.97 9.09 1.66 13.86-1.67 24.65q-10.23 33.19-27.2 63.57-1.8 3.23-4.2 5.84a1.13 1.12-49 01-1.54.11zM430.44 1008.31c-12.92-12.62-14.34-33.49-10.92-50.31.31-1.53 1.09-2.53 2.73-2.86q11.44-2.25 23.08-2.59c14.13-.42 17.31 5.67 14.54 18.63q-3.13 14.69-9.12 30.37c-3.45 9.03-11.63 15.25-20.31 6.76zM438.96 1059.52q-2.25-1.89-3.8-4.64-20.15-35.92-31.06-75.66-2.11-7.68 1.95-14.16a1.16 1.16 0 011.91-.08c2.26 3.06 3.4 5.4 4.26 9.37 3.98 18.54 10.94 32.53 20.07 51.09 3.51 7.14 11.38 26.16 8.5 33.61a1.16 1.16 0 01-1.83.47z"],["tibialis","M263.52 973.59a.6.6 0 011.09-.14q1.38 2.22 1.83 5.06c7.87 49.97 18.01 99.59 25 149.68q4.63 33.19 4.31 67.55-.04 3.45-2.15 5.76-.4.44-.75-.03-1.89-2.58-3.08-5.51c-11.63-28.6-20.46-58.12-24.26-88.68q-4.96-39.97-5.72-69.53c-.13-5.27-.17-12.59.35-18.98q1.7-20.77 2.52-41.6c.04-1.16.52-2.43.86-3.58zM463.39 973.68a.7.7 0 011.25-.1c.27.46.64 1.34.68 1.93q1.26 20.88 2.53 41.76.66 10.82.39 19.98-1.23 40.77-7.51 82.25c-3.91 25.87-12.19 51.55-21.96 75.76q-1.13 2.79-3.27 6.13-.29.44-.71.12c-2.68-2.06-2.32-6.7-2.29-10.32.26-31.03 2.71-55.52 8.76-91.4q9.27-55.06 18.94-110.05c.8-4.5.99-10.52 3.19-16.06z"],["calves","M252.09 1032.57c.24-3.71 2.14-22.17 4.63-24.18a1.03 1.02-17.9 011.67.85c-.45 7.89-1.27 16-1.49 23.45q-.57 18.93-.66 37.88-.02 3.63.34 6.85c2.08 18.76 5.56 37.32 9.3 55.8 3.82 18.84 9.13 37.64 13.11 56.63q2.44 11.68 2.08 17.95c-.32 5.7-3.08 20.49-8.51 23.92a.62.62 0 01-.84-.16q-1.2-1.65-.95-3.55c.92-7.26 1.45-14.15-.3-21.52q-8.25-34.74-13.62-59.06c-1.86-8.44-3.17-17.18-3.93-26.3q-3.69-44.24-.83-88.56zM315.01 1025.17a.16.16 0 01.32.02c4.06 25.75 8.98 52.72 8.71 77.81q-.13 12.06-5.74 26.31c-7.2 18.3-8.93 38.57-15.95 56.93q-.18.48-.21-.03c-1.87-34.47-5.67-65.91-8.56-103.28q-.97-12.49 4.44-23.14 7.47-14.69 15.14-29.29c.81-1.55 1.35-3.62 1.85-5.33zM455.5 1231.67c-7.13-5.81-9.23-24.34-8.2-31.86 1.41-10.32 4.63-23.14 7.98-36.33q9.54-37.46 15.15-75.74c2.86-19.5 1.53-40.15.75-59.8-.22-5.67-.98-12.51-1.23-18.75a.97.97 0 011.87-.4c.35.86.92 1.76 1.12 2.68q2.96 14.31 3.31 20.53 2.37 43.28-.49 84.75-1.21 17.42-5.43 35.77-6.33 27.51-12.84 54.98-2.01 8.49-.11 18.36c.36 1.9.11 3.95-.68 5.55a.79.79 0 01-1.2.26zM412.77 1025.44a.14.14 0 01.27-.04c4.88 11.62 10.93 22.01 17.28 34.78 4.07 8.19 4.71 14.41 4.1 24.25-2.13 34.3-6.27 68.85-8.45 101.59q-.05.69-.31.05-1.48-3.67-2.28-6.75c-4.34-16.75-8.78-38.38-16.39-57.57q-1.4-3.55-2.2-10.11c-1.78-14.73-.2-31.24 2.04-45.88q3.06-20.02 5.94-40.32z"],["forearm","M127.23 683.05c-4.07-2.12 1.27-27.07 2.25-31.57 4.98-23.03 9.17-46.17 13.91-69.25q1.53-7.47 2.13-15.13c.93-12.09.81-22.15 6.23-31.59 7.1-12.33 13.54-29.16 26.1-36.73a1.98 1.97 62.7 012.84.91c1.92 4.48 1.93 8.28 2.06 14.15.44 19.77-1.3 41.04-8.72 59.67-11 27.62-22.22 55.21-32.62 82.91-4.04 10.76-7.56 20.66-12.82 26.39q-.59.65-1.36.24zM201.5 527.4a.84.84 0 01.67.65c3.98 17.15-2.93 39.36-10.95 54.41-4.6 8.63-13.06 20.43-18.21 31.33q-13.21 27.92-24.58 56.64-2.51 6.35-6.61 11.02a1.43 1.43 0 01-2.5-.81q-.36-3.78.84-7.17 10.31-29.18 21.57-57.99c6.32-16.18 14.55-31.65 20.66-47.87 3.69-9.82 5.36-22.36 7.32-30.62 1.49-6.27 4.19-11.06 11.79-9.59zM207.33 540.4a.6.59-63.1 011.03-.34l5.38 6.02q.4.45.33 1.06-.52 4.1-1.29 5.84-6.91 15.65-13.69 31.35c-5.41 12.53-16.33 28.4-23.51 44.89-8.3 19.08-16.03 39.32-26.75 57.16a.36.36 0 01-.62 0l-.19-.32q-.17-.28-.06-.59 10.08-29.91 23.05-58.65 2.9-6.42 5.47-11.21c4.62-8.59 10.86-16.17 14.62-23.02q13.23-24.13 16.23-52.19zM600.08 683.04c-5-4.14-8.97-15.46-11.29-21.56-5.82-15.25-11.38-30.55-17.58-45.7q-9.15-22.39-18.02-44.89c-5.58-14.19-7.32-31.42-7.99-46.57-.29-6.44-.68-19.43 2.67-25.02a1.71 1.71 0 012.25-.63c6.72 3.52 11.29 9.96 14.87 16.5q6.25 11.38 12.68 22.66c1.97 3.45 2.93 7.66 3.41 12.06 1.16 10.6 1.55 21.29 3.66 31.65 3.93 19.29 7.38 38.63 11.47 57.92 1.5 7.07 9.3 39.08 5.12 43.5a.91.91 0 01-1.25.08zM586.58 681.46q-4.35-4.47-6.75-10.61-11.35-28.91-24.59-57.01c-5.72-12.13-14.32-22.86-19.97-35.1-7.1-15.36-12.9-33.32-9.27-50.31a1.44 1.43-87.1 011.23-1.12c7.47-.88 9.29 2.88 11.02 9.2 3.39 12.42 4.76 25.91 9.75 36.7 15.55 33.65 27.61 64.94 39.31 98.42 1.13 3.24 2.05 5.47 1.62 9.04a1.38 1.37 26.3 01-2.35.79zM579.58 686.43q-3.92-5.77-6.87-12.13-8.05-17.34-19.75-44.5-2.68-6.24-6.46-13.62c-5.14-10.05-13.15-22.36-17.34-31.85q-9.55-21.68-13.66-31.36-1.09-2.58-1.33-5.87-.04-.61.37-1.07l5.24-5.85a.69.69 0 011.2.4q2.74 27.05 15.49 50.75 1.7 3.17 8.26 12.86 7.02 10.39 12.18 21.88 8.71 19.41 20.19 50.1 2.22 5.92 3.13 9.98a.36.36 0 01-.65.28z"],["hands","M100.98 745.85c-9.03-6.62-15.78-13.18-13.3-24.59 2.67-12.29 15.01-20.6 25.37-26.21 7.76-4.21 18.22-1.68 26.15.97 7.14 2.39 11.11 6.16 11.1 13.86q-.04 18.51-4.75 36.37c-5.47 20.76-34.48 6.99-44.57-.4zM53.81 746.32a.91.91 0 01-.74-.95c.14-2.49-.23-6.34 2.25-7.8 4.66-2.71 11.37-5.53 14.15-10.3q6.32-10.86 16.56-20.3 1.27-1.17.64.44c-1.45 3.73-2.86 7.21-3.87 11.59-2.76 11.9-14.62 30-28.99 27.32zM87.21 745.05c1.44.46 8.14 2.66 8.61 4.55 1.26 5.12-4.42 8.54-7 12.25-7.73 11.1-15.12 23.38-24.25 33.28a1.22 1.22 0 01-2.11-.86c.11-3.93.38-7.1 2.43-10.65q10.27-17.71 19.31-36.11.32-.65 2.13-2.27.38-.35.88-.19zM108.11 758.12a2.16 2.16 0 011.07 2.87q-10.49 22.55-19.92 45.81c-1.45 3.56-4.37 5.15-7.82 6.04a1.35 1.34-8.1 01-1.69-1.26c-.11-3.05.37-5.87 1.58-8.9q8.1-20.28 15.15-40.96c.41-1.2.62-3.33 1.69-4.85a1.21 1.21 0 01.91-.49q4.72-.21 9.03 1.74zM134.09 799.9q-1.16-1.7-1.41-3.73-2.1-17.07-1.18-34.29.03-.6.61-.75l6.93-1.85q.68-.19.65.52-.51 10.9-.85 21.71c-.28 8.58.1 12.65-4.17 18.4a.36.36 0 01-.58-.01zM108.13 814.65a1.48 1.48 0 01-1.62-1.47c-.02-2.83-.14-5.66.32-8.53q2.9-17.79 5.4-35.65.53-3.84 1.58-7.56a.66.66 0 01.76-.48l7.26 1.24a.97.97 0 01.78 1.14q-4.76 23.96-9.1 46.26-.9 4.64-5.38 5.05zM591.31 755.99c-8.06-2.93-8.66-9.76-10.28-17.06q-3.22-14.42-3.1-29.3.04-4.06 1.46-6.55c4.34-7.57 18.16-9.91 25.63-10.35 8.75-.51 18.37 6.96 24.99 12.27q8.92 7.17 10.74 17.52c2.45 13.89-12.11 23.41-22.7 29.04-6.95 3.69-18.63 7.39-26.74 4.43zM641.97 706.78q10.85 9.65 17.61 21.91c1.63 2.97 9.74 6.76 12.87 8.59 2.9 1.7 3.03 4.81 2.55 8.5q-.06.42-.48.49c-8.16 1.32-11.99-1.93-17.72-7.23-10.35-9.58-10.5-20.33-15.33-31.9q-.54-1.29.5-.36zM638 760.07c-2.54-3.42-7.52-6.03-5.44-11.11q.18-.44.61-.63l7.41-3.3q1.29-.58 2.05.62 3.33 5.23 5.69 10.04 6.84 13.94 14.71 27.33c1.35 2.29 4.28 10.16 2.25 12.11a1.22 1.22 0 01-1.77-.08c-9.43-10.98-16.85-23.36-25.51-34.98zM647.83 812.68c-4 .24-7.71-2.87-9.11-6.38q-9.28-23.27-19.74-45.33a2.05 2.05 0 01.92-2.71q4.5-2.28 9.62-1.7a1.09 1.07 83.8 01.89.73q7.5 23.06 16.57 45.5 1.8 4.46 1.5 9.24a.7.7 0 01-.65.65zM596.17 761.18a.84.84 0 01.62.81c-.01 4.86.95 35.3-2.71 37.67q-.49.32-.82-.17-3.41-5.21-3.51-8.49-.45-15.62-1.16-31.23-.03-.72.66-.52l6.92 1.93zM621.09 814.28c-4.35 1.91-5.92-3.77-6.5-6.56q-4.52-21.91-8.88-43.95a1.41 1.41 0 011.14-1.66l6.8-1.18a.92.92 0 011.06.76q2.79 16.32 5.09 32.91c.85 6.17 2.2 12.25 1.8 18.95q-.03.52-.51.73z"],["ankles","M291.88 1208.11c5.48-1.03 11.85 5.55 13.38 10.37q2.45 7.74 1.47 16.83-.09.83-.45.08c-4.31-9.05-8-16.99-15.39-23.88a1.98 1.98 0 01.99-3.4zM275.88 1270.94c-4.41-3.87-7.4-7.17-4.91-13.37q4.78-11.92 5.49-21.32.62-8.27 6.22-12.84c9-7.33 20.8 15 23.1 22.1 2.55 7.91 4.83 16.36 4.49 24.5-.31 7.14-2.02 17.4-6.49 23.1q-.3.38-.53-.05c-5.67-10.74-18.6-14.41-27.37-22.12zM430.92 1209.12c2.24-1.35 10.54-2.02 6.02 2.65q-9.99 10.32-14.82 23.8a.28.28 0 01-.55-.08c-.52-10.27-.48-20.45 9.35-26.37zM445.01 1223.26c8.45 6.56 6.46 16.66 9.35 25.59q1.76 5.43 3.47 10.88c3.84 12.26-27.75 21.49-32.21 32.42q-1.02 2.51-2.17.05c-6.91-14.82-6.79-29.36-1.78-44.58q2.82-8.57 8.02-16.04c3.02-4.35 9.61-12.76 15.32-8.32z"],["feet","M264.5 1334.5c-3.98-.34-18.59-4.25-19.04-9.44a1.4 1.4 0 01.27-.94c9.66-13.03 20.9-25.49 28.65-39.78q.25-.47.78-.37 9.76 1.78 17.73 7.65a1.19 1.18 43 01.07 1.86c-1.32 1.11-1.65 2.62-1.06 4.35 2.96 8.57-.92 16.55-4.81 25.34-1.79 4.06-1.76 8.99-2.81 13.62a1.56 1.56 0 01-1.99 1.14q-8.36-2.64-17.79-3.43zM291.87 1340.12c-2.25-2.64-2.07-5.93-.78-9.35q3.34-8.88 4.02-18.35.43-6.02 1.25-8.74 1.32-4.37 3.45-8.22a.66.65 53.7 011.21.19q1.97 9.26 6.28 17.3c2.59 4.85-.82 11.49-2.92 16.14a1.81 1.78-35.8 00-.16.94q.42 4.3-1.9 7.94-.22.33-.61.43l-8.79 2.06a1.06 1.06 0 01-1.05-.34zM444.66 1337.65q-1.08-1.3-1.28-3.09c-.52-4.48-.73-8.39-2.77-12.64-3.51-7.31-7.06-16.37-4.43-23.19.77-1.99.92-3.79-.76-5.13a1.29 1.28 46.4 01.04-2.04q7.96-5.76 17.59-7.64.46-.1.69.32c7.25 13.1 17.21 24.83 26.45 36.56q1.11 1.41 2.51 3.8a1.17 1.14-51 01.09.95c-1.75 5.01-12.93 7.89-17.77 8.55q-9.87 1.36-19.54 3.82a.82.8-26.2 01-.82-.27zM426.94 1338.55c-2.01-.34-2.96-5.48-3-7.12-.15-6.02-6.29-11.65-3.12-17.89q4.35-8.53 6.34-17.75a.78.78 0 011.47-.17c2.12 4.52 4.18 9.08 4.35 14.33q.35 10.43 3.97 20.24c1.19 3.22 1.52 5.83.39 8.78a2.32 2.31 19.3 01-2.87 1.38q-3.44-1.09-7.53-1.8z"],["head","M 418.91 167.68 c 3.92 -1.77 6.58 0.47 7.06 4.32 c 1.48 11.93 -4.92 26.67 -11.75 36.45 c -2.21 3.17 -3.86 0.17 -4.74 -1.76 a 0.38 0.38 0 0 0 -0.73 0.16 c 0.02 8.31 1.01 17.01 -3.36 24.53 c -0.167 0.293 -4.39 4.62 -10.799 9.508 c -23.591 18.112 -41.591 16.112 -61.446 -0.797 c -4.736 -3.649 -5.925 -5.041 -8.805 -7.621 c -5.66 -5.07 -5.28 -17.38 -4.47 -24.92 c 0.05 -0.51 -0.468 -0.892 -0.933 -0.687 a 0.653 0.653 0 0 0 -0.357 0.397 c -0.57 1.69 -2.24 4.05 -4.07 1.48 c -6.2 -8.71 -16.02 -28.53 -11.19 -38.98 c 1.68 -3.627 3.733 -3.91 6.16 -0.85 a 182.853 182.853 0 0 1 3.78 23.29 a 1.02 1.02 0 0 0 1.56 0.77 c 2.79 -1.75 2.61 -18.93 2.63 -24.22 c 0.02 -4.53 1.12 -8.94 3.8 -13.1 c 4.36 -6.76 4.86 -11.51 5.57 -19.82 c 0.47 -5.53 4.34 -8.12 9.77 -8.21 c 6.39 -0.12 12.69 -0.07 19 -0.93 c 4.02 -0.55 7.4 -1.43 11.53 -0.75 c 6.7 1.1 13.44 1.64 20.22 1.62 c 4.607 -0.013 7.523 0.227 8.75 0.72 c 5.96 2.37 5.56 9.73 6.11 15.22 c 0.44 4.34 2.097 8.447 4.97 12.32 c 6.57 8.88 2.19 25.6 5.64 36.36 a 1.14 1.14 0 0 0 2.22 -0.23 c 0.887 -8.36 2.18 -16.45 3.88 -24.27 z z z z"],["hair","M418.91 167.68q-2.55 11.73-3.88 24.27a1.14 1.14 0 01-2.22.23c-3.45-10.76.93-27.48-5.64-36.36q-4.31-5.81-4.97-12.32c-.55-5.49-.15-12.85-6.11-15.22q-1.84-.74-8.75-.72-10.17.03-20.22-1.62c-4.13-.68-7.51.2-11.53.75-6.31.86-12.61.81-19 .93-5.43.09-9.3 2.68-9.77 8.21-.71 8.31-1.21 13.06-5.57 19.82-2.68 4.16-3.78 8.57-3.8 13.1-.02 5.29.16 22.47-2.63 24.22a1.02 1.02 0 01-1.56-.77q-1.14-11.78-3.78-23.29-1.48-6.99-1.9-9.7c-2.49-15.94.13-40.13 13.53-51.15 9.39-7.72 28.53-11.63 40.37-11.51 4.2.05 8.74-.3 12.68.22 13.82 1.82 31.67 5.83 39.42 18.92 9.01 15.21 9.88 35.14 5.33 51.99z"]]},"back":{"vb":"749 78 669 1293","parts":[["neck","M1022.74 290.63a.62.61 25.9 01-.36-1.03q1.71-1.83 4.11-3.11c8.19-4.35 19.4-8.3 23.38-17.48q8.48-19.57 8.22-40.85-.05-4.38.57-5.76c1.98-4.38 9.65-3.66 13.85-2.91 4.3.76 4.71 3.25 4.68 7.3q-.2 24.11-.88 48.2c-.12 4.25 1.6 15.84-4.88 16.32-14.57 1.08-32.6 1.81-48.69-.68zM1095.75 291.46c-4.3-.25-4.9-3.99-4.95-7.71q-.46-29.47-1-58.94c-.13-7.39 11.74-6.23 15.99-4.85 4.2 1.36 3.01 6.89 2.88 10.79-.28 8.88 5.15 41.1 15.32 46.78q8.6 4.81 17.27 9.51 1.97 1.07 3.26 2.36a.8.79 63.6 01-.45 1.35c-16.12 2.17-33.78 1.56-48.32.71z"],["trapezius","M1071.06 308.94c5.6 4.92 6.96 17.83 7.43 24.88q1.5 22.3.93 44.68-1.2 46.76-5.66 94a.57.56 3.7 01-.59.51q-.68-.03-.94-1.01-4.29-15.9-9.79-25.19c-10.24-17.31-18.8-31.84-25.59-49.4-10.19-26.38-15.6-54.28-26.46-80.58q-3.07-7.43-7.61-14.07-.3-.43.2-.6 12.47-4.28 25.48-4.85c5.54-.25 12.15.86 18.32 1.41 9.7.87 16.77 3.6 24.28 10.22zM1163.98 302.12a.43.43 0 01.22.65q-7.08 10.77-11.41 23.37c-10.53 30.61-17.8 62.94-31.3 91.07-5.11 10.64-15.17 25.22-20.12 36.26q-4.08 9.08-6.59 18.83a.77.77 0 01-1.51-.12q-4.27-45.15-5.52-90.99c-.56-20.28-.74-39.92 2.75-60.43 1.04-6.13 2.77-9.98 7.85-13.85 9.8-7.48 18.02-7.73 30.1-9.11 12.02-1.39 23.92.4 35.53 4.32z"],["deltoids","M980.66 319.58c.19.14.55.19.65.32a.8.8 0 01-.16 1.15c-6.78 4.75-15.26 9.77-20.03 15.58-6.41 7.78-8.76 16.96-9.44 27.04-.39 5.92-1.68 9.5-5.59 13.43-10.02 10.08-19.04 16.47-31.14 20.41q-.75.25-.75-.55.19-18.4-.09-36.3-.14-9.4 1.07-14.22c4.04-16.07 22.8-33.85 39.68-35.64 9.99-1.06 17.34 2.46 25.8 8.78zM1227.3 316.44c14.62 9.44 25.48 21.03 25.46 39.51q-.02 20.56-.01 41.37a.37.37 0 01-.51.35c-5.08-2.06-10.41-3.98-14.9-6.97-7.84-5.24-21.14-14.95-21.77-24.95-.69-10.75-2.81-20.85-9.76-29.25-4.68-5.65-12.96-10.58-19.6-15.26q-1.23-.87.01-1.71c4.6-3.13 9.91-6.78 15.25-7.98q13.58-3.03 25.83 4.89z"],["upper-back","M987.06 381.44c-8.48-5.06-14.14-13.28-18.82-22.92q-5.3-10.92-6.46-14.04c-1.49-4.01 35.14-19.22 39.61-20.97q2.75-1.08 4.33-.72c4.33.96 6.61 9.96 7.46 13.7q5.43 23.89 14.65 55.74.78 2.7-.88 4.39c-5.37 5.5-34.69-12.08-39.89-15.18zM1017.44 583.31q-9.11-9.57-16.97-22.03-2.28-3.62-2.91-7.25c-3.28-18.82-5.77-38.04-10.52-56.55-3.53-13.73-4.74-25.19-6.61-41.43-.85-7.35-5.67-13.34-8.22-18.75q-4.93-10.47-6.44-22.88-.33-2.72 1.89-1.11c7.25 5.27 16.36 6.16 26.91 7.56 8.86 1.19 23.41-3.18 28.94-10.76 3.34-4.58 4.7-6.5 8.86-8.77a.67.66-26.4 01.92.3q10.02 21.8 19.93 43.78c2.56 5.69 12.11 15.88 10.77 21.83-3.65 16.09-9.88 31.96-16.24 47.13-9.72 23.21-18.61 46.72-27.2 70.36q-.24.67-.88.35-1.03-.52-2.23-1.78zM1017.71 404.73c-23.86 13.25-54.31 7.11-60.45-22.75-1.2-5.81-2.5-15.84.64-20.55 3.63-5.44 7.17 4.18 8.17 6.14 7.71 15.14 31.62 29.16 48.2 31.13q1.84.21 5.26 2.06.4.21.26.64-.86 2.65-2.08 3.33zM1141.45 397.63a2.17 2.14-3.6 01-1.88-1.64q-.71-2.97.18-5.95 8.74-29.19 11.75-43.29c1.73-8.11 3.07-16.77 6.94-22.08 1.92-2.62 4.28-2.27 7.19-1.15q20.52 7.9 39.09 18.77a1.37 1.36 25.9 01.58 1.67c-6.05 15.46-12.98 30.84-28.43 39.45-9.45 5.26-25.83 15.17-35.42 14.22zM1149.69 404.8q-2.04-1.15-2.45-3.5-.09-.53.41-.75c4.64-2.04 9.78-2.51 14.63-3.87 11.01-3.1 22.03-10.83 30.34-18.57q6.33-5.89 7.58-8.93c1.02-2.49 3.79-9.5 7-9.46q.52.01.87.39 2.71 3.01 2.81 7.2c.33 13.77-2.24 26.93-13.26 35.95-13.88 11.36-33.12 9.94-47.93 1.54zM1161.19 419.98c6.1 1.57 11.6.99 17.75.06 8.36-1.27 14.83-2.76 21.34-7.27a.54.53 74.1 01.84.47q-.64 11.88-5.76 22.85c-2.42 5.2-6.64 10.84-8.04 16.67q-1.02 4.24-1.43 8.92-1.64 18.72-6.34 37.47c-4.73 18.91-7.13 38.67-10.8 57.85q-.24 1.24-2.2 4.3c-4.57 7.14-12.22 19.43-19.34 23.88a.44.43-25.6 01-.64-.22c-8.26-22.57-16.6-45.11-25.91-67.23-6.67-15.85-13.27-32.14-17.27-48.42q-1.58-6.41 2.91-12.01 5.21-6.51 8.57-14.14 9.25-21 19.01-41.64a.47.47 0 01.65-.21q6.17 3.37 9.51 9.64c2.45 4.6 12.22 7.75 17.15 9.03z"],["triceps","M931.03 442.29c-2.01 2.57-6.52 9.71-10.12 9.17q-.52-.08-.8-.52-1.35-2.09-1.84-4.44c-2.25-10.87-3.28-22.88 1.35-33.38 5.45-12.33 18.27-23.68 29.61-31.2a.47.46 68.7 01.71.32l6.42 38.52q.09.54-.26.97c-.47.58-1.12 1.52-1.71 1.94q-9.11 6.58-18.08 13.36-2.9 2.2-5.28 5.26zM958.15 427.11a.41.41 0 01.55.27q4.44 16.16-2.23 31.41-3.37 7.73-5.91 19.98c-1.51 7.28-8.93 12.21-11.81 18.82-2.42 5.56-2.41 12.5-3.51 16.66-2.14 8.06-8.51 14.15-13.91 20.13a.93.93 0 01-1.54-.25q-.57-1.3-.75-2.89c-1.93-16.91 2.52-33.52 5.71-49.99 2.16-11.21-1.54-24.15 9.68-34.59q9.54-8.86 19.55-17.23c1.3-1.08 2.7-1.72 4.17-2.32zM903.57 519.67a1.84 1.82-5.4 01-1.12-.92q-3.54-6.97-3.68-15.19c-.37-21.2 3.8-42.53 9.5-63.44q.33-1.23.92-.1 4.64 8.78 8.6 18.67c2.88 7.21 4.19 12.98 1.88 20.57q-6.07 19.96-14.02 39.23-.65 1.58-2.08 1.18zM1213.94 424.56q-2.02-1.5-3.08-3.02-.31-.46-.22-1 3.32-19.22 6.42-38.46.09-.56.56-.25 14.9 9.82 24.8 22.71c9.8 12.75 9.72 30.37 5.41 45.13a2.62 2.62 0 01-3.76 1.57c-3.26-1.77-6.22-6.71-8.62-9.67-5.24-6.46-14.75-12-21.51-17.01zM1246.2 534.5q-.95-.3-1.75-1.22c-4.65-5.4-9.13-9.88-11.46-15.51-2.96-7.13-1.37-15.5-5.64-22.09-4.06-6.26-8.72-9.91-10.89-17.58-1.62-5.68-2.81-11.46-4.97-17.02-4.56-11.69-6.45-20.86-3.33-33.56a.59.58-74 01.75-.42q1.69.56 3.22 1.79 11.23 9.08 21.54 19.18c5.39 5.28 6.92 10.13 7.24 18.16.9 22.52 10.62 44.97 6.59 67.49a1.01 1 13.9 01-1.3.78zM1258.43 439.96q2.01 5.38 3.1 10.68c3.58 17.36 7.13 34.77 6.89 52.61q-.11 8.3-3.94 15.61a1.61 1.6 33.4 01-2.44.5c-1.45-1.19-1.9-3.58-2.43-4.94q-9.23-23.41-13.19-38.15c-2.63-9.81 6.82-27.63 11.53-36.35q.28-.5.48.04z"],["lower-back","M986.76 627.1c-3.13-13.13-7.31-49.77 7.27-58.07 2.4-1.37 4.8-.82 6.7 1.29 6.15 6.8 16.22 18.56 18.77 28.15a1.35 1.3 52.6 01-.11.98c-2.51 4.53-9.96 8.09-15.83 11.36q-5.47 3.06-11.33 10.52c-1.23 1.56-2.6 4.3-4.5 6.06a.59.58-28.2 01-.97-.29zM1023.15 607.96a2.06 2.04-74.3 01-.94-1.69c-.17-10.98 5.04-24.58 8.79-34.9q15.61-42.83 36-83.59a1.11 1.1-62.5 011.51-.48c1.25.66 3.21 12.98 3.46 15.08q6.94 59.25 2.82 116.88-.62 8.66-3.1 19.37-.13.53-.59.24l-47.95-30.91zM1090.76 581.75q.62-5.16 0-10.27.22-29.79 3.05-59.5 1.1-11.58 3.91-22.88.31-1.27.44-1.43 1.08-1.43 1.88.17 23.38 46.97 40.14 96.18c1.8 5.28 5.84 16.69 4.38 22.96a1.64 1.64 0 01-.71 1.01l-47.63 30.72q-1.12.72-1.34-.6-4.54-28-4.12-56.36zM1151.19 603.31q-5.39-3.38-2.19-9.05 8.03-14.22 17.88-24.62c3.49-3.69 9.04.89 10.97 3.99q2.92 4.66 3.8 10.14 3.5 21.77-1.21 43.02a.96.96 0 01-1.77.28c-6.92-11.85-16.03-16.56-27.48-23.76z"],["forearm","M878.44 534.38a.15.15 0 01.18-.13c.47.12 6.68 15.77 7.07 17.22q6.66 24.73 5.52 50.29c-.4 8.9-3.45 17.35-6.64 25.55-7.94 20.38-17.41 41.88-29.59 60.09a1.04 1.02-54.2 01-1.49.25c-.34-.26.37-1.45.47-1.83q5.58-20.8 8.97-42.08 8.65-54.15 15.51-109.36zM893 518.93a.39.38 24.6 01.69-.25q5.97 7.83 13.11 15.27c8.08 8.4 1.41 28.73-5.88 37.12a1.05 1.05 0 01-1.63-.05c-6.09-7.93-5.41-18.74-4.97-28.44.36-8.12-.76-15.7-1.32-23.65zM869.06 547.19c2.16.36 1.67 6.21 1.57 7.8q-2.54 38.84-9.11 77.16c-3.04 17.71-8.47 41.3-22.09 54.09a.38.38 0 01-.62-.41c14.51-40.44 19-84.26 26.8-126.31q.9-4.88 1.48-10.82.18-1.81 1.97-1.51zM864.24 682.58q15.09-28.18 25.12-58.55c8.14-24.63 13.67-42.4 20.79-60.35q3.31-8.37 12.08-9.63c1.35-.2 3.68-.75 4.86.21q1.13.93.61 2.3-5.8 15.45-12.04 29.88c-5.79 13.39-14.92 28.68-20.32 40.14-6.12 13-28.07 59.18-31.64 56.64a.21.21 0 01.03-.36q.15-.07.34-.13.12-.04.17-.15zM1272.99 519.43c.27-.33.33-.75.75-1.05a.32.32 0 01.5.29c-.7 7.22-1.77 14.33-1.66 21.54.13 8.94 2.13 24-5.35 31.17q-.37.35-.73 0c-7.63-7.55-14.2-28.29-6.52-36.92q6.6-7.41 13.01-15.03zM1312.82 688.04c-4.78-6.01-7.2-10.8-11.76-19.56q-12.39-23.79-21.03-47.53c-4.86-13.36-5.22-26.17-3.83-40.19q1.13-11.5 2.69-19.53 2.72-13.98 9.59-26.79a.17.17 0 01.32.06q7.26 63.12 17.22 120.49 2.43 14.04 7.03 30.55c.22.79.74 1.33.36 2.4a.34.34 0 01-.59.1zM1296.52 558.51c-.22-2.94-1.44-10.25 2-12.04a.62.61-18.4 01.89.44q6.25 35.69 12.21 71.07c3.88 23 8.77 46.2 16.73 68.19a.29.29 0 01-.47.31c-11.67-10.67-18.09-31.15-20.89-45.98q-7.27-38.55-10.47-81.99zM1303.5 683.6c-2.89-.66-10.16-13.21-12.11-17.02-8.8-17.21-16.92-34.81-25.84-51.89-5.36-10.27-10.98-20.49-15.39-30.95q-5.86-13.86-11.07-27.8a1.63 1.62 79.5 011.5-2.2c13.02-.16 15.5 7.18 19.65 18.81q9.04 25.33 17.43 50.89 9.65 29.37 23.82 56.84.87 1.69 2.13 3.12.24.28-.12.2z"],["gluteal","M1045.06 626.19q1.42.61 4.11 4.4.27.39-.19.52c-14.47 4.12-26.13 7.4-38.13 15.77q-15.37 10.71-30.53 21.6a.55.54 74.9 01-.86-.5c1.19-13.13 10.35-35.23 20.46-45.06 9.14-8.88 34.99-1.11 45.14 3.27zM1007.94 762.81c-16.94-16.64-29.37-37.66-31.47-61-2.06-22.84 15.63-34.95 32.18-45.71 8.2-5.33 46.51-27.32 54.37-17.65 5.92 7.29 13.38 15.84 15.44 25.21q3.01 13.63 2.44 27.6-.94 22.59-6.27 44.49c-2.43 9.96-2.9 17.16-2.59 26.75.47 14.83-18.52 17.18-29.12 14.07-6.38-1.87-13.79-4.83-21.35-6.25q-7.39-1.38-13.63-7.51zM1117.94 631.04q-.13-.03-.27-.06-.12-.02-.06-.13 2.58-4.2 7.05-5.92 12.71-4.87 26.13-5.81c12.93-.91 17.1 3.08 23.28 13.06 5.71 9.22 13.32 24.7 13.44 36.06q.01.76-.61.32-16.65-11.74-33.2-23.51c-10.03-7.14-23.72-10.58-35.76-14.01zM1124.12 776.61c-9.28 2.74-26.75 1.29-28.86-10.88-1.05-6.03.27-14.88-1.3-23.27q-.54-2.94-2.15-9.35c-3.2-12.81-4.02-23.33-5.08-35.27-1.07-12.03-.57-22 1.64-33.17q1.1-5.6 4.19-10.41 8.74-13.58 11.87-16.59c4.96-4.77 15.84.18 21.19 2.11q19.7 7.12 40.17 21.43c9.59 6.7 19.29 14.31 22.93 25.17 4.81 14.37-.65 33.88-7.42 46.87q-7.79 14.97-21.39 28.9-6.74 6.9-15.26 8.36c-7.07 1.21-13.68 4.08-20.53 6.1z"],["adductors","M1070.06 785.19c2.95 1.36 1.8 10.43 1.49 13.04q-3.98 33.27-14.66 64.61a.39.39 0 01-.76-.17c.9-7.05 2.31-14.29 2.16-20.92q-.68-30.14-18.71-54.52-.29-.39.18-.49c7.42-1.52 23.53-4.69 30.3-1.55zM1127.24 787.66c-15.99 21.49-22.3 48.51-16.08 74.83a.47.46-63.2 01-.88.29q-1.99-4.69-3.65-10.24-8.29-27.75-11.6-56.54c-.65-5.71-1.1-11.77 6.87-11.9q13-.19 25.68 2.83a.31.24 41.2 01.1.53q-.12.01-.27.07-.1.04-.17.13z"],["hamstring","M963.27 741.53a.71.7 31.7 011.19-.28q1.51 1.62 2.47 3.99c4.6 11.41 8.93 22.66 11.07 34.72 3.38 19.14 4.84 38.23 3.12 57.74q-1.68 19.06-2.99 38.15c-.51 7.55-.88 15.71.07 23.18q1.08 8.54 1.39 17.57a.52.52 0 01-.98.25q-1.03-2.07-1.8-4.62-5.13-16.92-7.25-34.49-5.01-41.45-6.86-83.17-1.09-24.75-.07-49.51.06-1.59.64-3.53zM1030.2 791.53q.17-.36.38-.03c5.26 8.11 9.94 16.15 12.47 25.64 3.12 11.72 5.87 24.36 4.31 36.24q-.5 3.8-3.57 14.02c-10.75 35.81-12.83 74.2-18.5 111.1q-.82 5.4-2.55 10.55-.23.68-.59.07c-4.72-8.07-5.18-25.09-5.34-34.81-.7-43.69 1.92-87.82 6.38-131.28 1.41-13.74 1.99-21.15 7.01-31.5zM998.81 761.94q14.07 14.17 20.1 33.62c.98 3.15-.78 9.61-.93 12.91q-1.3 27.63-2.3 55.27c-.55 15.31-1.54 30.27-5.12 45.26q-8.62 36.18-22.76 68.73-3.65 8.41-10.15 17.19-.45.61-.41-.14c.11-1.93.82-4.15.99-5.71q2.45-22.72 6.08-45.26c2.83-17.66 4.18-35.95 4.33-52.37.33-36.43-.75-73.34 1.47-109.68.33-5.32 1.07-16.16 4.7-20.25q.33-.36.81-.45 1.95-.37 3.19.88zM1052.52 855.62a.04.04 0 01.08.01q1.07 9.9 2.17 19.87.33 3.04-2.37 14.18c-3.83 15.8-8.15 31.11-8.9 47.47-.99 21.61-3.11 45.66-9.92 66.3q-1.49 4.52-.87-.2 3.38-25.36 3.7-51.99c.05-3.74-.4-10.32.2-15.58 2.19-19.2 7.39-38.25 11.75-57.05 1.78-7.64 2.93-15.21 4.16-23.01zM1183.25 947.53c2.57 14.85 4.32 31.11 6.22 46.14q.35 2.74-1.11.39c-14.67-23.67-23.34-52.15-30.55-79.32q-5.08-19.14-5.97-39.05-1.36-30.37-2.44-60.74c-.22-6.09-2.56-15.63-.55-21.57q5.87-17.35 18.96-31.07c10.77-11.28 10.17 46.55 10.16 48.97-.13 41.09-.45 74.18 1.91 110.07.57 8.75 1.88 17.53 3.37 26.18zM1136.43 791.52q.27-.42.49.03c3.12 6.46 4.84 12.26 5.68 19.83 5.07 45.8 8.05 94.61 7.56 140.76-.13 11.8-.46 26.22-5.13 37.08a.44.44 0 01-.83-.06q-2.51-9.14-3.69-18.41-3.54-27.64-7.36-55.24c-2.49-18-5.47-35.67-11.09-52.26q-4.35-12.82-2.08-26.75c1.76-10.77 3.58-21.61 8.46-31.16q3.58-6.99 7.99-13.82zM1115.03 856.73c2.03 18.72 7.11 37.44 11.47 55.77 2.25 9.46 3.94 19.51 3.95 30.11q.02 31.7 4.08 63.16.16 1.26-.29.07-2.7-7.15-4.19-14.6c-4.44-22.21-5.71-40.52-6.87-61.23-.24-4.24-1.19-9.64-2.23-13.92q-3.94-16.25-7.7-32.55c-2.09-9.04.08-18.69 1.6-27.66q.07-.38.32-.09.16.19.01.4-.19.24-.15.54zM1202.61 741.08a.44.44 0 01.72.03c.52.82.9 1.86.95 2.91q.73 15.98.37 31.97-1.16 52.95-7.85 105.49-1.88 14.74-5.97 29.04-1 3.52-1.92 4.95-1.57 2.47-1.39-.37c.58-9.44 1.83-19.17 1.71-28.16-.32-24.52-4.94-49.11-3.95-72.75.69-16.54 2.5-33.51 7.54-49.38q2.99-9.4 6.61-18.6.74-1.88 3.18-5.13z"],["calves","M982.69 1149.31c-3.07-2.23-3.98-6.24-5.24-11.03-7.19-27.14-7.88-53.18-6.67-82.78q1.03-25.29 9.23-47.45c4.77-12.89 15.33-24.77 23.79-36q.82-1.09.74.27c-1.37 22.86-2.72 45.67-3.11 68.49-.52 30.56-1.51 61.11-.42 91.68.24 6.83-2.77 16.29-10.08 18.37q-4.39 1.25-8.24-1.55zM983.99 1163.56c7.15-5.59 16.16-.63 17 8.23q4.31 45.02 5.22 90.26c.16 8.25-.8 15.79-2.19 23.65q-.45 2.52-1.43 3.66-.95 1.11-1.22-.33c-5.03-26.7-8.28-53.49-11.87-80.36q-1.68-12.52-3.24-18.71-2.04-8.12-5.53-18.24c-1.03-3 .8-6.25 3.26-8.16zM1013.69 1150.31c-4.8-2.61-4.66-16.17-4.36-20.75 2.34-36.49 3.44-73.94 1.04-110.45-1.03-15.55.02-31.49.62-47.06q.03-.66.25-.03c2.28 6.45 4.52 12.88 7.39 19.11 5.12 11.14 11.5 22.91 14.83 33.92q2.34 7.74 3.97 16.46 5.3 28.43 5.62 56.09c.2 18.32-7.9 40-22.63 51.79q-3.42 2.73-6.73.92zM1014.14 1164.37c7-1.83 14.1 2.2 14.11 9.95q.06 29.04-5.62 57.41c-3.87 19.28-6.24 38.23-8.43 57.48a.37.37 0 01-.74-.01q-3.12-43.48-3.58-86.64-.15-14.16.76-28.3c.18-2.83.02-8.98 3.5-9.89zM1172.94 1149.31c-6.06-4.56-6.94-11.4-6.8-19.4.96-52.67-.49-105.31-3.54-157.9q-.04-.72.41-.16 7.96 10.07 15.43 20.44c9.11 12.64 13.61 28.98 15.78 44.21 4.96 34.71 3.75 72.94-5.97 106.5-1.97 6.82-9.18 10.93-15.31 6.31zM1144.41 1147.33q-17.19-17.37-20.08-40.86-.89-7.22-.13-19.97 1.18-20.06 4.69-41.33c2.33-14.1 5.8-25.22 12.41-38.61q8.19-16.59 14.35-34.15a.14.13-37.7 01.26.03q1.01 15.71 1.26 31.44c.18 11.61-1.34 24.91-1.58 36.43-.72 34.7 1.22 62.05 2.06 93.19.17 6.32-1.1 26.1-13.24 13.83zM1173.74 1161.73c6.88-2 14.34 3.23 11.98 10.91-2.24 7.3-4.78 14.44-5.99 21.96-5.07 31.52-8.04 63.18-14.13 94.6a.72.71-61.9 01-1.21.37c-.14-.14-.35-.39-.4-.59q-3.53-13.58-3.19-28.23 1.04-44.67 5.06-87.04c.58-6.1 1.93-10.25 7.88-11.98zM1154.32 1165a1.58 1.57-84.6 01.97 1.18c.79 4.42 1.42 8.78 1.57 13.4.96 29.17-.47 62.66-2.04 90.23q-.78 13.79-1.39 19.52a.23.23 0 01-.45 0c-2.79-21.25-5.41-41.99-9.64-63.03-3.44-17.08-4.29-34.91-4.68-52.3-.19-8.37 8.99-11.61 15.66-9z"],["ankles","M998.25 1320.52c-4.62.24-8.17-1.08-8.78-6.28-1.6-13.81-.75-28.85-2.16-42.41q-.39-3.74.24-7.03a.69.69 0 011.23-.28c2.35 3.15 4.22 5.75 5.14 9.66 1.54 6.57 1.91 22.57 9.97 24.09q13.33 2.5 15.93-10.47c.92-4.57 1-12.33 5.05-17.25q.42-.51.42.15c.11 14.39.4 30.86-3.08 44.54-.79 3.13-3.31 4.23-6.51 4.4q-8.73.45-17.45.88zM1149.5 1319.51c-6.93-.63-6.82-18.08-7.14-23.7q-.73-12.53-.59-25.09.01-.71.45-.15 2.74 3.49 3.29 7.17c1.67 11.25 3.21 25.34 19.7 19.99 4.87-1.58 7.03-18.57 7.89-23.21.79-4.2 2.74-7 5.28-10.13a.56.56 0 01.98.22c1.12 4.6.04 12.39-.37 17.26-.92 10.77-.32 21.48-1.52 32.37q-.7 6.23-7.01 6.18-12.13-.11-20.96-.91z"],["feet","M962.87 1327.38q-.62-.51-.05-1.07l1.99-1.99q.39-.39.93-.41 25.66-.82 51.26 1 1.34.1 4.43 1.47.46.2.69.64 1.84 3.5 2.87 7.23c2.32 8.38-6.63 7.24-12.23 6.68q-15.37-1.53-30.5-4.56c-8.21-1.65-13.33-3.95-19.39-8.99zM1154.35 1341.35c-12.48 1.36-13.27-3.88-8.67-13.37 1.82-3.76 12.72-3.65 16.39-3.77q19.44-.63 38.9-.44c2.41.02 3.31 1 4.61 2.76q.32.44-.09.79c-5.43 4.67-10.52 7.17-17.95 8.74q-16.46 3.47-33.19 5.29z"],["hands","M789.41 726.84c3.98-6.79 9.89-14.6 16.56-20.14a.31.31 0 01.48.35c-4.39 11.06-5.38 21.94-14.02 30.72-5.82 5.93-10.7 9.81-19.04 8.57q-.55-.08-.59-.63c-.24-3.07-.26-7.29 3.1-8.85 4.82-2.26 10.72-5.28 13.51-10.02zM807.27 745.31c17.61 3.49 2.75 13.52-.73 18.99q-10.05 15.82-21.86 30.37-1.56 1.92-2.52-.58a2.41 2.33-55.4 01-.16-.96q.2-5.26 2.75-9.71c6.94-12.09 13.12-24.52 19.72-36.79q.91-1.7 2.8-1.32zM819.3 744.82c-7.79-6.06-14.51-12.4-11.88-23.38 3.07-12.83 14.66-20.7 25.14-26.38 9.57-5.18 37.61-.75 37.6 13.68q-.01 16.24-3.67 31.99c-2.38 10.26-4.49 16.44-16.87 16.3-10.71-.13-21.93-5.7-30.32-12.21zM827.99 758.27a2.08 2.07 26.6 01.91 2.73q-10.47 22.03-19.66 45.04-2.25 5.63-8.23 6.74a1.45 1.44 84.3 01-1.7-1.4q-.1-4.29 1.51-8.31 7.3-18.34 13.86-36.96c.74-2.1 1.53-6.08 2.97-8.96q.26-.5.82-.57 5.05-.64 9.52 1.69zM841.68 762.32a.76.75-79.1 01.6.89q-4.51 23.14-9.28 45.87c-.73 3.49-2.09 5.73-5.85 5.43q-.52-.04-.61-.56-.74-4.54-.32-7.21 2.89-18.57 5.59-37.18.38-2.65 1.67-8.22.13-.54.68-.44l7.52 1.42zM854.75 799.53a.78.78 0 01-1.37-.02q-.91-1.75-1.15-4.29-1.62-16.58-1.2-33.25a.84.84 0 01.61-.78l7.09-1.93q.59-.16.56.45-.58 14.77-1.12 29.56c-.14 4.06-1.54 6.86-3.42 10.26zM1336.39 751.96c-8.72 4.49-29.38 10.28-33.61-3.6q-5.68-18.65-5.83-38.24c-.06-7.59 4.01-11.75 11.09-14.08 8.85-2.92 19.02-5.3 27.54-.35 8.74 5.09 18.39 11.28 22.45 21.01 3.05 7.3 3.34 13.66-1.78 20.01-5.21 6.47-12.49 11.45-19.86 15.25zM1374.32 737.5c-8.05-8.14-9.61-19.67-13.85-30.75a.22.22 0 01.35-.24q10.3 8.96 17.1 20.77c2.57 4.47 9.08 7.59 13.57 9.79 3.11 1.52 2.96 5.9 2.71 8.73q-.05.52-.57.59c-8.87 1.17-13.48-2.98-19.31-8.89zM1383.76 795.45c-.59-.21-.96-.17-1.39-.68-8.84-10.3-15.85-21.5-23.44-32.41-2.81-4.02-8.81-7.64-7.45-13.14q.15-.6.7-.84l7.85-3.44q.66-.29 1.13.25 2.36 2.73 4.17 6.49 7.36 15.23 16.89 31.47c2.33 3.96 3.04 7.59 2.32 11.85a.58.58 0 01-.78.45zM1365.79 812.62c-2.7-.28-6.42-2.66-7.49-5.33q-8.74-21.76-19.85-45.74c-2.12-4.58 6.55-5.17 9.12-5.21 1.8-.03 1.93.71 2.38 2.18q5.72 18.34 15.35 42.12c.74 1.84 4.81 12.43.49 11.98zM1308.16 759.17l7.44 2.1q.23.07.24.31.75 16.26-.86 32.41-.3 3-1.25 5.48a.79.79 0 01-1.42.12q-3.9-6.58-3.82-13.9.16-13.07-.83-26.11-.05-.57.5-.41zM1340.07 814.35c-2.7.82-4.99-1.16-5.54-3.71q-5.06-23.49-9.82-47.47a.77.76-10.7 01.62-.9l7.52-1.38q.59-.11.73.47c2.08 8.53 3.26 19.85 4.22 25.75q2.09 12.92 3.19 21.14.34 2.54-.33 5.46a.86.84 88.4 01-.59.64z"],["head","M1028.14 166.45c1.03 5.06 1.36 9.61 6.41 11.53 13.06 4.95 16.74 15.51 23.52 27.48 1.387 2.447 3.863 3.623 7.43 3.53a910.025 910.025 0 0136.94-.25c6.23.09 9.27-7.55 11.48-12.3 4.31-9.27 10.37-15.83 20.28-18.94.333-.1.603-.287.81-.56 1.92-2.58 3.043-5.43 3.37-8.55l2.31-1.51a.977.977 0 01.99-.08c11.92 5.42-3.35 35.31-8.21 42.45-.761 1.11-2.423 1.028-3.06-.15l-1.26-2.32c-.133-.253-.32-.297-.56-.13-.34.24-.48.61-.42 1.11.86 7.64.75 16.87-2.96 23.31-.173.3.839.041-3.7 4.71-3.34 3.436-74.18 3.78-75.48-1.38a1.465 1.465 0 00-.55-.82c-4.15-2.97-6.07-7.95-6.16-12.39-.03-1.68.18-14.28-.53-14.63-.207-.1-.33-.037-.37.19-.3 1.553-1.183 2.597-2.65 3.13a.951.951 0 01-1.07-.32c-7.29-9.56-12.32-22.18-12.97-33.54-.34-6.04 1.797-9.23 6.41-9.57zm29.95 61.71c.173 14.187 18.967 14.703 19.1-1.37.03-4.05-.38-6.54-4.68-7.3-4.2-.75-11.87-1.47-13.85 2.91-.413.92-.603 2.84-.57 5.76zm31.71-3.35c.36 19.647 18.59 14.82 18.87 5.94.13-3.9 1.32-9.43-2.88-10.79-4.25-1.38-16.12-2.54-15.99 4.85z"],["hair","M1138.38 168.39q-.49 4.68-3.37 8.55-.31.41-.81.56c-9.91 3.11-15.97 9.67-20.28 18.94-2.21 4.75-5.25 12.39-11.48 12.3q-18.46-.25-36.94.25-5.35.14-7.43-3.53c-6.78-11.97-10.46-22.53-23.52-27.48-5.05-1.92-5.38-6.47-6.41-11.53q-6.64-26.16 4.43-48.88c8.13-16.7 34.61-21.41 51.58-21.04 4.89.11 9.69-.11 14.42.85 18.79 3.8 33.17 8.5 39.34 28.66q6.38 20.88.47 42.35z"]]}};
+const BODY_ART_LICENSE = "MIT License\n\nCopyright (c) 2022 ELABBASSI Hicham\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.";
+
+/* ============ PERSISTENCE ============
+   Docs:  fit/settings  fit/program  fit/body  fit/meals  fit/notes
+   Logs:  logs/YYYY-MM  { sessions, stretch, meals, warm, sp }
+   Local cache in localStorage makes the app open instantly; the artifact
+   database is the source of truth and syncs across devices.            */
+const DOC_KEYS = ['settings', 'program', 'body', 'meals', 'notes'];
+const LS_PREFIX = 'birdfit:v1:';
+let DATA_VER = 1;
+
+const DEFAULTS = {
+  settings: () => ({
+    since: today(), sex: 'male', age: 29, heightIn: 74, weightLb: 220, activity: 'active', rate: 'moderate', proteinPerLb: 1,
+    calAdjust: 0, lastAdjust: null, snoozeAdjust: null,
+    units: 'lb', gymDays: [2, 3, 4, 5], gymTime: 300,
+    rotation: { mode: 'auto', order: ['legs', 'chest', 'back', 'shoulders'], anchor: mondayOf(today()), offset: 0 },
+    restDefault: 60,
+    warmup: { walk: 10, machine: 10, pick: { legs: 'stair', chest: 'rower', back: 'rower', shoulders: 'elliptical' } },
+    warm: [{ r: 12, p: 30 }, { r: 10, p: 50 }, { r: 4, p: 70 }],
+    inc: { db: 5, bar: 45, plates: [45, 35, 25, 10, 5, 2.5], barJump: 5, machine: 10, cable: 5 },
+    incKg: { db: 2, bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25], barJump: 2.5, machine: 5, cable: 2.5 },
+    stretch: { s1: 10, s2: 35, rest: 45, splitRest: false, prep: 5, sound: true, voice: false, warmFirst: 5 },
+    meals: { snacks: 1, prepost: true, dislikes: [], family: 1, waterOz: 128, bottleOz: 16, staffDays: [3], noPrepDays: [3], midPrep: 2 },
+    card: { code: '330983', name: 'Anthony Bird', gym: 'Kroc Center' },
+    recapSeen: null,
+  }),
+  program: () => ({
+    workouts: DEFAULT_WORKOUTS.map(w => ({
+      id: w.id, name: w.name, short: w.short, groups: w.groups.slice(),
+      slots: w.ex.map(([id, sets, lo, hi], i) => ({ u: w.id + i, id, sets, lo, hi, rest: null, warm: null })),
+    })),
+    overrides: {}, start: {},
+  }),
+  body: () => ({ weights: [], checkins: [] }),
+  meals: () => ({ plans: {}, favs: [], grocery: {}, x: {}, foods: [], ing: [], taste: { sw: [], ex: {} }, hidden: [] }),
+  notes: () => ({ ex: {}, w: {} }),
+};
+const defMonth = () => ({ sessions: {}, stretch: {}, meals: {}, warm: {}, sp: {} });
+
+function fillDefaults(obj, def) {
+  for (const k of Object.keys(def)) {
+    if (obj[k] === undefined) obj[k] = def[k];
+    else if (def[k] && typeof def[k] === 'object' && !Array.isArray(def[k]) && obj[k] && typeof obj[k] === 'object' && !Array.isArray(obj[k])) fillDefaults(obj[k], def[k]);
+  }
+  return obj;
+}
+
+const Store = {
+  d: {}, m: {}, db: null, timers: {}, inflight: {}, again: {}, online: false, onRemote: null, onError: null, fresh: new Set(),
+  lsGet(k) { try { const s = localStorage.getItem(LS_PREFIX + k); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
+  lsSet(k, v) { try { localStorage.setItem(LS_PREFIX + k, JSON.stringify(v)); } catch (e) {} },
+  lsDel(k) { try { localStorage.removeItem(LS_PREFIX + k); } catch (e) {} },
+
+  loadLocal() {
+    for (const k of DOC_KEYS) this.d[k] = this.lsGet(k);
+    const months = this.lsGet('_months') || [];
+    for (const mk of months) { const v = this.lsGet('m:' + mk); if (v) this.m[mk] = v; }
+    this.ensure();
+  },
+  ensure() {
+    for (const k of DOC_KEYS) {
+      if (!this.d[k]) { this.d[k] = DEFAULTS[k](); this.d[k]._u = 0; this.fresh.add(k); }
+      else fillDefaults(this.d[k], DEFAULTS[k]());
+    }
+    for (const mk of Object.keys(this.m)) fillDefaults(this.m[mk], defMonth());
+  },
+  month(mk, create = true) {
+    if (!this.m[mk] && create) { this.m[mk] = defMonth(); this.m[mk]._u = 0; }
+    return this.m[mk] || null;
+  },
+  obj(key) { return key.startsWith('m:') ? this.m[key.slice(2)] : this.d[key]; },
+  path(key) { return key.startsWith('m:') ? 'logs/' + key.slice(2) : 'fit/' + key; },
+
+  save(key, auto = false) { // auto: generated data (e.g. a meal plan) that must not outrank real edits from other devices
+    const obj = this.obj(key); if (!obj) return;
+    if (!auto) { obj._u = Date.now(); this.fresh.delete(key); }
+    this.lsSet(key, obj);
+    if (key.startsWith('m:')) this.lsSet('_months', Object.keys(this.m));
+    DATA_VER++;
+    clearTimeout(this.timers[key]);
+    this.timers[key] = setTimeout(() => { delete this.timers[key]; this.flush(key); }, 650);
+  },
+  saveNow(key) { this.save(key); clearTimeout(this.timers[key]); delete this.timers[key]; return this.flush(key); },
+
+  async flush(key, attempt = 0) {
+    if (!this.db) return;
+    if (this.inflight[key]) { this.again[key] = true; return; }
+    this.inflight[key] = true;
+    try {
+      await this.db.doc(this.path(key)).set(clone(this.obj(key)));
+    } catch (e) {
+      const code = e && e.code;
+      if ((code === 'unavailable' || !code) && attempt < 2) {
+        this.inflight[key] = false;
+        setTimeout(() => this.flush(key, attempt + 1), 800 + Math.random() * 1200);
+        return;
+      }
+      this.onError && this.onError(code, e);
+    }
+    this.inflight[key] = false;
+    if (this.again[key]) { this.again[key] = false; this.flush(key); }
+  },
+  pending(key) { return !!(this.timers[key] || this.inflight[key]); },
+
+  applyRemote(key, remote, force = false) {
+    if (!remote) return false;
+    const local = this.obj(key);
+    if (force) { clearTimeout(this.timers[key]); delete this.timers[key]; }
+    else if (this.pending(key)) return false;
+    if (!force && local && (local._u || 0) >= (remote._u || 0)) return false;
+    const copy = clone(remote);
+    if (key.startsWith('m:')) { this.m[key.slice(2)] = fillDefaults(copy, defMonth()); this.lsSet('_months', Object.keys(this.m)); }
+    else this.d[key] = fillDefaults(copy, DEFAULTS[key]());
+    this.lsSet(key, copy);
+    DATA_VER++;
+    return true;
+  },
+
+  async connect() {
+    let db = null;
+    try { db = window.nest && window.nest.use ? await window.nest.use('db') : null; } catch (e) { db = null; }
+    if (!db) return false;
+    this.db = db;
+    let fit, logs;
+    for (let i = 0; i < 3; i++) {
+      try { [fit, logs] = await Promise.all([db.collection('fit').get(), db.collection('logs').get()]); break; }
+      catch (e) { if (e && (e.code === 'not_granted' || e.code === 'revoked' || e.code === 'capability_disabled')) { this.db = null; return false; } await new Promise(r => setTimeout(r, 900 + i * 900)); }
+    }
+    if (!fit) { this.db = null; return false; }
+    const seen = new Set();
+    const merge = (key, snap) => {
+      seen.add(key);
+      const remote = snap.data();
+      const local = this.obj(key);
+      if (!local || this.fresh.has(key) || (remote._u || 0) >= (local._u || 0)) this.applyRemote(key, remote, true);
+      else this.flush(key); // local edits made before the db answered are newer
+    };
+    fit.docs.forEach(s => { if (DOC_KEYS.includes(s.id)) merge(s.id, s); });
+    logs.docs.forEach(s => merge('m:' + s.id, s));
+    // push anything that only exists locally (first run on this artifact, or offline edits)
+    for (const k of DOC_KEYS) if (!seen.has(k)) { if (!this.d[k]._u) this.d[k]._u = Date.now(); this.lsSet(k, this.d[k]); this.flush(k); }
+    for (const mk of Object.keys(this.m)) if (!seen.has('m:' + mk) && this.m[mk]._u) this.flush('m:' + mk);
+    this.fresh.clear();
+    this.online = true;
+    DATA_VER++;
+    this.subscribe();
+    return true;
+  },
+  subscribe() {
+    const handle = (prefix) => (snap) => {
+      let changed = false;
+      for (const ch of snap.docChanges()) {
+        if (ch.type === 'removed') continue;
+        const key = prefix === 'fit' ? ch.doc.id : 'm:' + ch.doc.id;
+        if (prefix === 'fit' && !DOC_KEYS.includes(key)) continue;
+        if (ch.doc.metadata && ch.doc.metadata.hasPendingWrites) continue;
+        if (this.applyRemote(key, ch.doc.data())) changed = true;
+      }
+      if (changed && this.onRemote) this.onRemote();
+    };
+    const err = () => {};
+    try { this.db.collection('fit').onSnapshot(handle('fit'), err); } catch (e) {}
+    try { this.db.collection('logs').onSnapshot(handle('logs'), err); } catch (e) {}
+  },
+
+  exportAll() { return { app: 'bird-fitness', v: 1, exportedAt: new Date().toISOString(), docs: clone(this.d), logs: clone(this.m) }; },
+  async importAll(data) {
+    if (!data || data.app !== 'bird-fitness' || !data.docs) throw new Error('This file is not a Bird Fitness backup.');
+    for (const k of DOC_KEYS) { this.d[k] = fillDefaults(clone(data.docs[k] || DEFAULTS[k]()), DEFAULTS[k]()); this.save(k); }
+    const oldMonths = Object.keys(this.m);
+    this.m = {};
+    for (const mk of Object.keys(data.logs || {})) { this.m[mk] = fillDefaults(clone(data.logs[mk]), defMonth()); this.save('m:' + mk); }
+    for (const mk of oldMonths) if (!this.m[mk]) { this.lsDel('m:' + mk); if (this.db) { try { await this.db.doc('logs/' + mk).delete(); } catch (e) {} } }
+    this.lsSet('_months', Object.keys(this.m));
+    DATA_VER++;
+  },
+  async resetAll() {
+    const keepAnchor = mondayOf(today());
+    for (const k of DOC_KEYS) { this.d[k] = DEFAULTS[k](); this.save(k); }
+    this.d.settings.rotation.anchor = keepAnchor;
+    for (const mk of Object.keys(this.m)) { this.lsDel('m:' + mk); if (this.db) { try { await this.db.doc('logs/' + mk).delete(); } catch (e) {} } }
+    this.m = {}; this.lsSet('_months', []);
+    DATA_VER++;
+  },
+};
+const SET = () => Store.d.settings;
+/* v2 stretching: dynamic prep only before lifting, static work moves after it.
+   Keeps the same daily total. Saved as an auto-save so it never outranks real edits. */
+function migrateSettings() {
+  const st = Store.d.settings && Store.d.settings.stretch; if (!st || st.v >= 2) return false;
+  if (st.s1 > 10) { const total = st.s1 + st.s2; st.s1 = 10; st.s2 = Math.min(60, total - 10); }
+  st.warmFirst = st.warmFirst || 5; st.v = 2;
+  if (!Store.fresh.has('settings')) Store.save('settings', true);
+  return true;
+}
+/* v2 meals: plans rebuilt once for the new rules (real portions, no-prep days, staff lunch). */
+function migrateMeals() {
+  const MP = Store.d.meals; if (!MP || MP.v >= 2 || Store.fresh.has('meals')) return false;
+  const mon = mondayOf(today());
+  for (const k of Object.keys(MP.plans)) if (k > mon) delete MP.plans[k];
+  const old = MP.plans[mon];
+  if (old) {
+    const p = generatePlan(mon, (old.gen || 0) + 1);
+    for (const d of weekDates(mon)) { if (d < today()) p.days[d] = old.days[d]; else { const ea = mealLog(d).e || {}; for (const k of Object.keys(ea)) if (ea[k] && old.days[d]) p.days[d][k] = old.days[d][k]; } }
+    MP.plans[mon] = p;
+  }
+  for (const k of Object.keys(MP.x)) if (k.split('|')[0] >= today()) delete MP.x[k];
+  MP.v = 2; Store.save('meals', true);
+  return true;
+}
+const PRG = () => Store.d.program;
+
+/* ============ UNITS & LOADING ============ */
+const KG = 0.45359237;
+const isKg = () => SET().units === 'kg';
+const toU = lb => (lb == null ? null : isKg() ? lb * KG : lb);
+const fromU = v => (v == null ? null : isKg() ? v / KG : v);
+const wu = () => (isKg() ? 'kg' : 'lbs');
+const bwu = () => (isKg() ? 'kg' : 'lb');
+function fmtW(lb) { if (lb == null || lb === '') return '—'; return nice(toU(lb), 1); }
+function incs() { return isKg() ? SET().incKg : SET().inc; }
+function roundLoad(v, eq) { // v in display units
+  const I = incs();
+  if (eq === 'barbell') { const step = 2 * Math.min(...I.plates); return Math.max(I.bar, I.bar + Math.round((v - I.bar) / step) * step); }
+  if (eq === 'dumbbell') return Math.max(I.db, Math.round(v / I.db) * I.db);
+  if (eq === 'machine') return Math.max(I.machine, Math.round(v / I.machine) * I.machine);
+  if (eq === 'cable') return Math.max(I.cable, Math.round(v / I.cable) * I.cable);
+  return Math.max(0, Math.round(v / I.db) * I.db);
+}
+function jumpFor(eq) { const I = incs(); return eq === 'barbell' ? I.barJump : eq === 'machine' ? I.machine : eq === 'cable' ? I.cable : I.db; }
+function plateMath(totalDisp) {
+  const I = incs(); let side = (totalDisp - I.bar) / 2; if (side <= 0.01) return [];
+  const out = []; for (const p of [...I.plates].sort((a, b) => b - a)) { while (side >= p - 1e-6) { out.push(p); side -= p; } }
+  return out;
+}
+const e1rm = (w, r) => (!w || !r ? 0 : r === 1 ? w : w * (1 + r / 30));
+
+/* ============ SCHEDULE & ROTATION ============ */
+const workoutById = id => PRG().workouts.find(w => w.id === id) || null;
+function gymOrder() { const g = SET().gymDays; return [1, 2, 3, 4, 5, 6, 0].filter(d => g.includes(d)); }
+function weekIdx(date) { return Math.floor(daysBetween(SET().rotation.anchor, mondayOf(date)) / 7); }
+function rotationFor(date) {
+  const order = gymOrder(); const k = order.indexOf(dow(date)); if (k < 0) return null;
+  const R = SET().rotation; const ids = R.order.filter(id => workoutById(id)); const L = ids.length; if (!L) return null;
+  if (R.mode === 'locked') return ids[k % L];
+  const N = order.length, w = weekIdx(date) + (R.offset || 0);
+  const idx = (N % L === 0) ? (w + k) : (w * N + k);
+  return ids[((idx % L) + L) % L];
+}
+function plannedWorkout(date) {
+  const ov = PRG().overrides[date];
+  if (ov !== undefined) return ov === 'rest' ? null : (workoutById(ov) ? ov : null);
+  return rotationFor(date);
+}
+function dayWorkout(date) { const s = sessionOn(date); if (s && sessionHasWork(s)) return s.w; return plannedWorkout(date); }
+function cleanOverrides() {
+  const ov = PRG().overrides;
+  for (const d of Object.keys(ov)) {
+    const v = ov[d] === 'rest' ? null : ov[d];
+    if (v === rotationFor(d) || daysBetween(d, today()) > 120) delete ov[d];
+  }
+}
+function moveWorkout(from, to) {
+  const a = plannedWorkout(from), b = plannedWorkout(to);
+  const ov = PRG().overrides; ov[to] = a || 'rest'; ov[from] = b || 'rest';
+  cleanOverrides(); Store.save('program');
+}
+const BAD_PAIRS = [['chest', 'shoulders'], ['back', 'legs']], MILD_PAIRS = [['back', 'shoulders']];
+function pairPenalty(a, b) {
+  if (!a || !b) return 0;
+  const has = L => L.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+  return has(BAD_PAIRS) ? 10 : has(MILD_PAIRS) ? 1 : a === b ? 5 : 0;
+}
+function schedPenalty(sched, dates, before) {
+  let pen = 0, prev = before;
+  for (const d of dates) { const w = sched[d] || null; pen += pairPenalty(prev, w); prev = w; }
+  return pen;
+}
+/* Best way to fit a missed workout back into this week, keeping overlapping muscles apart. */
+function makeupPlan(missed) {
+  const t = today(), end = addDays(mondayOf(t), 6), W = plannedWorkout(missed); if (!W) return null;
+  const start = sessionHasWork(sessionOn(t)) ? addDays(t, 1) : t;
+  const dates = []; for (let d = start; d <= end; d = addDays(d, 1)) dates.push(d);
+  if (!dates.length) return null;
+  const plan = {}; dates.forEach(d => plan[d] = plannedWorkout(d));
+  const prevS = sessionOn(addDays(start, -1)); const before = sessionHasWork(prevS) ? prevS.w : null;
+  const gym = dates.filter(d => plan[d]), P = gym.map(d => plan[d]);
+  const cands = [];
+  for (let p = 0; p <= P.length; p++) { // insert and slide the rest back
+    const seq = [...P.slice(0, p), W, ...P.slice(p)];
+    const slots = gym.slice(0, p);
+    if (p < gym.length) slots.push(...gym.slice(p));
+    const lastUsed = slots.length ? slots[slots.length - 1] : addDays(start, -1);
+    const spill = dates.find(d => d > lastUsed && !plan[d]) || (p === P.length ? dates.find(d => !plan[d] && d >= (gym[p - 1] || start)) : null);
+    if (slots.length < seq.length) { if (!spill) continue; slots.push(spill); }
+    const sched = {}; dates.forEach(d => sched[d] = null); slots.forEach((d, i) => sched[d] = seq[i]);
+    const shifts = seq.slice(p + 1).length;
+    cands.push({ sched, day: slots[p], shifts, pen: schedPenalty(sched, dates, before) });
+  }
+  for (const f of dates.filter(d => !plan[d])) { // drop it on a free day
+    const sched = Object.assign({}, plan); sched[f] = W;
+    cands.push({ sched, day: f, shifts: 0, pen: schedPenalty(sched, dates, before) });
+  }
+  if (!cands.length) return null;
+  const base = schedPenalty(plan, dates, before);
+  cands.forEach(c => c.score = Math.max(0, c.pen - base) * 100 + daysBetween(start, c.day) + c.shifts * 0.5);
+  cands.sort((a, b) => a.score - b.score);
+  const best = cands[0];
+  return Object.assign({}, best, { W, missed, dates });
+}
+function applyMakeup(mp) {
+  const ov = PRG().overrides;
+  ov[mp.missed] = 'rest';
+  mp.dates.forEach(d => { ov[d] = mp.sched[d] || 'rest'; });
+  cleanOverrides(); Store.save('program');
+}
+function pushBack(missed) { const mp = makeupPlan(missed); if (mp) applyMakeup(mp); return mp; }
+function weekDates(mon) { return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i)); }
+function missedWorkout() {
+  const t = today(), mon = mondayOf(t);
+  if (sessionHasWork(sessionOn(t))) return null;
+  const doneIds = weekDates(mon).map(d => sessionOn(d)).filter(s => sessionHasWork(s)).map(s => s.w);
+  let found = null;
+  const since = SET().since || mon;
+  for (let d = mon; d < t; d = addDays(d, 1)) {
+    if (d < since) continue;
+    const w = plannedWorkout(d); if (!w) continue;
+    if (sessionHasWork(sessionOn(d)) || doneIds.includes(w)) continue;
+    found = { date: d, w };
+  }
+  return found;
+}
+
+/* ============ SESSIONS ============ */
+function sessionsOnDate(date) { const m = Store.m[monthKey(date)]; if (!m) return []; return Object.values(m.sessions).filter(s => s.date === date); }
+function sessionOn(date, wid) {
+  const list = sessionsOnDate(date).filter(s => !wid || s.w === wid);
+  return list.find(sessionHasWork) || list[0] || null;
+}
+function getSession(date, wid, create = true) {
+  let s = sessionOn(date, wid); if (s || !create) return s;
+  const m = Store.month(monthKey(date), true);
+  s = { id: uid('s'), date, w: wid, start: null, fin: null, ex: {}, swaps: {}, add: [], rm: [] };
+  m.sessions[s.id] = s; return s;
+}
+const saveSession = s => Store.save('m:' + monthKey(s.date));
+function sessionHasWork(s) { return !!s && (!!s.fin || Object.values(s.ex).some(e => e.sets.some(x => x.d))); }
+function slotRest(sl) { return sl.rest || SET().restDefault; }
+function sessionSlots(wid, date) {
+  const w = workoutById(wid); if (!w) return [];
+  const s = sessionOn(date, wid); const out = [];
+  for (const sl of w.slots) {
+    if (s && s.rm.includes(sl.u)) continue;
+    const sw = s && s.swaps[sl.u];
+    out.push(Object.assign({}, sl, { id: sw || sl.id, tempSwap: !!sw, orig: sl.id }));
+  }
+  if (s) for (const a of s.add) out.push(Object.assign({}, a, { temp: true }));
+  return out.filter(sl => EX[sl.id]);
+}
+function findSlot(wid, date, u) { return sessionSlots(wid, date).find(sl => sl.u === u) || null; }
+function exEntry(s, slot, create = false) {
+  if (!s) return null;
+  let e = s.ex[slot.u];
+  if (e && e.id !== slot.id) {
+    if (e.sets.some(x => x.d)) s.ex[slot.u + '~' + e.id] = e; // keep logged work in history
+    delete s.ex[slot.u]; e = null;
+  }
+  if (!e && create) e = s.ex[slot.u] = { id: slot.id, sets: [], wu: [], done: false };
+  return e || null;
+}
+function sessionProgress(wid, date) {
+  const slots = sessionSlots(wid, date), s = sessionOn(date, wid);
+  const done = slots.filter(sl => { const e = s && s.ex[sl.u]; return e && e.id === sl.id && e.done; }).length;
+  return { done, total: slots.length };
+}
+function setVolume(ex, st) { if (!ex || ex.time || ex.assist) return 0; return (st.w || 0) * (st.r || 0) * (ex.pair ? 2 : 1); }
+function sessionVolume(s) { let v = 0; for (const e of Object.values(s.ex)) { const ex = EX[e.id]; for (const st of e.sets) if (st.d) v += setVolume(ex, st); } return v; }
+function sessionSetsDone(s) { return sum(Object.values(s.ex).map(e => e.sets.filter(x => x.d).length)); }
+function estMinutes(wid) {
+  const w = workoutById(wid); if (!w) return 0;
+  let sec = 0; for (const sl of w.slots) { const e = EX[sl.id]; sec += sl.sets * ((e && e.time ? sl.hi : 40) + slotRest(sl)) + (e && !e.time && !e.assist ? 90 : 0) + 60; }
+  return Math.round(sec / 60 / 5) * 5;
+}
+
+/* ============ HISTORY / PRs ============ */
+let HC = { v: -1 };
+function hist() {
+  if (HC.v === DATA_VER) return HC;
+  const byEx = {}, sessions = [];
+  for (const mk of Object.keys(Store.m)) for (const s of Object.values(Store.m[mk].sessions || {})) sessions.push(s);
+  sessions.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.start || 0) - (b.start || 0)));
+  for (const s of sessions) for (const [u, e] of Object.entries(s.ex)) {
+    const done = e.sets.filter(x => x.d); if (!done.length) continue;
+    (byEx[e.id] = byEx[e.id] || []).push({ date: s.date, sid: s.id, w: s.w, u, sets: done });
+  }
+  HC = { v: DATA_VER, byEx, sessions };
+  return HC;
+}
+const exHistory = id => hist().byEx[id] || [];
+function lastPerf(id, date, sid) { const h = exHistory(id); for (let i = h.length - 1; i >= 0; i--) { const x = h[i]; if (x.sid !== sid && x.date <= date) return x; } return null; }
+function setMetric(ex, st) {
+  if (ex.time) return { v: st.r || 0, kind: 'sec' };
+  if (ex.bw && !(st.w > 0)) return { v: st.r || 0, kind: 'reps' };
+  return { v: e1rm(st.w, st.r), kind: 'e1' };
+}
+function priorBest(id, sid) {
+  const ex = EX[id]; let best = null;
+  for (const x of exHistory(id)) { if (x.sid === sid) continue; for (const st of x.sets) { const m = setMetric(ex, st); if (!best || m.v > best.v) best = m; } }
+  return best;
+}
+function prList() {
+  const out = [], best = {};
+  for (const s of hist().sessions) {
+    for (const e of Object.values(s.ex)) {
+      const ex = EX[e.id]; if (!ex || ex.assist) continue;
+      let top = null, topSet = null;
+      for (const st of e.sets) if (st.d) { const m = setMetric(ex, st); if (!top || m.v > top.v) { top = m; topSet = st; } }
+      if (!top) continue;
+      if (best[e.id] != null && top.v > best[e.id] + 1e-6) out.push({ date: s.date, id: e.id, set: topSet, m: top });
+      best[e.id] = Math.max(best[e.id] || 0, top.v);
+    }
+  }
+  return out.reverse();
+}
+
+/* ============ TARGETS & WARM-UPS ============ */
+function exTarget(slot, date, sid) {
+  const ex = EX[slot.id], n = slot.sets;
+  const last = lastPerf(slot.id, date, sid);
+  if (!last) {
+    const sw = PRG().start[slot.id];
+    return { last: null, w: sw != null ? sw : null, reps: Array(n).fill(slot.hi), up: false,
+      msg: sw != null ? `Starting weight from your setup. Aim for ${slot.lo}–${slot.hi} clean reps.` : `First time logging this. Pick a weight you can move for ${slot.lo}–${slot.hi} clean reps.` };
+  }
+  const sets = last.sets, topW = Math.max(0, ...sets.map(s => s.w || 0));
+  const hitTop = sets.length >= n && sets.slice(0, n).every(s => (s.r || 0) >= slot.hi);
+  const stepLb = fromU(jumpFor(ex.eq));
+  if (ex.time) {
+    const best = Math.max(...sets.map(s => s.r || 0));
+    const secs = hitTop ? best + 10 : Math.min(slot.hi, best + 5);
+    return { last, w: topW || null, reps: Array(n).fill(secs), up: hitTop, msg: hitTop ? `You held ${slot.hi}s on every set. Add 10 seconds (or hold a plate).` : `Build toward ${slot.hi}s on every set.` };
+  }
+  if (hitTop) {
+    let w;
+    if (ex.assist) w = Math.max(0, topW - stepLb);
+    else if (ex.bw && topW === 0) w = stepLb;
+    else w = fromU(roundLoad(toU(topW) + jumpFor(ex.eq), ex.eq));
+    const msg = ex.assist ? `You hit ${slot.hi} reps on every set. Drop the assistance to ${fmtW(w)} ${wu()} and restart at ${slot.lo} reps.`
+      : ex.bw && topW === 0 ? `You hit ${slot.hi} reps on every set. Add ${fmtW(w)} ${wu()} (hold a dumbbell or plate) and restart at ${slot.lo} reps.`
+      : `You hit ${slot.hi} reps on every set. Go up to ${fmtW(w)} ${wu()}${ex.pair ? ' each' : ''} and restart at ${slot.lo} reps.`;
+    return { last, w, reps: Array(n).fill(slot.lo), up: true, msg };
+  }
+  const reps = Array.from({ length: n }, (_, i) => Math.min(slot.hi, ((sets[i] || sets[sets.length - 1]).r || slot.lo) + 1));
+  return { last, w: topW, reps, up: false, msg: `Stay at ${fmtW(topW)} ${wu()} and beat last time by a rep on each set until every set hits ${slot.hi}.` };
+}
+function workingWeight(slot, date, sid, s) {
+  const e = s && s.ex[slot.u];
+  const cur = e && e.id === slot.id && e.sets[0] && e.sets[0].w;
+  if (cur) return cur;
+  const last = lastPerf(slot.id, date, sid);
+  if (last) return Math.max(0, ...last.sets.map(x => x.w || 0)) || null;
+  return PRG().start[slot.id] ?? null;
+}
+function warmupSets(slot, workLb) {
+  const ex = EX[slot.id];
+  if (!ex || ex.time || ex.assist || ex.bw || slot.warm === false) return [];
+  if (!workLb) return null;
+  return SET().warm.map(x => { const disp = roundLoad(toU(workLb) * x.p / 100, ex.eq); return { r: x.r, p: x.p, w: fromU(disp), disp }; });
+}
+
+/* ============ STATS ============ */
+function doneDates() { const set = new Set(); for (const s of hist().sessions) if (sessionHasWork(s)) set.add(s.date); return set; }
+function workoutStreak() {
+  const dd = doneDates(); if (!dd.size) return 0;
+  const first = [...dd].sort()[0];
+  let d = today(), n = 0;
+  if (!dd.has(d)) d = addDays(d, -1);
+  for (let i = 0; i < 730 && d >= first; i++, d = addDays(d, -1)) {
+    if (dd.has(d)) n++; else if (plannedWorkout(d)) break;
+  }
+  return n;
+}
+function weekVolume(mon) {
+  const end = addDays(mon, 6), by = {}; VOL_ORDER.forEach(k => by[k] = { sets: 0, lbs: 0 });
+  for (const s of hist().sessions) {
+    if (s.date < mon || s.date > end) continue;
+    for (const e of Object.values(s.ex)) {
+      const ex = EX[e.id]; if (!ex) continue;
+      const buckets = [...new Set(ex.prim.map(m => VOL_BUCKET[m]))];
+      for (const st of e.sets) if (st.d) { buckets.forEach(b => by[b].sets++); by[VOL_BUCKET[ex.prim[0]]].lbs += setVolume(ex, st); }
+    }
+  }
+  return by;
+}
+
+/* ============ STRETCHING ============ */
+function restFocus(date) {
+  const rest = weekDates(mondayOf(date)).filter(d => !plannedWorkout(d));
+  const i = Math.max(0, rest.indexOf(date));
+  return ((i + weekIdx(date)) % 3 + 3) % 3;
+}
+/* How stretching is organized (evidence-based):
+   - Gym days: cardio warm-up → short DYNAMIC movement prep (no long holds before
+     lifting) → workout → STATIC cool-down while the muscles are warm.
+   - Rest days and any session started cold: a few minutes of easy cardio first,
+     then a short mobility flow, then static holds.
+   - Static holds 30–60 s at mild tension, repeated in rounds so each area gets
+     well over a minute per session; ~5 min per area per week is the target.     */
+const HOLD = { s: [30, 60], d: [30, 45] };
+function stretchKinds(date) {
+  const st = SET().stretch, w = dayWorkout(date);
+  if (w) {
+    const out = [];
+    if (st.s1 > 0) out.push({ k: 's1', short: 'Prep', title: 'Movement prep', sub: 'Dynamic · after your cardio warm-up', min: st.s1, type: 'd', w });
+    out.push({ k: 's2', short: 'Cool-down', title: 'Cool-down stretch', sub: 'Static · while your muscles are warm', min: st.s2, type: 's', w });
+    return out;
+  }
+  const f = restFocus(date);
+  if (st.splitRest) { const a = Math.round(st.rest * 2 / 3); return [
+    { k: 'r1', title: 'Flexibility 1', sub: 'Warm-up → mobility → static stretch', min: a, type: 'mix', f, warm: true },
+    { k: 'r2', title: 'Flexibility 2', sub: 'Warm-up → static stretch', min: st.rest - a, type: 's', f, warm: true }]; }
+  return [{ k: 'rest', title: 'Flexibility', sub: 'Warm-up → mobility → static stretch', min: st.rest, type: 'mix', f, warm: true }];
+}
+function focusFor(spec) {
+  if (spec.w) return STRETCH_FOCUS[spec.w] || { pri: ['hips', 'hamstrings', 'shoulders', 'thoracic'], sec: ['chest', 'lowback', 'calves'] };
+  return REST_FOCUS[spec.f];
+}
+/* Is the body already warm for this gym-day session? (Only judged for today.) */
+function warmForStretch(date, k) {
+  if (date !== today()) return true;
+  const w = dayWorkout(date); if (!w) return false;
+  const s = sessionOn(date, w), now = Date.now();
+  if (k === 's2') return !!(s && ((s.start && !s.fin) || (s.fin && now - s.fin < 45 * 60000)));
+  const m = Store.m[monthKey(date)];
+  return !!((m && m.warm[date]) || (Timer.on && Timer.warm) || (s && s.start));
+}
+function stepSecs(s, dur) { return dur * (s.sides ? 2 : 1) + (s.sides ? 3 : 0); }
+/* Circuits: 5–7 stretches repeated in rounds until the session time is filled. */
+function circuitSize(min) { return min <= 15 ? 5 : min <= 30 ? 6 : 7; }
+function buildStretchIds(seed, type, pri, sec, n, exclude = []) {
+  const r = rng(seed); const pool = ST_LIST.filter(s => s.t === type && !exclude.includes(s.id));
+  const jitter = {}; pool.forEach(s => jitter[s.id] = r());
+  const score = s => sum(s.areas.map(a => pri.includes(a) ? 3 : sec.includes(a) ? 1 : 0)) + jitter[s.id] * 1.5;
+  const queue = [...pri, ...sec]; const picked = []; let qi = 0, misses = 0;
+  while (picked.length < n && misses < queue.length) {
+    const area = queue[qi++ % queue.length];
+    // prefer moves that also hit other focus areas, so a short circuit still covers the day
+    const cands = pool.filter(s => !picked.includes(s) && s.areas.includes(area) && !picked.some(p => p.areas[0] === s.areas[0] && p.areas.join() === s.areas.join())).sort((a, b) => score(b) - score(a));
+    if (!cands.length) { misses++; continue; }
+    misses = 0; picked.push(cands[0]);
+  }
+  const order = type === 'd' ? { all4: 0, lie: 1, seat: 2, kneel: 3, wall: 4, stand: 5 } : POS_ORDER;
+  picked.sort((a, b) => (order[a.pos] - order[b.pos]) || (score(b) - score(a)));
+  return picked.map(s => s.id);
+}
+function fitDurations(ids, seconds) {
+  const prep = SET().stretch.prep;
+  const items = ids.map(id => ({ id, dur: ST[id].dur }));
+  const overhead = sum(items.map(it => prep + (ST[it.id].sides ? 3 : 0)));
+  const active = sum(items.map(it => it.dur * (ST[it.id].sides ? 2 : 1)));
+  const f = (seconds - overhead) / Math.max(1, active);
+  items.forEach(it => { const [lo, hi] = HOLD[ST[it.id].t]; it.dur = clamp(Math.round(it.dur * f / 5) * 5, lo, hi); });
+  return items;
+}
+function roundSecs(items) { const prep = SET().stretch.prep; return sum(items.map(it => stepSecs(ST[it.id], it.dur) + prep)); }
+function fitCircuit(ids, secs, type) {
+  let best = null;
+  for (let r = 1; r <= 8; r++) {
+    const items = fitDurations(ids, secs / r), total = roundSecs(items) * r;
+    let cost = Math.abs(total - secs);
+    if (type === 's' && r === 1 && secs >= 480) cost += 300; // two or more holds per area when there's time
+    if (!best || cost < best.cost) best = { items, rounds: r, cost };
+  }
+  return best;
+}
+function stretchPlan(date, k) {
+  const kinds = stretchKinds(date); const spec = kinds.find(x => x.k === k) || kinds[0];
+  const focus = focusFor(spec), sig = (spec.w || ('rest' + spec.f)) + ':v2';
+  const m = Store.m[monthKey(date)]; const ov = m && m.sp[date + ':' + spec.k];
+  let secs = spec.min * 60; const pre = [], seed = date + spec.k + sig;
+  const warm = spec.warm || (spec.w && !warmForStretch(date, spec.k));
+  if (warm) { const ws = (SET().stretch.warmFirst || 5) * 60; pre.push({ warm: true, dur: ws }); if (spec.warm) secs -= ws; }
+  let ctype = spec.type;
+  if (spec.type === 'mix') { // one pass of mobility, then the static circuit
+    const flow = buildStretchIds(seed + 'd', 'd', focus.pri, focus.sec, 3).map(id => ({ id, dur: HOLD.d[0] }));
+    pre.push(...flow); secs -= roundSecs(flow); ctype = 's';
+  }
+  const n = circuitSize(secs / 60);
+  const ids = ov && ov.sig === sig && ov.ids.length >= 3 && ov.ids.length <= 8 && ov.ids.every(id => ST[id] && ST[id].t === ctype) ? ov.ids : buildStretchIds(seed, ctype, focus.pri, focus.sec, n);
+  const fit = fitCircuit(ids, Math.max(60, secs), ctype);
+  const preSecs = sum(pre.map(it => it.warm ? it.dur : stepSecs(ST[it.id], it.dur) + SET().stretch.prep));
+  const round = roundSecs(fit.items), total = preSecs + round * fit.rounds;
+  const wname = spec.w ? (workoutById(spec.w) || {}).name : focus.name;
+  return Object.assign({}, spec, { date, focus, sig, pre, ctype, items: fit.items, rounds: fit.rounds, round, total, wname, warmStep: warm });
+}
+function saveStretchOverride(plan, ids) {
+  const m = Store.month(monthKey(plan.date), true);
+  m.sp[plan.date + ':' + plan.k] = { sig: plan.sig, ids };
+  Store.save('m:' + monthKey(plan.date));
+}
+function stretchLog(date) { const m = Store.m[monthKey(date)]; return (m && m.stretch[date]) || []; }
+function stretchEntry(date, k) { return stretchLog(date).find(x => x.k === k) || null; }
+function stretchMinutes(date) { return sum(stretchLog(date).map(x => x.min || 0)); }
+function logStretch(date, k, min, full) {
+  const m = Store.month(monthKey(date), true);
+  const arr = m.stretch[date] = m.stretch[date] || [];
+  const i = arr.findIndex(x => x.k === k);
+  const entry = { k, min: Math.round(min * 10) / 10, full: !!full, at: Date.now() };
+  if (i >= 0) { arr[i] = { k, min: Math.max(entry.min, arr[i].min || 0), full: arr[i].full || entry.full, at: entry.at }; }
+  else arr.push(entry);
+  Store.save('m:' + monthKey(date));
+}
+function unlogStretch(date, k) {
+  const m = Store.m[monthKey(date)]; if (!m || !m.stretch[date]) return;
+  m.stretch[date] = m.stretch[date].filter(x => x.k !== k); Store.save('m:' + monthKey(date));
+}
+function weekStretch(mon) { return weekDates(mon).map(d => stretchMinutes(d)); }
+/* Static-hold time per body area this week (the dose that builds flexibility). */
+const DOSE_AREAS = ['hips', 'hamstrings', 'quads', 'glutes', 'calves', 'lowback', 'thoracic', 'chest', 'shoulders', 'lats'];
+const DOSE_TARGET = 300; // seconds per area per week
+function stretchDose(mon) {
+  const out = {}; Object.keys(AREA_NAMES).forEach(a => out[a] = 0);
+  for (const d of weekDates(mon)) {
+    const kinds = stretchKinds(d).map(x => x.k);
+    for (const e of stretchLog(d)) {
+      if (!kinds.includes(e.k)) continue;
+      const p = stretchPlan(d, e.k), frac = e.full ? 1 : clamp((e.min || 0) / Math.max(1, p.min), 0, 1);
+      for (const it of p.items) {
+        const s = ST[it.id]; if (s.t !== 's') continue;
+        const secs = it.dur * p.rounds * frac;
+        s.areas.forEach((a, i) => { out[a] = (out[a] || 0) + (i === 0 ? secs : secs / 2); });
+      }
+    }
+  }
+  return out;
+}
+function stretchStreak() {
+  let d = today(), n = 0;
+  if (stretchMinutes(d) < 10) d = addDays(d, -1);
+  for (let i = 0; i < 730; i++, d = addDays(d, -1)) { if (stretchMinutes(d) >= 10) n++; else break; }
+  return n;
+}
+const CHECKIN_TESTS = [
+  { k: 'reach', name: 'Toe-touch reach', unit: 'in', help: 'Stand tall, knees straight, fold forward. Measure fingertips to the floor: past your toes is +, short of the floor is −.', better: 'up' },
+  { k: 'shR', name: 'Shoulder reach — right hand over', unit: 'in', help: 'Right hand over your shoulder, left hand up your back. Measure the gap between fingertips: overlap is +, gap is −.', better: 'up' },
+  { k: 'shL', name: 'Shoulder reach — left hand over', unit: 'in', help: 'Left hand over your shoulder, right hand up your back. Overlap is +, gap is −.', better: 'up' },
+  { k: 'ankR', name: 'Knee-to-wall — right ankle', unit: 'in', help: 'Half-kneel facing a wall. Slide your right foot back until your knee can just touch the wall with the heel down. Measure toe to wall.', better: 'up' },
+  { k: 'ankL', name: 'Knee-to-wall — left ankle', unit: 'in', help: 'Same test on the left foot.', better: 'up' },
+  { k: 'squat', name: 'Deep squat hold', unit: 'sec', help: 'Bodyweight squat, heels down, as deep as you can. How long can you hold it comfortably? (max 120)', better: 'up' },
+];
+function checkinDue() {
+  const c = Store.d.body.checkins; if (!c.length) return true;
+  const last = c.map(x => x.d).sort().pop(); return daysBetween(last, today()) >= 21;
+}
+
+/* ============ NUTRITION ============ */
+const ACTIVITY = {
+  desk:   { n: 'Mostly sitting', m: 1.4, d: 'Desk job, plus your 4 lifting days' },
+  mixed:  { n: 'Mixed', m: 1.5, d: 'Some of the day on your feet' },
+  active: { n: 'Active job', m: 1.6, d: 'On your feet most of the day, plus lifting' },
+  heavy:  { n: 'Heavy labor', m: 1.75, d: 'Hard physical work all day' },
+};
+const RATES = {
+  slow:     { n: 'Slow', lb: 0.25, surplus: 250, band: [0.15, 0.35] },
+  moderate: { n: 'Moderate', lb: 0.35, surplus: 300, band: [0.25, 0.5] },
+  steady:   { n: 'Steady', lb: 0.5, surplus: 350, band: [0.35, 0.65] },
+};
+function nutrition(date) {
+  const s = SET(); const kg = s.weightLb * KG, cm = s.heightIn * 2.54;
+  const bmr = 10 * kg + 6.25 * cm - 5 * s.age + (s.sex === 'female' ? -161 : 5);
+  const tdee = bmr * ACTIVITY[s.activity].m;
+  const base = tdee + RATES[s.rate].surplus + (s.calAdjust || 0);
+  const G = s.gymDays.length, bonus = G ? 150 : 0, minus = G >= 7 || !G ? 0 : Math.round(bonus * G / (7 - G));
+  const gym = date ? !!dayWorkout(date) : true;
+  const kcal = Math.round((gym ? base + bonus : base - minus) / 10) * 10;
+  const p = Math.round(s.weightLb * (s.proteinPerLb || 1));
+  const f = Math.round(base * 0.27 / 9);
+  const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
+  return { bmr, tdee, base, kcal, p, c, f, gym, bonus, minus };
+}
+function warmMinutes() { const w = SET().warmup; return (w.walk || 0) + (w.machine || 0); }
+function warmMachine(wid) { const w = SET().warmup; return WARM_MACHINES[(w.pick || {})[wid]] || WARM_MACHINES[DEFAULT_WARM_PICK[wid]] || WARM_MACHINES.bike; }
+function sessionLength() { const st = SET().stretch; return warmMinutes() + st.s1 + 55 + st.s2; }
+function isStaffDay(date) { return (SET().meals.staffDays || []).includes(dow(date)); }
+function isNoPrepDay(date) { return (SET().meals.noPrepDays || []).includes(dow(date)); }
+function mealSlotsFor(date) {
+  const s = SET(), ms = s.meals, gym = ms.prepost && !!dayWorkout(date);
+  const T = s.gymTime, Tend = T + sessionLength(), early = gym && T < 600;
+  const list = [];
+  if (gym) list.push({ k: 'pre', t: T - (T < 600 ? 30 : 60) });
+  // early gym: breakfast IS the post-workout meal, right after the session
+  if (gym && !early) list.push({ k: 'post', t: Tend + 5 });
+  list.push(early ? { k: 'breakfast', t: Tend + 5, post: true } : { k: 'breakfast', t: 390 });
+  let lt = 720; if (gym && Math.abs(lt - (Tend + 5)) < 90) lt = Tend + 95; if (gym && lt > T - 120 && lt < T) lt = T - 150;
+  list.push(Object.assign({ k: 'lunch', t: lt }, isStaffDay(date) ? { staff: true } : {}));
+  let dt = 1110; if (gym && Tend + 5 > 1020) dt = Tend + 50;
+  list.push({ k: 'dinner', t: dt });
+  let need = ms.snacks; const keys = ['snack1', 'snack2'];
+  for (const t of [930, 570, 1230]) { if (!need) break; if (list.every(x => Math.abs(x.t - t) >= 80)) { list.push({ k: keys[ms.snacks - need], t }); need--; } }
+  return list.sort((a, b) => a.t - b.t);
+}
+function slotShare(sl) { return sl.post && sl.k === 'breakfast' ? 0.30 : sl.k === 'pre' && sl.t < 600 ? 0.08 : SLOT_INFO[sl.k].share; }
+function dislikes() { return SET().meals.dislikes || []; }
+function mealOK(m) { const d = dislikes(); return !m.ing.some(([k]) => d.includes(k)) && !(Store.d.meals.hidden || []).includes(m.id); }
+function mealsFor(cat) { const all = MEAL_LIST.filter(m => m.slots.includes(cat)); const ok = all.filter(mealOK); return ok.length ? ok : all; }
+function generatePlan(mon, gen) {
+  const r = rng('plan:' + mon + ':' + gen), favs = Store.d.meals.favs;
+  const T = tasteModel(); const wt = m => tastePref(m, T) || 0.001; // learned taste (favorites included)
+  const pick = (list, avoid = []) => { const l = list.filter(m => !avoid.includes(m.id)); return (pickWeighted(l.length ? l : list, wt, r) || list[0] || MEAL_LIST[0]).id; };
+  const bf = mealsFor('breakfast');
+  const bfBatch = bf.filter(m => m.tags.includes('batch') || m.tags.includes('nocook'));
+  const bfCook = bf.filter(m => !m.tags.includes('batch'));
+  const bA = pick(bfBatch.length ? bfBatch : bf), bB = pick(bfBatch.length ? bfBatch : bf, [bA]);
+  const split = prepSplit(); // first day covered by the midweek prep
+  const noPrepOK = m => m.tags.includes('nocook') || m.tags.includes('batch') || (m.min || 0) <= 5;
+  const np = (list, d) => { if (!isNoPrepDay(d)) return list; const l = list.filter(noPrepOK); return l.length ? l : list; };
+  const lunches = mealsFor('lunch').filter(m => m.tags.includes('portable'));
+  const lBatch = lunches.filter(m => m.tags.includes('batch'));
+  const lA = pick(lBatch.length ? lBatch : lunches), lB = pick(lBatch.length ? lBatch : lunches, [lA]);
+  const dinners = mealsFor('dinner'), used = [lA, lB];
+  const quick = dinners.filter(m => m.min <= 60 || (m.tags.includes('batch') && m.min <= 120));
+  const smoke = dinners.filter(m => m.tags.includes('traeger'));
+  const days = {}; let prev = {};
+  weekDates(mon).forEach((d, i) => {
+    const wd = dow(d), weekend = wd === 0 || wd === 6;
+    const dinner = pick(np(weekend && smoke.length ? smoke : (quick.length ? quick : dinners), d), used); used.push(dinner);
+    const breakfast = i < split ? bA : i < 5 ? bB : pick(bfCook.length ? bfCook : bf, [prev.breakfast]);
+    const pre = pick(np(mealsFor('pre'), d), [prev.pre]);
+    const post = pick(np(mealsFor('post'), d), [prev.post, pre]);
+    const snack1 = pick(np(mealsFor('snack'), d), [prev.snack1, prev.snack2, pre, post, breakfast]);
+    const snack2 = pick(np(mealsFor('snack'), d), [snack1, prev.snack1, prev.snack2, pre, post, breakfast]);
+    days[d] = { breakfast, lunch: i < split ? lA : lB, dinner, snack1, snack2, pre, post };
+    prev = days[d];
+  });
+  return { gen, days };
+}
+function weekPlan(mon) {
+  const MP = Store.d.meals; let p = MP.plans[mon];
+  if (!p) {
+    p = MP.plans[mon] = generatePlan(mon, 0);
+    const keys = Object.keys(MP.plans).sort(); while (keys.length > 10) { const k = keys.shift(); delete MP.plans[k]; delete MP.grocery[k]; }
+    Store.save('meals', true);
+  }
+  return p;
+}
+function regenPlan(mon, keepEaten = true) {
+  const MP = Store.d.meals, old = MP.plans[mon]; const gen = (old ? old.gen : 0) + 1;
+  const p = generatePlan(mon, gen);
+  if (old && keepEaten) for (const d of weekDates(mon)) { if (d < today()) p.days[d] = old.days[d]; else { const ea = mealLog(d).e || {}; for (const k of Object.keys(ea)) if (ea[k] && old.days[d]) p.days[d][k] = old.days[d][k]; } }
+  MP.plans[mon] = p;
+  for (const k of Object.keys(MP.x)) if (k.split('|')[0] >= today() && k.split('|')[0] <= addDays(mon, 6)) delete MP.x[k];
+  Store.save('meals');
+}
+/* Portions stay real: 1, 1½ or 2 servings (whole items 1 or 2). Calorie gaps are
+   filled with simple add-ons (a glass of milk, a banana…) instead of 2.25× a recipe. */
+function portionSteps(m) { return m.tags.includes('whole') ? [1, 2] : [1, 1.5, 2]; }
+function servingsFor(m, tk) { const st = portionSteps(m); let x = st[0]; for (const v of st) if (m.kcal * v <= tk * 1.1) x = v; return x; }
+const slotCat = k => k.startsWith('snack') ? 'snack' : k;
+function rowMac(r) {
+  const o = { kcal: r.m.kcal * r.x, p: r.m.p * r.x, c: r.m.c * r.x, f: r.m.f * r.x };
+  for (const id of r.add || []) { const a = ADDONS[id]; o.kcal += a.kcal; o.p += a.p; o.c += a.c; o.f += a.f; }
+  return o;
+}
+function staffPick(date) { return mealLog(date).staff || null; }
+function staffMeal(pick) {
+  const P = pick && pick.id !== 'none' ? STAFF_LUNCH.find(x => x.id === pick.id) || STAFF_TYPICAL : STAFF_TYPICAL, por = pick ? +pick.por || 1 : 1;
+  return { id: 'staff', name: pick && P !== STAFF_TYPICAL ? `Staff lunch · ${P.name}` : 'Staff lunch', slots: ['lunch'], tags: ['staff'], ing: [], steps: [], batch: [], min: 0,
+    kcal: P.kcal * por, p: P.p * por, c: P.c * por, f: P.f * por, preset: P.id, por };
+}
+/* Nudge a set of rows toward a calorie gap: bump a portion a step, or add/remove an add-on. */
+function fitRows(rows, gap, seed, protShort = false) {
+  const r = rng(seed);
+  for (let it = 0; it < 14 && Math.abs(gap) > 90; it++) {
+    let best = null;
+    const consider = (row, dk, apply) => { const err = Math.abs(gap - dk); if (err < Math.abs(gap) - 20 && (!best || err < best.err)) best = { err, dk, apply }; };
+    for (const row of rows) {
+      const st = portionSteps(row.m), i = st.indexOf(row.x);
+      if (gap > 0) {
+        if (i >= 0 && i < st.length - 1) consider(row, row.m.kcal * (st[i + 1] - row.x), () => { row.x = st[i + 1]; });
+        if ((row.add || []).length < 2) {
+          const cands = Object.values(ADDONS).filter(a => a.cats.includes(slotCat(row.k)) && !(row.add || []).includes(a.id) && (!a.needs || row.m.ing.some(([k]) => k === a.needs)) && !(a.id === 'banana' && (row.add || []).includes('pbb')) && !(a.id === 'pbb' && (row.add || []).includes('banana')));
+          let pick = null, ps = Infinity;
+          for (const a of cands) { const sc = Math.abs(gap - a.kcal) - (protShort ? a.p * 4 : 0) + r() * 45; if (sc < ps) { ps = sc; pick = a; } }
+          if (pick) consider(row, pick.kcal, () => { row.add = [...(row.add || []), pick.id]; });
+        }
+      } else {
+        if ((row.add || []).length) { const last = row.add[row.add.length - 1]; consider(row, -ADDONS[last].kcal, () => { row.add = row.add.slice(0, -1); }); }
+        if (i > 0) consider(row, -row.m.kcal * (row.x - st[i - 1]), () => { row.x = st[i - 1]; });
+      }
+    }
+    if (!best) break;
+    best.apply(); gap -= best.dk;
+  }
+}
+function dayMeals(date) {
+  const plan = weekPlan(mondayOf(date)); const day = plan.days[date] || {};
+  const N = nutrition(date), slots = mealSlotsFor(date);
+  const shares = slots.map(slotShare), tot = sum(shares);
+  const X = Store.d.meals.x, pick = staffPick(date);
+  const rows = slots.map((sl, i) => {
+    const tk = N.kcal * shares[i] / tot;
+    if (sl.staff && !(pick && pick.id === 'none')) return Object.assign({}, sl, { m: staffMeal(null), x: 1, add: [], manual: true, tk });
+    let m = MEALS[day[sl.k]];
+    if (!m) { const cat = slotCat(sl.k); m = mealsFor(cat)[0]; }
+    const manual = X[date + '|' + sl.k];
+    const x = manual != null ? manual : servingsFor(m, tk);
+    return Object.assign({}, sl, { staff: false, m, x, add: [], manual: manual != null, tk });
+  });
+  const free = rows.filter(r => !r.manual);
+  const planned0 = sum(rows.map(r => rowMac(r).kcal)), p0 = sum(rows.map(r => rowMac(r).p));
+  fitRows(free, N.kcal - planned0, 'fit:' + date, p0 < N.p - 10);
+  // staff lunch logged: the rest of the day absorbs the difference
+  const sr = rows.find(r => r.staff);
+  if (sr && pick) {
+    const rep = replacedBy(date, sr.k);
+    const act = rep ? { kcal: rep.kcal * (rep.sv || 1), p: rep.p * (rep.sv || 1) } : staffMeal(pick);
+    const est = sr.m; sr.m = rep ? est : act; sr.logged = true;
+    const later = free.filter(r => r.t > sr.t);
+    const pShort = est.p - act.p;
+    if (pShort > 12) { const tgt = later.find(r => ADDONS.whey.cats.includes(slotCat(r.k)) && !(r.add || []).includes('whey')) || later.find(r => r.k === 'dinner'); if (tgt) tgt.add = [...(tgt.add || []).slice(0, 1), tgt.k === 'dinner' ? 'milk' : 'whey']; }
+    const nowPlanned = sum(rows.map(r => r === sr ? act.kcal : rowMac(r).kcal));
+    fitRows(later, N.kcal - nowPlanned, 'staff:' + date, pShort > 12);
+  }
+  const plannedTot = { kcal: 0, p: 0, c: 0, f: 0 };
+  rows.forEach(r => { const o = rowMac(r); plannedTot.kcal += o.kcal; plannedTot.p += o.p; plannedTot.c += o.c; plannedTot.f += o.f; });
+  return { rows, N, planned: plannedTot };
+}
+function slotLabel(k) { return SLOT_INFO[k].name; }
+function mealLog(date) { const m = Store.m[monthKey(date)]; return (m && m.meals[date]) || { e: {}, w: 0, x: [] }; }
+function mealLogW(date) { const m = Store.month(monthKey(date), true); if (!m.meals[date]) m.meals[date] = { e: {}, w: 0, x: [] }; if (!m.meals[date].x) m.meals[date].x = []; return m.meals[date]; }
+/* off-plan food: entries store macros per serving (kcal,p,c,f) and servings (sv) */
+function extras(date) { return mealLog(date).x || []; }
+function replacedBy(date, k) { return extras(date).find(x => x.rep === k) || null; }
+function dayEaten(date) {
+  const { rows } = dayMeals(date), e = mealLog(date).e || {}, tot = { kcal: 0, p: 0, c: 0, f: 0 };
+  rows.forEach(r => { if (e[r.k] && !replacedBy(date, r.k)) { const o = rowMac(r); tot.kcal += o.kcal; tot.p += o.p; tot.c += o.c; tot.f += o.f; } });
+  extras(date).forEach(x => { const sv = x.sv || 1; tot.kcal += x.kcal * sv; tot.p += x.p * sv; tot.c += x.c * sv; tot.f += x.f * sv; });
+  return tot;
+}
+function ingMacros(list) { const t = { kcal: 0, p: 0, c: 0, f: 0 }; for (const [k, q] of list) { const g = ING[k]; if (!g) continue; t.kcal += g.kcal * q; t.p += g.p * q; t.c += g.c * q; t.f += g.f * q; } return t; }
+function swapCandidates(date, slotK, curId) {
+  const cats = SLOT_INFO[slotK].compat; const cur = MEALS[curId];
+  const pct = m => [m.p * 4 / m.kcal, m.c * 4 / m.kcal, m.f * 9 / m.kcal];
+  const cp = pct(cur); const T = tasteModel();
+  const seen = new Set(); const list = [];
+  for (const c of cats) for (const m of mealsFor(c)) if (m.id !== curId && !seen.has(m.id)) { seen.add(m.id); list.push(m); }
+  return list.map(m => { const p = pct(m); const dist = Math.abs(p[0] - cp[0]) + Math.abs(p[1] - cp[1]) + Math.abs(p[2] - cp[2]) + (m.slots.includes(cats[0]) ? 0 : 0.15) - 0.06 * Math.log(tastePref(m, T) || 0.1); return { m, dist }; })
+    .sort((a, b) => a.dist - b.dist).map(x => x.m);
+}
+const COUNT_UNITS = { each: ['', ''], can: ['can', 'cans'], link: ['link', 'links'], slice: ['slice', 'slices'], clove: ['clove', 'cloves'], scoop: ['scoop', 'scoops'], half: ['', ''] };
+const MEASURE_UNITS = ['oz', 'cup', 'tbsp', 'tsp', 'g', 'ml', 'fl oz', 'lb', 'pint'];
+function unitPlural(u) { return u === 'each' ? '' : /(ch|sh|x|ss)$/.test(u) ? u + 'es' : /[^aeiou]y$/.test(u) ? u.slice(0, -1) + 'ies' : u + 's'; }
+function qtyText(k, q, forRecipe) {
+  const g = ING[k]; if (!g) return '';
+  if (g.db || g.custom) {
+    if (MEASURE_UNITS.includes(g.unit)) return `${fracStr(q)} ${g.unit === 'cup' && q > 1.01 ? 'cups' : g.unit === 'pint' && q > 1.01 ? 'pints' : g.unit}`;
+    const u = q > 1.01 ? unitPlural(g.unit) : g.unit === 'each' ? '' : g.unit; return `${fracStr(q)}${u ? ' ' + u : ''}`;
+  }
+  if (g.unit === 'half') { const n = forRecipe ? q : Math.ceil(q / 2 - 0.05); return forRecipe ? `${fracStr(q)} half` : `${n}`; }
+  if (COUNT_UNITS[g.unit]) {
+    const n = forRecipe ? q : Math.max(1, Math.ceil(q - 0.1)); const [s1, s2] = COUNT_UNITS[g.unit];
+    const t = forRecipe ? fracStr(n) : String(n); const u = n > 1 ? s2 : s1; return u ? `${t} ${u}` : t;
+  }
+  if (g.unit === 'oz' && !forRecipe && q >= 16) return `${nice(q / 16, 1)} lb`;
+  return `${fracStr(q)} ${g.unit}${g.unit === 'cup' && q > 1.01 ? 's' : ''}`;
+}
+function pluralHint(h, n) {
+  if (n <= 1) return h;
+  const m = h.match(/^([^()]+?)(\s*\(.*\))?$/); if (!m) return h;
+  const words = m[1].trim().split(' '); let w = words[words.length - 1];
+  if (w === 'dozen') return h;
+  w = w === 'loaf' ? 'loaves' : /(x|ch|sh|s)$/.test(w) ? w + 'es' : w + 's';
+  words[words.length - 1] = w; return words.join(' ') + (m[2] || '');
+}
+function groceryList(mon) {
+  const tot = {}; const fam = SET().meals.family || 0;
+  for (const d of weekDates(mon)) {
+    for (const r of dayMeals(d).rows) {
+      for (const [k, q] of r.m.ing) tot[k] = (tot[k] || 0) + q * r.x;
+      for (const id of r.add || []) for (const [k, q] of ADDONS[id].ing) tot[k] = (tot[k] || 0) + q;
+      if (r.k === 'dinner' && fam) for (const [k, q] of r.m.ing) tot[k] += q * fam;
+    }
+  }
+  const groups = SECTIONS.map(sec => ({ sec, items: [] }));
+  for (const [k, q] of Object.entries(tot)) {
+    const g = ING[k]; if (!g || q <= 0) continue;
+    let name = g.name, amt, hint = '';
+    if (g.buy && g.buy.unit) { const v = Math.max(g.buy.step, Math.ceil(q / g.buy.per / g.buy.step - 1e-9) * g.buy.step); name = g.buy.name || g.name; amt = `${nice(v, 2)} ${g.buy.unit}`; }
+    else { amt = qtyText(k, q, false); if (g.buy && g.buy.hint) { const n = Math.max(1, Math.ceil(q / g.buy.per - 0.08)); hint = `${n} ${pluralHint(g.buy.hint, n)}`; } }
+    groups.find(x => x.sec === g.sec).items.push({ k, name, amt, hint });
+  }
+  groups.forEach(gp => gp.items.sort((a, b) => a.name.localeCompare(b.name)));
+  return groups.filter(gp => gp.items.length);
+}
+/* Index (0 = Mon) of the first day the midweek prep covers. Sunday prep covers Sun → the day before. */
+function prepSplit() { const m = SET().meals.midPrep; return clamp((m === 0 ? 7 : m), 1, 4); }
+function batchPrep(mon) {
+  const fam = SET().meals.family || 0;
+  const split = prepSplit(), D = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const wins = [
+    { name: 'Sunday prep', when: addDays(mon, -1), from: -1, to: split - 1, cover: `Sun–${D[split - 1]}` },
+    { name: `${DOW_LONG[dow(addDays(mon, split - 1))]} night prep`, when: addDays(mon, split - 1), from: split, to: 5, cover: `${D[split]}–Sat` },
+  ];
+  return wins.map(w => {
+    const tasks = {};
+    for (let i = w.from; i <= w.to; i++) {
+      const d = addDays(mon, i);
+      for (const r of dayMeals(d).rows) {
+        const mult = r.x + (r.k === 'dinner' ? fam : 0);
+        for (const b of r.m.batch) {
+          const t = tasks[b.k] = tasks[b.k] || { k: b.k, qty: 0, n: 0, meals: new Set() };
+          if (b.ing) { const it = r.m.ing.find(([k]) => k === b.ing); t.qty += (it ? it[1] : 0) * mult; } else t.n += b.n * r.x;
+          t.meals.add(d + r.k);
+        }
+      }
+    }
+    const lines = Object.values(tasks).map(t => {
+      const def = BATCH_TASKS[t.k] || { t: t.k }; let amt = '';
+      const q = t.qty;
+      if (t.k === 'pork') amt = `about a ${nice(Math.max(3, Math.ceil(q * 2 / 16 * 2) / 2), 1)} lb shoulder (yields ~${nice(Math.ceil(q / 16 * 4) / 4, 2)} lb pulled)`;
+      else if (t.k === 'chuck') amt = `about a ${nice(Math.max(2.5, Math.ceil(q * 1.6 / 16 * 2) / 2), 1)} lb roast`;
+      else if (t.k === 'rice') amt = `${fracStr(q)} cups cooked (≈ ${fracStr(q / 3)} cups dry)`;
+      else if (t.k === 'pasta') amt = `${Math.ceil(q)} oz dry`;
+      else if (t.k === 'sweet') amt = `${Math.ceil(q)} sweet potatoes`;
+      else if (def.ing) amt = `${nice(Math.ceil(q / 16 * 4) / 4, 2)} lb`;
+      else amt = `${Math.ceil(t.n - 0.1)} ${def.unit || ''}`;
+      return { k: t.k, text: def.t, amt, meals: t.meals.size };
+    }).sort((a, b) => a.text.localeCompare(b.text));
+    return Object.assign({}, w, { lines });
+  }).filter(w => w.lines.length);
+}
+
+/* ============ BODYWEIGHT ============ */
+function weights() { return [...Store.d.body.weights].sort((a, b) => (a.d < b.d ? -1 : 1)); }
+function logWeight(date, lb) {
+  const W = Store.d.body.weights; const i = W.findIndex(x => x.d === date);
+  if (i >= 0) W[i].w = lb; else W.push({ d: date, w: lb });
+  const recent = weights().filter(x => daysBetween(x.d, today()) <= 7);
+  if (recent.length) SET().weightLb = Math.round(sum(recent.map(x => x.w)) / recent.length * 10) / 10;
+  Store.save('body'); Store.save('settings');
+}
+function weightTrend() {
+  const W = weights().filter(x => daysBetween(x.d, today()) <= 21);
+  if (W.length < 4) return null;
+  const span = daysBetween(W[0].d, W[W.length - 1].d); if (span < 10) return null;
+  const xs = W.map(x => daysBetween(W[0].d, x.d)), ys = W.map(x => x.w);
+  const mx = sum(xs) / xs.length, my = sum(ys) / ys.length;
+  const slope = sum(xs.map((x, i) => (x - mx) * (ys[i] - my))) / Math.max(1e-9, sum(xs.map(x => (x - mx) ** 2)));
+  return { rate: slope * 7, n: W.length, span };
+}
+function adjustSuggestion() {
+  const s = SET();
+  if (s.lastAdjust && daysBetween(s.lastAdjust, today()) < 14) return null;
+  if (s.snoozeAdjust && daysBetween(s.snoozeAdjust, today()) < 7) return null;
+  const t = weightTrend(); if (!t) return null;
+  const band = RATES[s.rate].band;
+  if (t.rate < band[0]) return { delta: 150, rate: t.rate, band, why: `Your weight trend is ${t.rate >= 0 ? '+' : ''}${nice(t.rate, 2)} lb/week, below your ${band[0]}–${band[1]} lb goal.` };
+  if (t.rate > band[1]) return { delta: t.rate > band[1] + 0.3 ? -200 : -100, rate: t.rate, band, why: `Your weight trend is +${nice(t.rate, 2)} lb/week, faster than your ${band[0]}–${band[1]} lb goal. Trimming a little keeps the gain lean.` };
+  return null;
+}
+
+/* ============ NAVIGATION & RENDER ============ */
+const UI = {
+  tab: 'workout',
+  stacks: { workout: [{ v: 'wroot' }], stretch: [{ v: 'sroot' }], meals: [{ v: 'mroot' }], settings: [{ v: 'setroot' }] },
+  seg: { workout: 'today', meals: 'day' },
+  date: today(), mdate: today(), smon: mondayOf(today()), cal: today().slice(0, 7),
+  scroll: {}, dirtyRemote: false,
+};
+const VIEWS = {}, ACT = {}, INP = {}, CHG = {};
+let AFTER = [];
+const topView = () => { const st = UI.stacks[UI.tab]; return st[st.length - 1]; };
+const scrollKey = () => UI.tab + ':' + UI.stacks[UI.tab].length;
+
+function render(opts = {}) {
+  if (UI._ingVer !== DATA_VER && typeof syncCustomIng === 'function') { UI._ingVer = DATA_VER; syncCustomIng(); }
+  const v = topView(); const fn = VIEWS[v.v];
+  const y = window.scrollY;
+  let html;
+  try { html = fn ? fn(v) : ''; } catch (e) { console.error(e); html = `<div class="pad"><div class="card"><b>Something went wrong on this screen.</b><p class="muted">${esc(e.message)}</p><button class="btn2" data-a="home">Go back</button></div></div>`; }
+  const V = $('#view'); V.innerHTML = html;
+  if (UI.anim) { UI.anim = false; V.classList.remove('enter'); void V.offsetWidth; V.classList.add('enter'); }
+  renderTabbar();
+  if (opts.top) window.scrollTo(0, 0); else if (opts.y != null) window.scrollTo(0, opts.y); else window.scrollTo(0, y);
+  const fns = AFTER; AFTER = []; fns.forEach(f => { try { f(); } catch (e) { console.error(e); } });
+}
+function push(v) { UI.anim = true; UI.scroll[scrollKey()] = window.scrollY; UI.stacks[UI.tab].push(v); render({ top: true }); }
+function pop() { UI.anim = true; const st = UI.stacks[UI.tab]; if (st.length > 1) st.pop(); render({ y: UI.scroll[scrollKey()] || 0 }); }
+function replaceTop(v) { const st = UI.stacks[UI.tab]; st[st.length - 1] = v; render({ top: true }); }
+function goTab(t, view) {
+  if (t === UI.tab && !view) {
+    const st = UI.stacks[t];
+    if (st.length > 1) { UI.stacks[t] = [st[0]]; render({ top: true }); } else window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  UI.scroll[scrollKey()] = window.scrollY;
+  UI.tab = t; UI.anim = true;
+  if (view) { UI.stacks[t] = [UI.stacks[t][0], view]; render({ top: true }); }
+  else render({ y: UI.scroll[scrollKey()] || 0 });
+}
+function renderTabbar() {
+  const tabs = [['workout', 'dumbbell', 'Workout'], ['stretch', 'stretch', 'Stretch'], ['meals', 'meals', 'Meals'], ['settings', 'sliders', 'Settings']];
+  $('#tabbar').innerHTML = tabs.map(([k, i, l]) => `<button class="tab ${UI.tab === k ? 'on' : ''}" data-a="tab" data-t="${k}" aria-label="${l}" ${UI.tab === k ? 'aria-current="page"' : ''}><span class="tab-ic">${ic(i, 26)}</span></button>`).join('');
+}
+
+/* ---- shared components ---- */
+function navBar({ back, title, right = '', large }) {
+  return `<header class="nav ${large ? 'nav-large' : ''}"><div class="nav-l">${back ? `<button class="navbtn" data-a="back" aria-label="Back">${ic('back', 22)}<span>${esc(back)}</span></button>` : ''}</div><div class="nav-t">${esc(title || '')}</div><div class="nav-r">${right}</div></header>`;
+}
+function iconBtn(icon, act, attrs = '', label = '') { return `<button class="iconbtn" data-a="${act}" ${attrs} aria-label="${esc(label || icon)}">${ic(icon, 22)}</button>`; }
+function seg(name, opts, cur) {
+  return `<div class="seg" role="tablist">${opts.map(([k, l]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}" data-a="seg" data-s="${name}" data-v="${k}">${l}</button>`).join('')}</div>`;
+}
+function utabs(act, opts, cur, attrs = '') {
+  return `<div class="utabs" role="tablist">${opts.map(([k, l, aria]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}" data-a="${act}" data-v="${k}" ${aria ? `aria-label="${esc(aria)}" title="${esc(aria)}"` : ''} ${attrs}>${l}</button>`).join('')}</div>`;
+}
+const pill = (t, cls = '') => `<span class="pill ${cls}">${t}</span>`;
+function stepper(act, val, attrs = '', label = '') {
+  return `<div class="stepper" role="group" aria-label="${esc(label)}"><button data-a="${act}" data-step="-1" ${attrs} aria-label="Decrease">${ic('minus', 18)}</button><span class="st-val">${val}</span><button data-a="${act}" data-step="1" ${attrs} aria-label="Increase">${ic('plus', 18)}</button></div>`;
+}
+function checkCircle(on, act, attrs = '', label = 'Mark done') {
+  return `<button class="chk ${on ? 'on' : ''}" data-a="${act}" ${attrs} aria-pressed="${on}" aria-label="${esc(label)}">${ic('check', 20)}</button>`;
+}
+function emptyState(icon, title, text, btn = '') {
+  return `<div class="empty">${ic(icon, 30)}<div class="empty-t">${esc(title)}</div><p>${text}</p>${btn}</div>`;
+}
+
+/* ---- sheets ---- */
+let SHEET_FN = null;
+function openSheet(fn, cls = '') {
+  SHEET_FN = fn;
+  const el = $('#sheet');
+  el.innerHTML = `<div class="sheet-bg" data-a="sheetClose"></div><div class="sheet ${cls}" role="dialog" aria-modal="true"><div class="grab" data-a="sheetClose"></div><div class="sheet-in">${fn()}</div></div>`;
+  el.hidden = false;
+  document.documentElement.classList.add('locked');
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
+}
+function refreshSheet() { if (!SHEET_FN) return; const inner = $('#sheet .sheet-in'); if (!inner) return; const y = inner.parentElement.scrollTop; inner.innerHTML = SHEET_FN(); inner.parentElement.scrollTop = y; }
+function closeSheet() {
+  const el = $('#sheet'); if (el.hidden) return;
+  el.classList.remove('open'); SHEET_FN = null; if (typeof releaseWake === 'function') releaseWake();
+  document.documentElement.classList.remove('locked');
+  setTimeout(() => { if (!SHEET_FN) { el.hidden = true; el.innerHTML = ''; } }, 220);
+}
+function sheetHead(title, sub = '') { return `<div class="sh-head"><div><div class="sh-title">${esc(title)}</div>${sub ? `<div class="sh-sub">${sub}</div>` : ''}</div><button class="iconbtn" data-a="sheetClose" aria-label="Close">${ic('close', 20)}</button></div>`; }
+function menuSheet(title, items) { // items: [{icon,label,act,attrs,danger}]
+  openSheet(() => `${sheetHead(title)}<div class="menu">${items.map(it => `<button class="menu-i ${it.danger ? 'danger' : ''}" data-a="${it.act}" ${it.attrs || ''}>${ic(it.icon, 21)}<span>${esc(it.label)}</span>${it.note ? `<em>${esc(it.note)}</em>` : ''}</button>`).join('')}</div>`);
+}
+
+/* ---- toast ---- */
+let toastT = null;
+function toast(msg, icon = 'check') {
+  const el = $('#toast'); el.innerHTML = `${ic(icon, 18)}<span>${esc(msg)}</span>`; el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(toastT); toastT = setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.hidden = true, 250); }, 2600);
+}
+
+/* ---- rest / countdown timer ---- */
+const Timer = {
+  end: 0, dur: 0, label: 'Rest', on: false, doneAt: 0, iv: null, lastBeep: 0,
+  start(sec, label = 'Rest') { audio(); this.onDone = null; this.warm = false; this.dur = sec; this.end = Date.now() + sec * 1000; this.label = label; this.on = true; this.doneAt = 0; this.lastBeep = 0; clearInterval(this.iv); this.iv = setInterval(() => this.tick(), 250); this.draw(); },
+  add(s) { if (!this.on) return; this.end += s * 1000; this.dur = Math.max(5, this.dur + s); if (this.end < Date.now() + 1000) this.end = Date.now() + 1000; this.draw(); },
+  stop() { this.on = false; this.doneAt = 0; this.onDone = null; this.warm = false; clearInterval(this.iv); this.draw(); },
+  left() { return Math.max(0, (this.end - Date.now()) / 1000); },
+  tick() {
+    if (!this.on) return;
+    const l = this.left();
+    if (l <= 0) { this.on = false; clearInterval(this.iv); this.doneAt = Date.now(); cue('done'); const cb = this.onDone; this.onDone = null; this.draw(); if (cb) { try { cb(); } catch (e) {} } setTimeout(() => { if (!this.on) { this.doneAt = 0; this.draw(); } }, 4000); return; }
+    const c = Math.ceil(l); if (c <= 3 && c !== this.lastBeep) { this.lastBeep = c; if (soundOn()) tone(620, 0.07, 0, 0.14); }
+    this.draw();
+  },
+  draw() {
+    const el = $('#timer');
+    if (!this.on && !this.doneAt) { el.hidden = true; el.classList.remove('done'); return; }
+    el.hidden = false;
+    if (!this.on) { el.classList.add('done'); el.innerHTML = `<span class="tm-done">${ic('check', 18)} ${esc(this.label)} done — go</span><button class="tm-b" data-a="timerStop" aria-label="Dismiss">${ic('close', 16)}</button>`; return; }
+    el.classList.remove('done');
+    const l = this.left(), f = this.dur ? l / this.dur : 0, C = 2 * Math.PI * 13;
+    el.innerHTML = `<svg class="tm-ring" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" class="tm-track"/><circle cx="16" cy="16" r="13" class="tm-prog" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - f)}" transform="rotate(-90 16 16)"/></svg>
+      <span class="tm-t"><b>${fmtDur(l)}</b><small>${esc(this.label)}</small></span>
+      <button class="tm-b" data-a="timerAdd" data-s="-15" aria-label="Minus 15 seconds">−15</button><button class="tm-b" data-a="timerAdd" data-s="15" aria-label="Plus 15 seconds">+15</button><button class="tm-b" data-a="timerStop" aria-label="Skip rest">${ic('close', 16)}</button>`;
+  },
+};
+
+/* ---- confetti (PR celebration) ---- */
+function confetti() {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas'); c.className = 'confetti'; document.body.appendChild(c);
+  const dpr = window.devicePixelRatio || 1, W = innerWidth, H = innerHeight; c.width = W * dpr; c.height = H * dpr; const x = c.getContext('2d'); x.scale(dpr, dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = ['--coral', '--blue', '--amber', '--green'].map(v => cs.getPropertyValue(v).trim() || '#f55');
+  const P = Array.from({ length: 90 }, () => ({ x: W / 2 + (Math.random() - 0.5) * 80, y: H * 0.35, vx: (Math.random() - 0.5) * 9, vy: -Math.random() * 9 - 4, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, w: 5 + Math.random() * 5, h: 8 + Math.random() * 6, c: cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  (function f(t) {
+    const k = (t - t0) / 1600; x.clearRect(0, 0, W, H);
+    for (const p of P) { p.vy += 0.28; p.x += p.vx; p.y += p.vy; p.r += p.vr; x.save(); x.globalAlpha = Math.max(0, 1 - k); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); x.restore(); }
+    if (k < 1) requestAnimationFrame(f); else c.remove();
+  })(t0);
+}
+
+/* ============ CHARTS ============ */
+function niceTicks(min, max, n = 4) {
+  if (!isFinite(min) || !isFinite(max)) { min = 0; max = 1; }
+  if (max - min < 1e-9) { min -= 1; max += 1; }
+  const raw = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const ticks = []; for (let v = lo; v <= hi + step * 1e-6; v += step) ticks.push(Math.round(v * 1000) / 1000);
+  return { lo, hi, ticks };
+}
+/* series: [{name, cls:'c1'|'c2', pts:[{d, y}], area, dots:'all'|'end', line:true}] */
+function lineChart({ series, h = 170, fmt = v => nice(v, 1), unit = '' }) {
+  const all = series.flatMap(s => s.pts); if (!all.length) return '';
+  const W = 340, H = h, L = 38, R = 50, T = 12, B = 24;
+  const dates = all.map(p => p.d).sort(); let d0 = dates[0], d1 = dates[dates.length - 1];
+  if (d0 === d1) { d0 = addDays(d0, -3); d1 = addDays(d1, 3); }
+  const span = daysBetween(d0, d1);
+  const ys = all.map(p => p.y); const { lo, hi, ticks } = niceTicks(Math.min(...ys), Math.max(...ys), 4);
+  const X = d => L + (W - L - R) * daysBetween(d0, d) / span;
+  const Y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  let g = '';
+  for (const t of ticks) g += `<line class="ch-grid" x1="${L}" x2="${W - R + 6}" y1="${Y(t)}" y2="${Y(t)}"/><text class="ch-ax" x="${L - 6}" y="${Y(t) + 3.5}" text-anchor="end">${fmt(t)}</text>`;
+  const xl = [d0, d1]; if (span > 20) xl.splice(1, 0, addDays(d0, Math.round(span / 2)));
+  xl.forEach((d, i) => { g += `<text class="ch-ax" x="${X(d)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === xl.length - 1 ? 'end' : 'middle'}">${fmtDate(d)}</text>`; });
+  const endLabels = [];
+  for (const s of series) {
+    const pts = [...s.pts].sort((a, b) => (a.d < b.d ? -1 : 1)); if (!pts.length) continue;
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.d).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
+    if (s.area && pts.length > 1) g += `<path class="ch-area ${s.cls}" d="${path}L${X(pts[pts.length - 1].d).toFixed(1)} ${Y(lo)}L${X(pts[0].d).toFixed(1)} ${Y(lo)}Z"/>`;
+    if (s.line !== false && pts.length > 1) g += `<path class="ch-line ${s.cls}" d="${path}"/>`;
+    if (s.dots === 'all') for (const p of pts) g += `<circle class="ch-dot ${s.cls} ${s.faint ? 'faint' : ''}" cx="${X(p.d)}" cy="${Y(p.y)}" r="${s.faint ? 3 : 4}"/>`;
+    const e = pts[pts.length - 1];
+    if (s.dots !== 'none') g += `<circle class="ch-dot ${s.cls}" cx="${X(e.d)}" cy="${Y(e.y)}" r="4.5"/>`;
+    if (s.label !== false) endLabels.push({ y: Y(e.y), x: X(e.d), t: fmt(e.y) });
+  }
+  endLabels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < endLabels.length; i++) if (endLabels[i].y - endLabels[i - 1].y < 13) endLabels[i].y = endLabels[i - 1].y + 13;
+  for (const l of endLabels) g += `<text class="ch-end" x="${l.x + 8}" y="${l.y + 4}">${l.t}</text>`;
+  // hover data
+  const byDate = {};
+  for (const s of series) for (const p of s.pts) { (byDate[p.d] = byDate[p.d] || []).push([s.name, fmt(p.y) + (unit ? ' ' + unit : ''), s.cls]); }
+  const hov = Object.keys(byDate).sort().map(d => ({ x: +X(d).toFixed(1), l: fmtDate(d, 'dow'), r: byDate[d] }));
+  const legend = series.filter(s => s.legend !== false).length > 1 ? `<div class="ch-leg">${series.filter(s => s.legend !== false).map(s => `<span><i class="sw ${s.cls}"></i>${esc(s.name)}</span>`).join('')}</div>` : '';
+  return `${legend}<div class="chart" data-pts='${esc(JSON.stringify(hov))}' data-w="${W}"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(series.map(s => s.name).join(' and '))} over time">${g}<line class="ch-x" x1="0" x2="0" y1="${T}" y2="${H - B}" style="display:none"/></svg><div class="ch-tip" hidden></div></div>`;
+}
+function chartHover(e) {
+  const ch = e.target.closest('.chart'); if (!ch) return;
+  const pts = JSON.parse(ch.dataset.pts || '[]'); if (!pts.length) return;
+  const svg = ch.querySelector('svg'), rect = svg.getBoundingClientRect(), W = +ch.dataset.w;
+  const vx = (e.clientX - rect.left) / rect.width * W;
+  let best = pts[0]; for (const p of pts) if (Math.abs(p.x - vx) < Math.abs(best.x - vx)) best = p;
+  const line = ch.querySelector('.ch-x'); line.style.display = ''; line.setAttribute('x1', best.x); line.setAttribute('x2', best.x);
+  const tip = ch.querySelector('.ch-tip'); tip.hidden = false;
+  tip.innerHTML = `<b>${esc(best.l)}</b>${best.r.map(r => `<span><i class="sw ${r[2]}"></i>${esc(r[0])} <em>${esc(r[1])}</em></span>`).join('')}`;
+  const px = best.x / W * rect.width; const tw = tip.offsetWidth;
+  tip.style.left = clamp(px - tw / 2, 0, rect.width - tw) + 'px';
+}
+function chartLeave(e) { const ch = e.target.closest && e.target.closest('.chart'); if (!ch) return; const l = ch.querySelector('.ch-x'); if (l) l.style.display = 'none'; const t = ch.querySelector('.ch-tip'); if (t) t.hidden = true; }
+
+/* ---- drag to reorder (handle-based, touch friendly) ---- */
+let DRAG = null;
+function dragStart(e) {
+  const h = e.target.closest('.drag-h'); if (!h) return;
+  const list = h.closest('[data-sortable]'), item = h.closest('[data-idx]'); if (!list || !item) return;
+  e.preventDefault();
+  const items = $$('[data-idx]', list);
+  const hgt = sum(items.map(i => i.getBoundingClientRect().height)) / items.length;
+  DRAG = { list, item, items, from: +item.dataset.idx, to: +item.dataset.idx, y0: e.clientY, hgt };
+  try { h.setPointerCapture(e.pointerId); } catch (x) {}
+  item.classList.add('dragging'); buzz(15);
+}
+function dragMove(e) {
+  if (!DRAG) return; e.preventDefault();
+  const dy = e.clientY - DRAG.y0; DRAG.item.style.transform = `translateY(${dy}px)`;
+  const to = clamp(DRAG.from + Math.round(dy / DRAG.hgt), 0, DRAG.items.length - 1); DRAG.to = to;
+  DRAG.items.forEach((it, j) => {
+    if (it === DRAG.item) return;
+    let s = 0; if (DRAG.from < to && j > DRAG.from && j <= to) s = -DRAG.hgt; if (to < DRAG.from && j >= to && j < DRAG.from) s = DRAG.hgt;
+    it.style.transform = s ? `translateY(${s}px)` : '';
+  });
+}
+function dragEnd() {
+  if (!DRAG) return; const { list, items, from, to, item } = DRAG; DRAG = null;
+  items.forEach(it => it.style.transform = ''); item.classList.remove('dragging');
+  if (from !== to && ACT[list.dataset.sortable]) ACT[list.dataset.sortable]({ from, to, ...list.dataset });
+}
+
+/* ============ WORKOUT TAB ============ */
+function fmtScheme(sl) {
+  const ex = EX[sl.id];
+  if (ex && ex.time) { const t = sl.hi >= 60 && sl.hi % 60 === 0 ? `${sl.hi / 60} min` : `${sl.hi}s`; return `${sl.sets} × ${t}`; }
+  return `${sl.sets} × ${sl.lo === sl.hi ? sl.lo : sl.lo + '-' + sl.hi}`;
+}
+const PAT_FAMILY = { squat: 'knee', lunge: 'knee', legpress: 'knee', legext: 'knee', hinge: 'hip', thrust: 'hip', legcurl: 'hip', flat: 'press', incline: 'press', decline: 'press', pushup: 'press', dip: 'press', press: 'press', row: 'pull', vpull: 'pull', pullover: 'pull', crunch: 'flex', legraise: 'flex', rollout: 'flex', plank: 'brace', antirot: 'brace', rotation: 'rot' };
+function workoutMuscles(wid, date) {
+  const prim = new Set(), sec = new Set();
+  for (const sl of sessionSlots(wid, date)) { const e = EX[sl.id]; e.prim.forEach(m => prim.add(m)); e.sec.forEach(m => sec.add(m)); }
+  return { prim: [...prim], sec: [...sec].filter(m => !prim.has(m)) };
+}
+function wdCtx(v) { return { wid: v.w, date: v.date || today() }; }
+
+VIEWS.wroot = () => {
+  const s = UI.seg.workout;
+  const body = s === 'today' ? todayContent() : s === 'program' ? programContent() : progressContent();
+  return `<div class="pad top">
+    <div class="ltitle-row"><h1 class="ltitle">Workout</h1></div>
+    ${seg('workout', [['today', 'Today'], ['program', 'Program'], ['progress', 'Progress']], s)}
+    <div class="stack">${body}</div></div>`;
+};
+
+/* ---- Program ---- */
+function weekStrip(mon, sel, act = 'pickDay') {
+  return `<div class="wstrip">${weekDates(mon).map(d => {
+    const w = dayWorkout(d), s = sessionOn(d), done = sessionHasWork(s) && s.fin;
+    const wk = w ? workoutById(w) : null;
+    return `<button class="wday ${d === sel ? 'on' : ''} ${d === today() ? 'is-today' : ''} ${w ? 'gym' : ''}" data-a="${act}" data-d="${d}" aria-label="${fmtDate(d, 'long')}${wk ? ', ' + esc(wk.name) : ', rest'}">
+      <span class="wd-d">${DOW_SHORT[dow(d)].slice(0, 1)}</span><span class="wd-n">${parseD(d).getDate()}</span>
+      <span class="wd-w">${done ? ic('check', 13) : wk ? esc(tinyName(wk)) : '—'}</span></button>`;
+  }).join('')}</div>`;
+}
+function tinyName(w) { return ({ legs: 'Legs', chest: 'Chest', back: 'Back', shoulders: 'Delts' })[w.id] || w.short.split(' ')[0].slice(0, 6); }
+function nextDateFor(wid) {
+  for (let i = 0; i < 28; i++) { const d = addDays(today(), i); if (plannedWorkout(d) === wid && !(i === 0 && sessionOn(d, wid) && sessionOn(d, wid).fin)) return d; }
+  return null;
+}
+function programContent() {
+  const R = SET().rotation, mon = mondayOf(today());
+  const order = weekDates(mon).filter(d => plannedWorkout(d)).map(d => `<span><b>${DOW_SHORT[dow(d)]}</b> ${esc(workoutById(plannedWorkout(d)).short)}</span>`).join('<i>→</i>');
+  const cards = PRG().workouts.map(w => {
+    const nd = nextDateFor(w.id); const mus = workoutMuscles(w.id, nd || today());
+    return `<button class="card wcard" data-a="openWorkout" data-w="${w.id}" data-d="${nd || today()}">
+      ${bodySVG(bestView(mus.prim), mus.prim, mus.sec, 64)}
+      <div class="wcard-b"><div class="wcard-t">${esc(w.name)}</div>
+      <div class="wcard-m">${w.slots.length} exercises · ~${estMinutes(w.id)} min</div>
+      <div class="wcard-n">${nd ? (nd === today() ? 'Today' : 'Next: ' + fmtDate(nd, 'dow')) : 'Not scheduled'}</div></div>${ic('chev', 18, 'muted')}</button>`;
+  }).join('');
+  return `<div class="card">
+      <div class="row between"><div class="lbl">${R.mode === 'auto' ? 'Auto rotation' : 'Locked order'}</div><button class="link" data-a="goSettings" data-p="rotation">Change</button></div>
+      <div class="rot-line">${order || '<span class="muted">No gym days set</span>'}</div>
+      <p class="fine">${R.mode === 'auto' ? 'The loop shifts one day each week, so every workout lands on every weekday once a month. Chest never follows Shoulders, and Back never follows Legs.' : 'Same order every week.'}</p>
+    </div>
+    ${weekStrip(mon, null, 'pickDayProgram')}
+    <div class="stack-s">${cards}</div>
+    <button class="btn2 wide" data-a="goSettings" data-p="startw">${ic('scale', 20)} Enter starting weights from Caliber</button>`;
+}
+
+/* ---- Workout detail ---- */
+VIEWS.wdetail = v => {
+  const { wid, date } = wdCtx(v); const w = workoutById(wid);
+  if (!w) return navBar({ back: 'Workout' }) + `<div class="pad">${emptyState('dumbbell', 'Workout not found', 'It may have been removed.')}</div>`;
+  const tab = v.t || 'ex', s = sessionOn(date, wid), slots = sessionSlots(wid, date);
+  const pr = sessionProgress(wid, date);
+  let status = '';
+  if (s && s.fin) status = pill(`${ic('check', 13)} Done`, 'green');
+  else if (s && s.start) status = pill(`In progress · ${Math.max(1, Math.round((Date.now() - s.start) / 60000))} min`, 'blue');
+  const head = `${navBar({ back: 'Workout', title: '', right: iconBtn('dots', 'wMenu', '', 'Workout options') })}
+    <div class="pad"><div class="dh"><h1 class="h1">${esc(w.name)}</h1>
+    <div class="sub">${esc(fmtDate(date, 'dow'))} · ${slots.length} exercises · ~${estMinutes(wid)} min ${status}</div></div>
+    ${utabs('wTab', [['ex', ic('list', 22), 'Exercises'], ['ov', ic('body', 22), 'Muscles worked'], ['notes', ic('pencil', 21), 'Notes']], tab)}`;
+  let body = '';
+  if (tab === 'ex') {
+    body = `<div class="card list" data-sortable="reorderEx">${slots.map((sl, i) => {
+      const ex = EX[sl.id], e = s && s.ex[sl.u] && s.ex[sl.u].id === sl.id ? s.ex[sl.u] : null;
+      const doneSets = e ? e.sets.filter(x => x.d).length : 0;
+      const state = e && e.done ? `<span class="exdone">${ic('check', 14)}</span>` : doneSets ? `<span class="exprog">${doneSets}/${sl.sets}</span>` : '';
+      return `<div class="exrow ${e && e.done ? 'is-done' : ''}" data-idx="${i}">
+        <button class="exrow-main" data-a="openEx" data-u="${sl.u}">${miniBody(ex.prim, ex.sec, 54)}
+          <span class="exrow-b"><span class="exname">${esc(ex.name)}</span><span class="exmeta">${pill(fmtScheme(sl))}${sl.tempSwap || sl.temp ? pill('Today only', 'blue') : ''}${state}</span></span></button>
+        <button class="iconbtn" data-a="exMenu" data-u="${sl.u}" aria-label="Options for ${esc(ex.name)}">${ic('dots', 20)}</button>
+        ${sl.temp ? '<span class="drag-sp"></span>' : `<span class="drag-h" aria-label="Drag to reorder">${ic('grip', 18)}</span>`}
+      </div>`;
+    }).join('')}</div>
+    <button class="btn-text" data-a="addExercise">${ic('plus', 20)} Add Exercise</button>`;
+  } else if (tab === 'ov') {
+    const mus = workoutMuscles(wid, date);
+    const hist = hist_sessionsFor(wid).filter(x => x.id !== (s && s.id));
+    const last = hist[hist.length - 1];
+    const totalSets = sum(slots.map(sl => sl.sets));
+    body = `<div class="card center">${dualBody(mus.prim, mus.sec, 170)}
+      <div class="legend-b"><span><i class="lg p"></i>Primary</span><span><i class="lg s"></i>Secondary</span></div></div>
+      <div class="card"><div class="kv"><span>Exercises</span><b>${slots.length}</b></div><div class="kv"><span>Working sets</span><b>${totalSets}</b></div><div class="kv"><span>Estimated time</span><b>~${estMinutes(wid)} min</b></div>
+      ${last ? `<div class="kv"><span>Last done</span><b>${fmtDate(last.date, 'dow')}</b></div><div class="kv"><span>Last volume</span><b>${fmtInt(toU(sessionVolume(last)))} ${wu()}</b></div>` : ''}</div>
+      <div class="card"><div class="lbl">Muscles worked</div><div class="chips">${mus.prim.map(m => `<span class="chip p">${MUSCLE_NAMES[m]}</span>`).join('')}${mus.sec.map(m => `<span class="chip">${MUSCLE_NAMES[m]}</span>`).join('')}</div></div>`;
+  } else {
+    body = `<div class="card"><label class="lbl" for="wnote-${wid}">Notes for ${esc(w.name)}</label>
+      <textarea id="wnote-${wid}" class="note" rows="8" placeholder="Gym crowd times, machine numbers, how the session felt…" data-in="wNote" data-w="${wid}">${esc(Store.d.notes.w[wid] || '')}</textarea><p class="fine">Saved automatically.</p></div>`;
+  }
+  let action = '';
+  if (date > today()) action = `<button class="btn" data-a="doToday">Do this workout today</button>`;
+  else if (!s || !s.start) action = `<button class="btn" data-a="startWorkout">${ic('play', 18)} Start</button>`;
+  else if (!s.fin) action = `<button class="btn" data-a="finishWorkout">${ic('flag', 18)} Finish${pr.total ? ` · ${pr.done}/${pr.total}` : ''}</button>`;
+  else action = `<button class="btn2" data-a="startStretchK" data-k="s2" data-d="${date}">${ic('stretch', 20)} Start cool-down stretch · ${SET().stretch.s2} min</button>`;
+  return `${head}<div class="stack">${body}</div></div><div class="actionbar">${action}</div>`;
+};
+function hist_sessionsFor(wid) { return hist().sessions.filter(s => s.w === wid && sessionHasWork(s)); }
+
+/* ---- Exercise logger ---- */
+function fldLast(v, unit) { return `<span class="last">${v == null || v === '' ? '&nbsp;' : '↺ ' + esc(v)}</span>`; }
+VIEWS.exlog = v => {
+  const { wid, date } = wdCtx(v); const slot = findSlot(wid, date, v.u);
+  if (!slot) return navBar({ back: 'Back' }) + `<div class="pad">${emptyState('dumbbell', 'Exercise not found', 'It may have been removed from this workout.')}</div>`;
+  const ex = EX[slot.id], w = workoutById(wid), tab = v.t || 'track';
+  const head = `${navBar({ back: w.short, right: iconBtn('dots', 'exMenu', `data-u="${slot.u}"`, 'Exercise options') })}
+    <div class="pad"><div class="dh"><h1 class="h1">${esc(ex.name)}</h1><div class="sub">${EQUIP_NAMES[ex.eq]} · ${ex.prim.map(m => MUSCLE_NAMES[m]).join(', ')}</div></div>
+    ${utabs('exTab', [['track', ic('list', 22), 'Track sets'], ['ov', ic('info', 22), 'How to'], ['hist', ic('chart', 22), 'History'], ['notes', ic('pencil', 21), 'Notes']], tab)}`;
+  let body;
+  if (tab === 'track') body = trackView(slot, wid, date);
+  else if (tab === 'ov') body = `<div class="card center">${dualBody(ex.prim, ex.sec, 170)}
+      ${ex.pair ? `<p class="fine center">${ic('dumbbell', 14)} Log one dumbbell's weight</p>` : ''}${ex.assist ? `<p class="fine center">${ic('arrowL', 14)} Less assist = stronger</p>` : ''}</div>
+      ${guideHTML(ex.id, 'ex')}`;
+  else if (tab === 'hist') body = historyView(slot.id);
+  else body = `<div class="card"><label class="lbl" for="exnote-${ex.id}">Your notes</label><textarea id="exnote-${ex.id}" class="note" rows="7" placeholder="Seat height, grip, pin setting, cues that click…" data-in="exNote" data-x="${ex.id}">${esc(Store.d.notes.ex[ex.id] || '')}</textarea><p class="fine">Notes follow this exercise into every workout it's in.</p></div>`;
+  return `${head}<div class="stack">${body}</div></div>`;
+};
+function trackView(slot, wid, date) {
+  const ex = EX[slot.id], s = sessionOn(date, wid), e = s ? exEntry(s, slot) : null, sid = s && s.id;
+  const tgt = exTarget(slot, date, sid), last = tgt.last;
+  const n = Math.max(slot.sets, e ? e.sets.length : 0);
+  const rest = slotRest(slot);
+  const newHere = !exHistory(ex.id).length && !(e && e.sets.some(x => x.d));
+  const chips = `<div class="chiprow"><button class="chipbtn" data-a="restPick" data-u="${slot.u}" aria-label="Rest timer">${ic('timer', 18)} ${fmtDur(rest)}</button>
+    <button class="chipbtn ${tgt.up ? 'hot' : ''}" data-a="showTarget" data-u="${slot.u}" aria-label="Target">${ic('target', 18)}${tgt.up ? ' ↑' : ''}</button>
+    ${newHere ? `<button class="chipbtn new" data-a="exHowTo" aria-label="How to do it">${ic('info', 18)} How to</button>` : ''}</div>`;
+  // warm-ups
+  let warm = '';
+  if (!ex.time && !ex.assist && !ex.bw && slot.warm !== false) {
+    const ww = workingWeight(slot, date, sid, s), wus = warmupSets(slot, ww);
+    if (wus === null) warm = `<div id="warm-${slot.u}" hidden></div>`;
+    else if (wus.length) {
+      const wd = (e && e.wu) || [], all = wus.every((_, i) => wd[i]);
+      warm = `<div class="card warm" id="warm-${slot.u}"><div class="row between"><div><div class="lbl">${ic('flame', 14)} Warm-up</div><div class="fine">${fmtW(ww)} ${wu()}${ex.pair ? ' each' : ''}</div></div>
+        ${all ? pill(`${ic('check', 13)} Warmed up`, 'green') : `<button class="btn-sm alt" data-a="warmAll" data-u="${slot.u}">Complete Warmup</button>`}</div>
+        <div class="wu-list">${wus.map((x, i) => `<div class="wu ${wd[i] ? 'done' : ''}"><span class="wu-p">${x.p}%</span><span class="wu-v"><b>${x.r}</b> × <b>${nice(x.disp, 1)}</b> ${wu()}${ex.pair ? ' each' : ''}${ex.eq === 'barbell' ? `<small>${plateText(x.disp)}</small>` : ''}</span>${checkCircle(!!wd[i], 'warmSet', `data-u="${slot.u}" data-i="${i}"`, 'Warm-up set ' + (i + 1))}</div>`).join('')}</div></div>`;
+    }
+  }
+  // working sets
+  const lastSets = last ? last.sets : [];
+  const wLabel = ex.time ? 'sec' : 'reps';
+  const wUnit = ex.assist ? `Assist ${wu()}` : ex.bw || ex.time ? `+${wu()} (optional)` : `${wu()}${ex.pair ? ' each' : ''}`;
+  const rows = Array.from({ length: n }, (_, i) => {
+    const st = e && e.sets[i], ls = lastSets[i] || lastSets[lastSets.length - 1];
+    const prevSt = i > 0 && e && e.sets[i - 1];
+    const defR = ls ? ls.r : (prevSt && prevSt.r != null ? prevSt.r : tgt.reps[i] || slot.hi);
+    const defW = ls ? ls.w : (prevSt && prevSt.w != null ? prevSt.w : tgt.w);
+    const r = st && st.r != null ? st.r : defR;
+    const wv = st && st.w != null ? st.w : defW;
+    const done = st && st.d;
+    const hold = ex.time ? `<button class="holdbtn" data-a="holdStart" data-u="${slot.u}" data-i="${i}" aria-label="Start hold timer">${ic('play', 14)}</button>` : '';
+    return `<div class="setrow ${done ? 'done' : ''} ${st && st.pr ? 'pr' : ''}" data-i="${i}">
+      <div class="setn">${st && st.pr ? ic('trophy', 16) : i + 1}</div>
+      <label class="fld"><input class="num" id="r-${slot.u}-${i}" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" value="${r != null ? esc(r) : ''}" placeholder="${slot.lo}" data-in="setVal" data-f="r" data-u="${slot.u}" data-i="${i}" aria-label="Set ${i + 1} ${wLabel}">${fldLast(ls ? ls.r : null, wLabel)}</label>
+      <label class="fld"><input class="num" id="w-${slot.u}-${i}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" value="${wv != null && (wv || !ex.bw) ? esc(fmtW(wv)) : ''}" placeholder="${ex.bw || ex.time ? '0' : '—'}" data-in="setVal" data-f="w" data-u="${slot.u}" data-i="${i}" aria-label="Set ${i + 1} weight">${fldLast(ls && ls.w != null ? fmtW(ls.w) : null, wu())}</label>
+      ${hold}${checkCircle(!!done, 'setDone', `data-u="${slot.u}" data-i="${i}"`, 'Complete set ' + (i + 1))}
+    </div>`;
+  }).join('');
+  const vol = e ? sum(e.sets.filter(x => x.d).map(x => setVolume(ex, x))) : 0;
+  const extra = n > slot.sets ? `<button class="btn-text sm danger" data-a="removeSet" data-u="${slot.u}">${ic('minus', 18)} Remove Set</button>` : '';
+  const doneBtn = e && e.done
+    ? `<div class="done-row">${pill(`${ic('check', 13)} Exercise complete`, 'green')}<button class="link" data-a="undoComplete" data-u="${slot.u}">Undo</button></div>`
+    : `<button class="btn" data-a="completeEx" data-u="${slot.u}">${ic('check', 18)} Done</button>`;
+  return `${chips}${warm}
+    <div class="card sets"><div class="sets-h"><span>Set</span><span>${ex.time ? 'Seconds' : 'Reps'}</span><span>${esc(wUnit)}</span><span></span></div>${rows}
+      <div class="row between setfoot"><div class="btnpair"><button class="btn-text sm" data-a="addSet" data-u="${slot.u}">${ic('plus', 18)} Add Set</button>${extra}</div>${vol ? `<span class="fine">Volume ${fmtInt(toU(vol))} ${wu()}</span>` : ''}</div></div>
+    ${doneBtn}`;
+}
+function plateText(disp) { const p = plateMath(disp); return p.length ? `${p.map(x => nice(x, 2)).join(' + ')} / side` : 'empty bar'; }
+function historyView(exId) {
+  const ex = EX[exId], h = exHistory(exId);
+  if (!h.length) return emptyState('clock', 'No history yet', `Complete a set of ${esc(ex.name)} and it will show up here, with a chart once you have two sessions.`);
+  const pts = h.map(x => {
+    const top = x.sets.reduce((a, b) => ((b.w || 0) > (a.w || 0) ? b : a), x.sets[0]);
+    const best = Math.max(...x.sets.map(st => e1rm(st.w, st.r)));
+    const maxR = Math.max(...x.sets.map(st => st.r || 0));
+    return { d: x.date, top: top.w || 0, e1: best, maxR };
+  });
+  let chart = '';
+  if (h.length >= 2) {
+    if (ex.time) chart = lineChart({ series: [{ name: 'Longest hold', cls: 'c1', pts: pts.map(p => ({ d: p.d, y: p.maxR })), dots: 'all', area: true }], fmt: v => nice(v, 0), unit: 'sec' });
+    else if (ex.bw && pts.every(p => !p.top)) chart = lineChart({ series: [{ name: 'Most reps', cls: 'c1', pts: pts.map(p => ({ d: p.d, y: p.maxR })), dots: 'all', area: true }], fmt: v => nice(v, 0), unit: 'reps' });
+    else chart = lineChart({ series: [
+      { name: 'Top weight', cls: 'c1', pts: pts.map(p => ({ d: p.d, y: toU(p.top) })), dots: 'all' },
+      ...(ex.assist ? [] : [{ name: 'Est. 1-rep max', cls: 'c2', pts: pts.map(p => ({ d: p.d, y: toU(p.e1) })), dots: 'all' }]),
+    ], fmt: v => nice(v, 0), unit: wu() });
+  }
+  const best = ex.assist ? null : Math.max(...pts.map(p => p.e1));
+  const list = [...h].reverse().map(x => {
+    const vol = sum(x.sets.map(st => setVolume(ex, st)));
+    return `<div class="hrow"><div class="hrow-h"><b>${fmtDate(x.date, 'dow')}</b>${vol ? `<span class="fine">${fmtInt(toU(vol))} ${wu()}</span>` : ''}</div>
+      <div class="hsets">${x.sets.map(st => `<span class="hset ${st.pr ? 'pr' : ''}">${st.r}${ex.time ? 's' : ''}${st.w ? ` × ${fmtW(st.w)}` : ''}</span>`).join('')}</div></div>`;
+  }).join('');
+  return `${chart ? `<div class="card"><div class="lbl">${ex.time ? 'Hold time' : ex.assist ? 'Assistance' : 'Strength trend'}</div>${chart}${best ? `<p class="fine">Best estimated 1-rep max: <b>${fmtInt(toU(best))} ${wu()}</b>${ex.pair ? ' (per dumbbell)' : ''}</p>` : ''}</div>` : ''}
+    <div class="card list hlist">${list}</div>`;
+}
+
+/* ---- actions: workout ---- */
+function curCtx() { const v = topView(); return { v, wid: v.w, date: v.date || today() }; }
+ACT.openWorkout = d => push({ v: 'wdetail', w: d.w, date: d.d || today() });
+ACT.wTab = d => { topView().t = d.v; render({ top: false }); };
+ACT.exTab = d => { topView().t = d.v; render({ top: false }); };
+ACT.openEx = d => { const { wid, date } = curCtx(); push({ v: 'exlog', w: wid, date, u: d.u }); };
+ACT.startWorkout = () => {
+  const { wid, date } = curCtx(); const s = getSession(date, wid, true);
+  if (!s.start) s.start = Date.now(); saveSession(s); audio();
+  const first = sessionSlots(wid, date).find(sl => !(s.ex[sl.u] && s.ex[sl.u].done));
+  if (first) push({ v: 'exlog', w: wid, date, u: first.u }); else render();
+};
+ACT.doToday = () => {
+  const { wid, date } = curCtx(); moveWorkout(date, today());
+  replaceTop({ v: 'wdetail', w: wid, date: today() }); toast(`${workoutById(wid).name} moved to today`);
+};
+ACT.reorderEx = ({ from, to }) => {
+  const { wid, date } = curCtx(); const w = workoutById(wid);
+  const visible = sessionSlots(wid, date).filter(sl => !sl.temp).map(sl => sl.u);
+  const a = visible[from], b = visible[to]; if (!a || !b) return;
+  const i = w.slots.findIndex(x => x.u === a), j = w.slots.findIndex(x => x.u === b);
+  const [it] = w.slots.splice(i, 1); w.slots.splice(j, 0, it);
+  Store.save('program'); render();
+};
+INP.wNote = el => { Store.d.notes.w[el.dataset.w] = el.value; Store.save('notes'); };
+INP.exNote = el => { Store.d.notes.ex[el.dataset.x] = el.value; Store.save('notes'); };
+
+ACT.wMenu = () => {
+  const { wid, date } = curCtx(); const s = sessionOn(date, wid);
+  const items = [{ icon: 'calendar', label: 'Move to another day', act: 'moveSheet', attrs: `data-d="${date}"` }];
+  if (s && (s.start || sessionHasWork(s))) items.push({ icon: 'refresh', label: s.fin ? 'Reopen workout' : 'Reset today’s log', act: s.fin ? 'reopenWorkout' : 'resetLogAsk' });
+  items.push({ icon: 'plus', label: 'Add exercise', act: 'addExercise' });
+  menuSheet(workoutById(wid).name, items);
+};
+ACT.reopenWorkout = () => { const { wid, date } = curCtx(); const s = sessionOn(date, wid); if (s) { s.fin = null; saveSession(s); } closeSheet(); render(); toast('Workout reopened'); };
+ACT.resetLogAsk = () => openSheet(() => `${sheetHead('Reset this workout log?')}<p class="prose">Every logged set for this workout on ${fmtDate(curCtx().date, 'dow')} will be cleared. Your program and history from other days stay as they are.</p><div class="btnrow"><button class="btn2" data-a="sheetClose">Keep it</button><button class="btn danger" data-a="resetLog">Reset log</button></div>`);
+ACT.resetLog = () => {
+  const { wid, date } = curCtx(); const s = sessionOn(date, wid);
+  if (s) { const m = Store.m[monthKey(date)]; delete m.sessions[s.id]; Store.save('m:' + monthKey(date)); }
+  closeSheet(); render(); toast('Workout log cleared');
+};
+ACT.moveSheet = d => {
+  const from = d.d || curCtx().date; const wid = plannedWorkout(from) || curCtx().wid; const mon = mondayOf(from);
+  openSheet(() => `${sheetHead('Move ' + (workoutById(wid) || {}).name, 'Pick a day this week. If that day already has a workout, the two swap.')}
+    <div class="menu">${weekDates(mon).concat(weekDates(addDays(mon, 7)).slice(0, 7)).filter(x => x >= today() && x !== from).slice(0, 8).map(x => {
+      const pw = plannedWorkout(x);
+      return `<button class="menu-i" data-a="moveTo" data-from="${from}" data-to="${x}">${ic('calendar', 21)}<span>${relDay(x)} <small class="muted">${fmtDate(x)}</small></span><em>${pw ? 'Swap with ' + esc(workoutById(pw).short) : 'Rest day'}</em></button>`;
+    }).join('')}</div>`);
+};
+ACT.moveTo = d => {
+  const w = plannedWorkout(d.from); moveWorkout(d.from, d.to); closeSheet();
+  const v = topView(); if (v.v === 'wdetail' && v.date === d.from) { v.date = d.to; }
+  render(); toast(`${w ? workoutById(w).short : 'Workout'} moved to ${relDay(d.to)}`, 'calendar');
+};
+ACT.finishWorkout = () => {
+  const { wid, date } = curCtx(); const p = sessionProgress(wid, date);
+  if (p.done < p.total) {
+    openSheet(() => `${sheetHead('Finish workout?', `${p.done} of ${p.total} exercises complete.`)}<p class="prose">Unfinished exercises keep whatever sets you logged.</p><div class="btnrow"><button class="btn2" data-a="sheetClose">Keep going</button><button class="btn" data-a="finishNow">Finish</button></div>`);
+  } else ACT.finishNow();
+};
+ACT.finishNow = () => {
+  const { wid, date } = curCtx(); const s = getSession(date, wid, true);
+  if (!s.start) s.start = Date.now(); s.fin = Date.now(); saveSession(s); Timer.stop();
+  const prs = []; for (const e of Object.values(s.ex)) for (const st of e.sets) if (st.pr) prs.push({ id: e.id, st });
+  const mins = Math.max(1, Math.round((s.fin - s.start) / 60000));
+  render();
+  openSheet(() => `<div class="finish">${ic('trophy', 40)}<div class="sh-title">${esc(workoutById(wid).name)} done</div>
+    <div class="statgrid"><div><b>${mins}</b><span>minute${mins === 1 ? '' : 's'}</span></div><div><b>${sessionSetsDone(s)}</b><span>sets</span></div><div><b>${fmtInt(toU(sessionVolume(s)))}</b><span>${wu()} volume</span></div></div>
+    ${prs.length ? `<div class="prlist">${prs.map(p => `<div>${ic('trophy', 16)} <b>${esc(EX[p.id].name)}</b> ${p.st.r}${EX[p.id].time ? 's' : ''}${p.st.w ? ' × ' + fmtW(p.st.w) + ' ' + wu() : ''}</div>`).join('')}</div>` : ''}
+    <button class="btn" data-a="startStretchK" data-k="s2" data-d="${date}">${ic('stretch', 20)} Start cool-down stretch · ${SET().stretch.s2} min</button><button class="btn-text" data-a="sheetClose">Later</button></div>`);
+  if (prs.length) confetti();
+};
+
+/* ---- actions: exercise logger ---- */
+function loggerCtx(u) { const { v, wid, date } = curCtx(); const slot = findSlot(wid, date, u || v.u); return { v, wid, date, slot, ex: slot && EX[slot.id] }; }
+function readRow(u, i) {
+  const r = $(`#r-${u}-${i}`), w = $(`#w-${u}-${i}`);
+  const rv = r ? parseFloat(r.value) : NaN, wv = w ? parseFloat(String(w.value).replace(',', '.')) : NaN;
+  return { r: isNaN(rv) ? null : Math.round(rv), w: isNaN(wv) ? null : wv };
+}
+function refreshWarm(slot, wid, date) {
+  const cur = document.getElementById('warm-' + slot.u); if (!cur) return;
+  const tmp = document.createElement('div'); tmp.innerHTML = trackView(slot, wid, date);
+  const nw = tmp.querySelector('#warm-' + CSS.escape(slot.u)); if (nw) cur.replaceWith(nw);
+}
+INP.setVal = el => {
+  const { wid, date, slot } = loggerCtx(el.dataset.u); if (!slot) return;
+  const i = +el.dataset.i; const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  while (e.sets.length <= i) e.sets.push({ r: null, w: null, d: false });
+  const v = parseFloat(String(el.value).replace(',', '.'));
+  if (el.dataset.f === 'r') e.sets[i].r = isNaN(v) ? null : Math.round(v);
+  else e.sets[i].w = isNaN(v) ? null : fromU(v);
+  if (e.sets[i].w == null) { const row = readRow(slot.u, i); if (row.w != null) e.sets[i].w = fromU(row.w); }
+  if (e.sets[i].r == null) { const row = readRow(slot.u, i); if (row.r != null) e.sets[i].r = row.r; }
+  // fill down: later sets the user hasn't touched follow this value
+  const f = el.dataset.f;
+  for (let j = i + 1; j < 20; j++) {
+    const inp = document.getElementById((f === 'r' ? 'r-' : 'w-') + slot.u + '-' + j); if (!inp) break;
+    const sj = e.sets[j]; if (sj && (sj.d || sj.touched)) continue;
+    inp.value = el.value;
+  }
+  e.sets[i].touched = 1;
+  saveSession(s);
+  if (f === 'w' && i === 0) refreshWarm(slot, wid, date);
+};
+ACT.setDone = d => {
+  const { wid, date, slot, ex } = loggerCtx(d.u); if (!slot) return;
+  const i = +d.i; const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  while (e.sets.length <= i) e.sets.push({ r: null, w: null, d: false });
+  const st = e.sets[i];
+  if (st.d) { st.d = false; delete st.pr; e.done = false; saveSession(s); render(); return; }
+  const row = readRow(slot.u, i);
+  if (!(row.r > 0)) { toast(ex.time ? 'Enter the seconds first' : 'Enter your reps first', 'info'); $(`#r-${slot.u}-${i}`)?.focus(); return; }
+  if (!ex.bw && !ex.time && !ex.assist && !(row.w > 0)) { toast('Enter the weight first', 'info'); $(`#w-${slot.u}-${i}`)?.focus(); return; }
+  if (!s.start) s.start = Date.now();
+  st.r = row.r; st.w = row.w != null ? fromU(row.w) : 0; st.d = true;
+  // PR check
+  let pr = false;
+  if (!ex.assist) {
+    const pb = priorBest(slot.id, s.id), m = setMetric(ex, st);
+    const sessBest = Math.max(0, ...e.sets.filter((x, j) => j !== i && x.d).map(x => setMetric(ex, x).v));
+    if (pb && pb.v > 0 && m.v > pb.v + 1e-6 && m.v > sessBest + 1e-6) { e.sets.forEach(x => delete x.pr); st.pr = 1; pr = true; }
+  }
+  const n = Math.max(slot.sets, e.sets.length);
+  const allDone = Array.from({ length: n }, (_, j) => e.sets[j] && e.sets[j].d).every(Boolean);
+  if (allDone) e.done = true;
+  saveSession(s);
+  if (pr) { cue('pr'); confetti(); toast(`New PR · ${ex.name}`, 'trophy'); }
+  const slots = sessionSlots(wid, date); const lastEx = slots[slots.length - 1] && slots[slots.length - 1].u === slot.u;
+  if (!(allDone && lastEx)) Timer.start(slotRest(slot), 'Rest'); else audio();
+  render();
+  if (allDone && !pr) toast(lastEx ? 'Last exercise done — finish when ready' : 'Exercise complete');
+  const nx = document.querySelector(`.setrow[data-i="${i + 1}"]`) || document.querySelector('[data-a="completeEx"]');
+  if (nx) { const r = nx.getBoundingClientRect(), limit = window.innerHeight - 160; if (r.bottom > limit) window.scrollBy({ top: r.bottom - limit, behavior: 'smooth' }); }
+};
+ACT.holdStart = d => {
+  const { slot } = loggerCtx(d.u); if (!slot) return;
+  const row = readRow(slot.u, +d.i); const secs = row.r || slot.hi;
+  Timer.start(secs, 'Hold'); Timer.onDone = () => { const b = $(`.setrow[data-i="${d.i}"] .chk`); if (b && !b.classList.contains('on')) ACT.setDone(d); };
+};
+ACT.addSet = d => {
+  const { wid, date, slot } = loggerCtx(d.u); const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  const n = Math.max(slot.sets, e.sets.length);
+  for (let j = 0; j < n; j++) if (!e.sets[j]) { const row = readRow(slot.u, j); e.sets[j] = { r: row.r, w: row.w != null ? fromU(row.w) : null, d: false }; }
+  const prev = e.sets[n - 1] || {}; e.sets.push({ r: prev.r ?? null, w: prev.w ?? null, d: false }); e.done = false;
+  saveSession(s); render();
+};
+ACT.removeSet = d => {
+  const { wid, date, slot } = loggerCtx(d.u); const s = sessionOn(date, wid); const e = s && exEntry(s, slot); if (!e) return;
+  if (e.sets.length > slot.sets) e.sets.pop(); saveSession(s); render();
+};
+ACT.completeEx = d => {
+  const { wid, date, slot, ex } = loggerCtx(d.u); const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  if (!s.start) s.start = Date.now();
+  const n = Math.max(slot.sets, e.sets.length); let missing = false;
+  for (let j = 0; j < n; j++) {
+    const st = e.sets[j] || (e.sets[j] = { r: null, w: null, d: false }); if (st.d) continue;
+    const row = readRow(slot.u, j);
+    if (row.r > 0 && (ex.bw || ex.time || ex.assist || row.w > 0)) { st.r = row.r; st.w = row.w != null ? fromU(row.w) : 0; st.d = true; } else missing = true;
+  }
+  e.sets = e.sets.filter(x => x.d || x.r != null);
+  if (missing && !e.sets.some(x => x.d)) { toast('Enter reps and weight to complete', 'info'); return; }
+  e.done = true; saveSession(s); Timer.stop();
+  const slots = sessionSlots(wid, date); const next = slots.find(sl => !(s.ex[sl.u] && s.ex[sl.u].id === sl.id && s.ex[sl.u].done));
+  pop();
+  toast(next ? `Next: ${EX[next.id].name}` : 'All done — tap Finish');
+};
+ACT.undoComplete = d => { const { wid, date, slot } = loggerCtx(d.u); const s = sessionOn(date, wid); const e = s && exEntry(s, slot); if (e) { e.done = false; saveSession(s); render(); } };
+ACT.warmSet = d => {
+  const { wid, date, slot } = loggerCtx(d.u); const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  e.wu = e.wu || []; e.wu[+d.i] = !e.wu[+d.i]; if (!s.start) s.start = Date.now(); saveSession(s); render();
+};
+ACT.warmAll = d => {
+  const { wid, date, slot } = loggerCtx(d.u); const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  const n = SET().warm.length; e.wu = Array(n).fill(true); if (!s.start) s.start = Date.now();
+  // lock in the working weight shown for set 1 so warm-ups stay stable
+  const row = readRow(slot.u, 0); if (!e.sets[0]) e.sets[0] = { r: row.r, w: row.w != null ? fromU(row.w) : null, d: false };
+  saveSession(s); render(); toast('Warm-up done');
+};
+ACT.showTarget = d => {
+  const { wid, date, slot, ex } = loggerCtx(d.u); const s = sessionOn(date, wid);
+  const t = exTarget(slot, date, s && s.id);
+  const lastLine = t.last ? `<div class="kv"><span>Last time · ${fmtDate(t.last.date, 'dow')}</span><b>${t.last.sets.map(x => x.r).join(', ')} ${ex.time ? 'sec' : 'reps'}${t.last.sets[0].w ? ' @ ' + fmtW(Math.max(...t.last.sets.map(x => x.w || 0))) + ' ' + wu() : ''}</b></div>` : '';
+  const tw = t.w != null ? ` @ ${fmtW(t.w)} ${wu()}${ex.pair ? ' each' : ''}` : '';
+  openSheet(() => `${sheetHead('Target for today')}
+    <div class="target-hero ${t.up ? 'up' : ''}">${ic(t.up ? 'bolt' : 'target', 22)}<div><b>${slot.sets} × ${[...new Set(t.reps)].length === 1 ? t.reps[0] : t.reps.join(', ')}${ex.time ? 's' : ''}${tw}</b><span>${t.up ? 'Time to add weight' : t.last ? 'Beat last time' : 'Set your baseline'}</span></div></div>
+    <div class="card flat">${lastLine}<div class="kv"><span>Rep range</span><b>${slot.lo === slot.hi ? slot.lo : slot.lo + '–' + slot.hi}${ex.time ? ' sec' : ''}</b></div></div>
+    <p class="prose">${esc(t.msg)}</p>
+    ${t.w != null || t.last ? `<button class="btn" data-a="useTarget" data-u="${slot.u}">Use target</button>` : ''}`);
+};
+ACT.useTarget = d => {
+  const { wid, date, slot } = loggerCtx(d.u); const s = getSession(date, wid, true); const e = exEntry(s, slot, true);
+  const t = exTarget(slot, date, s.id);
+  for (let i = 0; i < slot.sets; i++) { const st = e.sets[i] || (e.sets[i] = { r: null, w: null, d: false }); if (st.d) continue; st.r = t.reps[i]; if (t.w != null) st.w = t.w; }
+  saveSession(s); closeSheet(); render(); toast('Target filled in', 'target');
+};
+ACT.restPick = d => {
+  const { slot } = loggerCtx(d.u); const cur = slotRest(slot);
+  openSheet(() => `${sheetHead('Rest timer', 'For this exercise. The default for new exercises is in Settings.')}<div class="grid3">${[30, 45, 60, 75, 90, 120, 150, 180, 240].map(s => `<button class="optbtn ${s === cur ? 'on' : ''}" data-a="setRest" data-u="${slot.u}" data-s="${s}">${fmtDur(s)}</button>`).join('')}</div>`);
+};
+ACT.setRest = d => {
+  const { wid, date, slot } = loggerCtx(d.u); const secs = +d.s;
+  if (slot.temp) { const s = sessionOn(date, wid); const a = s.add.find(x => x.u === slot.u); if (a) a.rest = secs; saveSession(s); }
+  else { const t = workoutById(wid).slots.find(x => x.u === slot.u); t.rest = secs; Store.save('program'); }
+  closeSheet(); render(); toast(`Rest set to ${fmtDur(secs)}`, 'timer');
+};
+
+/* ---- exercise "..." menu, swap, add, edit ---- */
+ACT.exMenu = d => {
+  const { slot, ex } = loggerCtx(d.u); if (!slot) return;
+  const items = [
+    { icon: 'swap', label: 'Replace exercise', act: 'replaceEx', attrs: `data-u="${slot.u}"` },
+    { icon: 'edit', label: 'Edit sets & reps', act: 'editScheme', attrs: `data-u="${slot.u}"`, note: fmtScheme(slot) },
+    { icon: 'timer', label: 'Rest timer', act: 'restPick', attrs: `data-u="${slot.u}"`, note: fmtDur(slotRest(slot)) },
+  ];
+  if (!ex.time && !ex.assist && !ex.bw) items.push({ icon: 'bolt', label: slot.warm === false ? 'Turn on warm-up sets' : 'Turn off warm-up sets', act: 'toggleWarm', attrs: `data-u="${slot.u}"` });
+  if (slot.tempSwap) items.push({ icon: 'refresh', label: 'Switch back to ' + EX[slot.orig].name, act: 'undoSwap', attrs: `data-u="${slot.u}"` });
+  items.push({ icon: 'trash', label: 'Remove exercise', act: 'removeExAsk', attrs: `data-u="${slot.u}"`, danger: true });
+  menuSheet(ex.name, items);
+};
+ACT.toggleWarm = d => {
+  const { wid, slot } = loggerCtx(d.u); const t = workoutById(wid).slots.find(x => x.u === slot.u);
+  if (t) { t.warm = slot.warm === false ? null : false; Store.save('program'); } closeSheet(); render();
+};
+ACT.undoSwap = d => { const { wid, date, slot } = loggerCtx(d.u); const s = sessionOn(date, wid); if (s) { delete s.swaps[slot.u]; saveSession(s); } closeSheet(); render(); };
+ACT.removeExAsk = d => {
+  const { slot, ex } = loggerCtx(d.u);
+  if (slot.temp) { ACT.removeEx({ u: slot.u, scope: 'today' }); return; }
+  openSheet(() => `${sheetHead('Remove ' + ex.name + '?')}<div class="menu">
+    <button class="menu-i" data-a="removeEx" data-u="${slot.u}" data-scope="today">${ic('calendar', 21)}<span>Just today</span></button>
+    <button class="menu-i danger" data-a="removeEx" data-u="${slot.u}" data-scope="perm">${ic('trash', 21)}<span>Remove from this workout</span><em>History is kept</em></button></div>`);
+};
+ACT.removeEx = d => {
+  const { wid, date, slot, v } = loggerCtx(d.u);
+  if (slot.temp) { const s = sessionOn(date, wid); s.add = s.add.filter(x => x.u !== slot.u); saveSession(s); }
+  else if (d.scope === 'today') { const s = getSession(date, wid, true); if (!s.rm.includes(slot.u)) s.rm.push(slot.u); saveSession(s); }
+  else { const w = workoutById(wid); w.slots = w.slots.filter(x => x.u !== slot.u); Store.save('program'); }
+  closeSheet(); if (v.v === 'exlog') pop(); else render(); toast('Exercise removed', 'trash');
+};
+ACT.editScheme = d => {
+  const { slot, ex } = loggerCtx(d.u);
+  UI.edit = { u: slot.u, sets: slot.sets, lo: slot.lo, hi: slot.hi };
+  openSheet(() => {
+    const E = UI.edit;
+    return `${sheetHead('Sets & reps', esc(ex.name))}<div class="card flat">
+      <div class="kv"><span>Sets</span>${stepper('schemeStep', E.sets, 'data-f="sets"', 'Sets')}</div>
+      ${ex.time ? `<div class="kv"><span>Seconds</span>${stepper('schemeStep', E.hi, 'data-f="t"', 'Seconds')}</div>`
+        : `<div class="kv"><span>Reps (low)</span>${stepper('schemeStep', E.lo, 'data-f="lo"', 'Low reps')}</div><div class="kv"><span>Reps (high)</span>${stepper('schemeStep', E.hi, 'data-f="hi"', 'High reps')}</div>`}</div>
+      <p class="fine">Changes apply every time you do this workout.</p><button class="btn" data-a="saveScheme">Save</button>`;
+  });
+};
+ACT.schemeStep = d => {
+  const E = UI.edit, dd = +d.step;
+  if (d.f === 'sets') E.sets = clamp(E.sets + dd, 1, 10);
+  if (d.f === 'lo') { E.lo = clamp(E.lo + dd, 1, 50); if (E.hi < E.lo) E.hi = E.lo; }
+  if (d.f === 'hi') { E.hi = clamp(E.hi + dd, 1, 60); if (E.lo > E.hi) E.lo = E.hi; }
+  if (d.f === 't') { E.hi = E.lo = clamp(E.hi + dd * 15, 15, 300); }
+  refreshSheet();
+};
+ACT.saveScheme = () => {
+  const { wid, date } = curCtx(); const E = UI.edit; const s = sessionOn(date, wid);
+  const target = (s && s.add.find(x => x.u === E.u)) || workoutById(wid).slots.find(x => x.u === E.u);
+  if (target) { target.sets = E.sets; target.lo = E.lo; target.hi = E.hi; }
+  if (s && s.add.find(x => x.u === E.u)) saveSession(s); else Store.save('program');
+  closeSheet(); render(); toast('Sets & reps updated');
+};
+
+/* Exercise picker (replace or add) */
+function pickerList() {
+  const P = UI.pick, { wid } = curCtx(); const w = workoutById(wid);
+  const cur = P.u ? EX[P.cur] : null; const q = (P.q || '').toLowerCase().trim();
+  let cands = EX_LIST.filter(e => (P.allGroups || w.groups.includes(e.g)) && (!cur || e.id !== cur.id));
+  if (P.eq !== 'all') cands = cands.filter(e => e.eq === P.eq);
+  if (q) cands = cands.filter(e => e.name.toLowerCase().includes(q) || e.prim.some(m => MUSCLE_NAMES[m].toLowerCase().includes(q)));
+  const sections = [];
+  if (cur) {
+    const fam = PAT_FAMILY[cur.pat];
+    const sim = cands.filter(e => e.g === cur.g && (e.pat === cur.pat || (fam && PAT_FAMILY[e.pat] === fam)));
+    sim.sort((a, b) => (b.pat === cur.pat) - (a.pat === cur.pat));
+    const same = cands.filter(e => e.g === cur.g && !sim.includes(e));
+    const other = cands.filter(e => e.g !== cur.g);
+    if (sim.length) sections.push(['Similar movements', sim]);
+    if (same.length) sections.push([`Other ${GROUP_NAMES[cur.g].toLowerCase()} exercises`, same]);
+    if (other.length) sections.push([`More for ${w.name}`, other]);
+  } else {
+    const byG = {}; cands.forEach(e => (byG[e.g] = byG[e.g] || []).push(e));
+    Object.keys(byG).forEach(g => sections.push([GROUP_NAMES[g], byG[g]]));
+  }
+  if (!sections.length) return `<p class="fine pad-s">No matches. Try another filter or search term.</p>`;
+  return sections.map(([t, list]) => `<div class="pk-sec">${esc(t)}</div>${list.map(e => {
+    const l = lastPerf(e.id, '9999-12-31'); const best = l ? l.sets.reduce((a, b) => ((b.w || 0) > (a.w || 0) ? b : a)) : null;
+    return `<div class="pk-row as-row"><button class="pk-b pk-wide" data-a="pickEx" data-x="${e.id}">${miniBody(e.prim, e.sec, 48)}<span class="pk-b"><span class="pk-n">${esc(e.name)}</span><span class="pk-m">${EQUIP_NAMES[e.eq]} · ${e.prim.map(m => MUSCLE_NAMES[m]).join(', ')}${best ? ` · Last ${best.r}${best.w ? ' × ' + fmtW(best.w) : ''}` : ''}</span></span></button><button class="iconbtn sm" data-a="pickInfo" data-x="${e.id}" aria-label="How to do ${esc(e.name)}">${ic('info', 18)}</button></div>`;
+  }).join('')}`).join('');
+}
+function openPicker(mode, u) {
+  const { wid, date } = curCtx(); const slot = u ? findSlot(wid, date, u) : null;
+  UI.pick = { mode, u, cur: slot ? slot.id : null, eq: 'all', q: '', allGroups: false };
+  const w = workoutById(wid);
+  openSheet(() => {
+    const P = UI.pick;
+    return `${sheetHead(mode === 'replace' ? 'Replace ' + EX[P.cur].name : 'Add exercise', mode === 'replace' ? `Showing ${w.groups.map(g => GROUP_NAMES[g]).join(' & ')} exercises` : '')}
+      <input class="search" id="pickQ" type="search" placeholder="Search exercises or muscles" value="${esc(P.q)}" data-in="pickQ" autocomplete="off">
+      <div class="chips scroll">${[['all', 'All'], ...Object.entries(EQUIP_NAMES)].map(([k, l]) => `<button class="chip ${P.eq === k ? 'on' : ''}" data-a="pickEq" data-v="${k}">${l}</button>`).join('')}
+      ${mode === 'add' ? `<button class="chip ${P.allGroups ? 'on' : ''}" data-a="pickAll">All muscle groups</button>` : ''}</div>
+      <div id="pickList" class="pk-list">${pickerList()}</div>`;
+  }, 'tall');
+}
+ACT.replaceEx = d => openPicker('replace', d.u);
+ACT.addExercise = () => openPicker('add');
+INP.pickQ = el => { UI.pick.q = el.value; $('#pickList').innerHTML = pickerList(); };
+ACT.pickEq = d => { UI.pick.eq = d.v; refreshSheet(); };
+ACT.pickAll = () => { UI.pick.allGroups = !UI.pick.allGroups; refreshSheet(); };
+ACT.pickEx = d => {
+  const P = UI.pick; const { wid } = curCtx(); const e = EX[d.x]; const w = workoutById(wid);
+  openSheet(() => `${sheetHead(P.mode === 'replace' ? 'Swap in ' + e.name : 'Add ' + e.name)}
+    <div class="menu"><button class="menu-i" data-a="pickScope" data-x="${e.id}" data-scope="today">${ic('calendar', 21)}<span>Just today</span><em>Back to normal next time</em></button>
+    <button class="menu-i" data-a="pickScope" data-x="${e.id}" data-scope="perm">${ic('refresh', 21)}<span>Permanently</span><em>Every ${esc(w.name)} workout</em></button></div>
+    <p class="fine">${esc(e.name)} keeps its own history, targets and notes.</p>`);
+};
+ACT.pickScope = d => {
+  const P = UI.pick; const { wid, date, v } = curCtx(); const w = workoutById(wid); const e = EX[d.x];
+  if (P.mode === 'replace') {
+    const slot = findSlot(wid, date, P.u);
+    if (slot.temp) { const s = sessionOn(date, wid); const a = s.add.find(x => x.u === slot.u); a.id = e.id; saveSession(s); }
+    else if (d.scope === 'today') { const s = getSession(date, wid, true); s.swaps[slot.u] = e.id; saveSession(s); }
+    else { const t = w.slots.find(x => x.u === slot.u); t.id = e.id; const s = sessionOn(date, wid); if (s && s.swaps[slot.u]) { delete s.swaps[slot.u]; saveSession(s); } Store.save('program'); }
+    closeSheet(); render(); toast(`Swapped in ${e.name}${d.scope === 'today' ? ' for today' : ''}`, 'swap');
+  } else {
+    const sc = defaultScheme(e); const slot = { u: uid('x'), id: e.id, sets: sc.sets, lo: sc.lo, hi: sc.hi, rest: null, warm: null };
+    if (d.scope === 'today') { const s = getSession(date, wid, true); s.add.push(slot); saveSession(s); }
+    else { w.slots.push(slot); Store.save('program'); }
+    closeSheet(); if (v.v !== 'wdetail') pop(); else render(); toast(`Added ${e.name}`);
+  }
+};
+
+/* ============ PROGRESS ============ */
+function progressContent() {
+  const mon = mondayOf(today());
+  const weekDone = weekDates(mon).filter(d => sessionHasWork(sessionOn(d))).length;
+  const weekPlanned = weekDates(mon).filter(d => dayWorkout(d)).length;
+  const streak = workoutStreak();
+  const tiles = `<div class="tiles">
+    <div class="tile">${ic('flame', 20)}<b>${streak}</b><span>workout${streak === 1 ? '' : 's'} in a row</span></div>
+    <div class="tile">${ic('dumbbell', 20)}<b>${weekDone}<small>/${weekPlanned}</small></b><span>this week</span></div>
+    <div class="tile">${ic('stretch', 20)}<b>${fmtInt(sum(weekStretch(mon)))}</b><span>stretch min</span></div></div>`;
+  const recapRow = `<button class="lrow card" data-a="openRecap" data-d="${mon}">${ic('calendar', 21)}<span>Weekly recap<small>Workouts and meals, week by week · new one every Sunday at 3 PM</small></span>${ic('chev', 18, 'muted')}</button>`;
+  return tiles + recapRow + calendarCard() + prCard() + volumeCard(mon) + bodyweightCard();
+}
+function calendarCard() {
+  const [y, m] = UI.cal.split('-').map(Number);
+  const first = `${y}-${pad(m)}-01`, dim = new Date(y, m, 0).getDate(), off = (dow(first) + 6) % 7;
+  const dd = doneDates(); let cells = '';
+  for (let i = 0; i < off; i++) cells += '<span class="cd empty"></span>';
+  for (let i = 1; i <= dim; i++) {
+    const d = `${y}-${pad(m)}-${pad(i)}`, done = dd.has(d), st = stretchMinutes(d) >= 10;
+    const planned = !done && d >= today() && plannedWorkout(d);
+    cells += `<span class="cd ${done ? 'done' : ''} ${planned ? 'plan' : ''} ${d === today() ? 'today' : ''}" title="${fmtDate(d, 'long')}">${i}${st ? '<i></i>' : ''}</span>`;
+  }
+  const prev = ymd(new Date(y, m - 2, 1)).slice(0, 7), next = ymd(new Date(y, m, 1)).slice(0, 7);
+  const monthCount = [...dd].filter(d => d.startsWith(UI.cal)).length;
+  return `<div class="card"><div class="row between"><button class="iconbtn" data-a="calNav" data-m="${prev}" aria-label="Previous month">${ic('back', 20)}</button>
+    <div class="cal-t"><b>${MON_LONG[m - 1]} ${y}</b><span class="fine">${monthCount} workout${monthCount === 1 ? '' : 's'}</span></div>
+    <button class="iconbtn" data-a="calNav" data-m="${next}" aria-label="Next month">${ic('chev', 20)}</button></div>
+    <div class="cal"><span class="cw">M</span><span class="cw">T</span><span class="cw">W</span><span class="cw">T</span><span class="cw">F</span><span class="cw">S</span><span class="cw">S</span>${cells}</div>
+    <div class="cal-leg"><span><i class="k done"></i>Workout</span><span><i class="k st"></i>Stretched</span><span><i class="k plan"></i>Planned</span></div></div>`;
+}
+ACT.calNav = d => { UI.cal = d.m; render(); };
+function prCard() {
+  const prs = prList(); const all = UI.allPRs;
+  const shown = all ? prs : prs.slice(0, 5);
+  const body = prs.length ? shown.map(p => {
+    const ex = EX[p.id]; const val = p.m.kind === 'sec' ? `${p.set.r}s hold` : p.m.kind === 'reps' ? `${p.set.r} reps` : `${fmtW(p.set.w)} × ${p.set.r}`;
+    return `<div class="prrow">${ic('trophy', 18)}<div class="prrow-b"><b>${esc(ex.name)}</b><span>${val}${p.m.kind === 'e1' ? ` · est. max ${fmtInt(toU(p.m.v))} ${wu()}` : ''}</span></div><span class="fine">${fmtDate(p.date)}</span></div>`;
+  }).join('') : `<p class="fine">Personal records show up here automatically when you beat your best on any exercise.</p>`;
+  return `<div class="card"><div class="row between"><div class="lbl">Personal records</div>${prs.length > 5 ? `<button class="link" data-a="togglePRs">${all ? 'Show less' : 'See all ' + prs.length}</button>` : ''}</div>${body}</div>`;
+}
+ACT.togglePRs = () => { UI.allPRs = !UI.allPRs; render(); };
+function volumeCard(mon) {
+  const wk = UI.volWeek || mon;
+  const v = weekVolume(wk), lv = weekVolume(addDays(wk, -7));
+  const max = Math.max(10, ...VOL_ORDER.map(k => v[k].sets));
+  const rows = VOL_ORDER.map(k => {
+    const s = v[k].sets, l = lv[k].sets;
+    return `<div class="vrow" title="${k}: ${s} sets, ${fmtInt(toU(v[k].lbs))} ${wu()}"><span class="vl">${k}</span><span class="vbar"><i style="width:${s / max * 100}%"></i>${l ? `<em style="left:${l / max * 100}%" aria-hidden="true"></em>` : ''}</span><span class="vv"><b>${s}</b> sets</span></div>`;
+  }).join('');
+  const totalLbs = sum(VOL_ORDER.map(k => v[k].lbs));
+  return `<div class="card"><div class="row between"><div><div class="lbl">Weekly volume</div><div class="fine">Hard sets per muscle group · week of ${fmtDate(wk)}</div></div>
+    <div class="row gap-s"><button class="iconbtn" data-a="volNav" data-d="-7" aria-label="Previous week">${ic('back', 18)}</button><button class="iconbtn" data-a="volNav" data-d="7" aria-label="Next week" ${wk >= mon ? 'disabled' : ''}>${ic('chev', 18)}</button></div></div>
+    <div class="vlist">${rows}</div>
+    <div class="row between"><span class="fine"><i class="k tick"></i> tick = last week</span><span class="fine">Total ${fmtInt(toU(totalLbs))} ${wu()}</span></div>
+    <p class="fine">Most lifters grow well on about 10–20 hard sets per muscle per week.</p></div>`;
+}
+ACT.volNav = d => { const mon = mondayOf(today()); const cur = UI.volWeek || mon; const n = addDays(cur, +d.d); UI.volWeek = n > mon ? mon : n; render(); };
+function trendSeries(W) {
+  const out = []; let t = null, prev = null;
+  for (const x of W) { if (t == null) t = x.w; else { const dt = Math.max(1, daysBetween(prev, x.d)); const a = 1 - Math.exp(-dt / 7); t = t + a * (x.w - t); } prev = x.d; out.push({ d: x.d, y: toU(t) }); }
+  return out;
+}
+function bodyweightCard() {
+  const W = weights(); const last = W[W.length - 1];
+  const tr = weightTrend();
+  const chart = W.length >= 2 ? lineChart({ series: [
+    { name: 'Weigh-ins', cls: 'c2', pts: W.map(x => ({ d: x.d, y: toU(x.w) })), line: false, dots: 'all', faint: true, label: false },
+    { name: '7-day trend', cls: 'c1', pts: trendSeries(W), dots: 'end' },
+  ], fmt: v => nice(v, 1), unit: bwu() }) : '';
+  const rate = tr ? `<p class="fine">Trend: <b>${tr.rate >= 0 ? '+' : ''}${nice(toU(tr.rate), 2)} ${bwu()}/week</b> over the last ${tr.span} days · goal ${RATES[SET().rate].band.map(b => nice(toU(b), 2)).join('–')} ${bwu()}/week</p>` : W.length ? `<p class="fine">Weigh in 3–4 times a week. The trend shows after about 10 days.</p>` : '';
+  const recent = [...W].reverse().slice(0, UI.allW ? 60 : 4).map(x => `<div class="wrow"><span>${fmtDate(x.d, 'dow')}</span><b>${nice(toU(x.w), 1)} ${bwu()}</b><button class="iconbtn sm" data-a="delWeight" data-d="${x.d}" aria-label="Delete weigh-in">${ic('trash', 16)}</button></div>`).join('');
+  return `<div class="card" id="bw"><div class="row between"><div class="lbl">Bodyweight</div>${last ? `<span class="fine">Latest ${nice(toU(last.w), 1)} ${bwu()} · ${fmtDate(last.d)}</span>` : ''}</div>
+    <div class="bw-in"><input class="num lg" id="bwInput" type="text" inputmode="decimal" placeholder="${last ? nice(toU(last.w), 1) : nice(toU(SET().weightLb), 1)}" aria-label="Today's weight"><span class="fl">${bwu()}</span><button class="btn-sm" data-a="logWeight">Log today</button></div>
+    ${chart}${rate}${recent ? `<div class="wlist">${recent}</div>` : ''}${W.length > 4 ? `<button class="link" data-a="toggleW">${UI.allW ? 'Show less' : 'Show all ' + W.length}</button>` : ''}</div>`;
+}
+ACT.toggleW = () => { UI.allW = !UI.allW; render(); };
+ACT.logWeight = () => {
+  const el = $('#bwInput'); const v = parseFloat(String(el.value || '').replace(',', '.'));
+  if (!(v > 40 && v < 700)) { toast('Enter a weight first', 'info'); el.focus(); return; }
+  logWeight(today(), fromU(v)); render(); toast(`Logged ${nice(v, 1)} ${bwu()}`, 'scale');
+};
+ACT.delWeight = d => { Store.d.body.weights = Store.d.body.weights.filter(x => x.d !== d.d); Store.save('body'); render(); toast('Weigh-in deleted', 'trash'); };
+
+/* ============ SUNDAY RECAP ============
+   Shows up Sunday at 3 PM on Today and on the Meals day view. Covers the week's
+   workouts and meals, then looks ahead: next week's lifts, tonight's prep, groceries. */
+const RECAP_DOW = 0, RECAP_MIN = 15 * 60;
+function recapDue() {
+  const t = today(); if (dow(t) !== RECAP_DOW) return false;
+  const d = new Date(); return d.getHours() * 60 + d.getMinutes() >= RECAP_MIN;
+}
+function recapCardVisible() { return recapDue() && SET().recapSeen !== mondayOf(today()); }
+
+function weekRecap(mon) {
+  const days = weekDates(mon), t = today(), next = addDays(mon, 7);
+  // ---- workouts
+  const lifts = days.map(d => {
+    const s = sessionOn(d), done = sessionHasWork(s), w = done ? s.w : plannedWorkout(d);
+    if (!w) return null;
+    return { d, w, done, state: done ? 'done' : d < t ? 'missed' : 'left', sets: done ? sessionSetsDone(s) : 0 };
+  }).filter(Boolean);
+  const done = lifts.filter(x => x.done).length;
+  const prs = prList().filter(p => p.date >= mon && p.date <= days[6]).reverse();
+  const vol = weekVolume(mon), lvol = weekVolume(addDays(mon, -7));
+  const lbs = sum(VOL_ORDER.map(k => vol[k].lbs)), llbs = sum(VOL_ORDER.map(k => lvol[k].lbs));
+  const sets = sum(lifts.map(x => x.sets));
+  // ---- meals (today counts only once the week is over)
+  const mdays = days.filter(d => d < t || (d === t && mon < mondayOf(t)));
+  const rows = mdays.map(d => { const N = nutrition(d), E = dayEaten(d); return { d, N, E, logged: E.kcal >= N.kcal * 0.3 }; });
+  const logged = rows.filter(r => r.logged);
+  const avg = f => logged.length ? sum(logged.map(f)) / logged.length : 0;
+  const kcal = avg(r => r.E.kcal), kcalT = avg(r => r.N.kcal), prot = avg(r => r.E.p), protT = avg(r => r.N.p);
+  const protDays = logged.filter(r => r.E.p >= r.N.p * 0.9).length;
+  const calDays = logged.filter(r => Math.abs(r.E.kcal - r.N.kcal) <= r.N.kcal * 0.1).length;
+  // ---- bodyweight: this week's average vs last week's
+  const W = weights(), inWk = (a, b) => W.filter(x => x.d >= a && x.d <= b);
+  const w1 = inWk(mon, days[6]), w0 = inWk(addDays(mon, -7), addDays(mon, -1));
+  const wAvg = a => a.length ? sum(a.map(x => x.w)) / a.length : null;
+  const wNow = wAvg(w1), wPrev = wAvg(w0), band = RATES[SET().rate].band;
+  const wChange = wNow != null && wPrev != null ? wNow - wPrev : null;
+  // ---- next week
+  const nextLifts = weekDates(next).filter(d => plannedWorkout(d)).map(d => ({ d, w: plannedWorkout(d) }));
+  const prep = batchPrep(next).find(p => p.when === addDays(next, -1)) || null;
+  const groceries = sum(groceryList(next).map(g => g.items.length));
+  return { mon, next, lifts, done, prs, lbs, llbs, sets, mdays, logged, kcal, kcalT, prot, protT, protDays, calDays, wNow, wChange, band, w1: w1.length, nextLifts, prep, groceries };
+}
+function recapHeadline(R) {
+  const parts = [R.lifts.length ? `${R.done} of ${R.lifts.length} workouts` : 'no workouts planned'];
+  if (R.prs.length) parts.push(`${R.prs.length} new PR${R.prs.length > 1 ? 's' : ''}`);
+  if (R.logged.length) parts.push(`protein on target ${R.protDays} of ${R.logged.length} days`);
+  const s = parts.join(', ');
+  const strong = R.lifts.length && R.done === R.lifts.length && (!R.logged.length || R.protDays >= R.logged.length - 1);
+  return strong ? `Strong week — ${s}.` : s.charAt(0).toUpperCase() + s.slice(1) + '.';
+}
+function weightLine(R) {
+  if (R.wChange == null) return R.w1 ? { main: `${nice(toU(R.wNow), 1)} ${bwu()} average`, note: 'Weigh in again next week to see the trend' } : { main: 'No weigh-ins', note: 'Log your weight 3–4 mornings a week' };
+  const ch = R.wChange, inBand = ch >= R.band[0] - 0.05 && ch <= R.band[1] + 0.05;
+  return { main: `${ch >= 0 ? '+' : '−'}${nice(toU(Math.abs(ch)), 1)} ${bwu()} vs last week`, note: inBand ? 'Right on your lean-gain pace' : ch < R.band[0] ? `Under your ${R.band[0]}–${R.band[1]} lb/week goal` : `Faster than your ${R.band[0]}–${R.band[1]} lb/week goal` };
+}
+function recapCard(where) {
+  if (!recapCardVisible()) return '';
+  const R = weekRecap(mondayOf(today()));
+  return `<div class="card recap-card"><div class="row between"><div class="eyebrow">${ic('calendar', 14)} Sunday recap</div><button class="iconbtn sm" data-a="recapHide" aria-label="Hide recap">${ic('close', 16)}</button></div>
+    <div class="recap-h">${esc(recapHeadline(R))}</div>
+    <div class="tiles recap-tiles">
+      <div class="tile">${ic('dumbbell', 18)}<b>${R.done}<small>/${R.lifts.length}</small></b><span>workouts</span></div>
+      <div class="tile">${ic('trophy', 18)}<b>${R.prs.length}</b><span>new PR${R.prs.length === 1 ? '' : 's'}</span></div>
+      <div class="tile">${ic('meals', 18)}<b>${R.logged.length ? fmtInt(R.prot) : '—'}<small>${R.logged.length ? 'g' : ''}</small></b><span>avg protein</span></div></div>
+    <button class="btn" data-a="openRecap" data-d="${R.mon}">See the full recap</button></div>`;
+}
+ACT.recapHide = () => { SET().recapSeen = mondayOf(today()); Store.save('settings'); render(); toast('Recap saved under Progress', 'calendar'); };
+ACT.openRecap = d => push({ v: 'recap', mon: d.d || mondayOf(today()) });
+ACT.recapNav = d => { const v = topView(), cur = mondayOf(today()); const n = addDays(v.mon, +d.d); v.mon = n > cur ? cur : n; render({ top: true }); };
+ACT.recapPrep = d => { UI.mweek = d.d; UI.seg.meals = 'week'; goTab('meals'); if (UI.stacks.meals.length > 1) { UI.stacks.meals = [UI.stacks.meals[0]]; render({ top: true }); } };
+ACT.recapGrocery = d => { UI.gweek = d.d; UI.seg.meals = 'grocery'; goTab('meals'); if (UI.stacks.meals.length > 1) { UI.stacks.meals = [UI.stacks.meals[0]]; render({ top: true }); } };
+
+VIEWS.recap = v => {
+  const R = weekRecap(v.mon), cur = mondayOf(today()), end = addDays(v.mon, 6);
+  const back = UI.tab === 'meals' ? 'Meals' : UI.tab === 'settings' ? 'Settings' : 'Workout';
+  const stateTxt = { done: 'Done', missed: 'Missed', left: 'Still to do' };
+  const liftRows = R.lifts.length ? R.lifts.map(x => `<div class="rc-row ${x.state}"><span class="rc-day">${DOW_SHORT[dow(x.d)]}</span><span class="rc-n">${esc(workoutById(x.w) ? workoutById(x.w).name : x.w)}${x.done ? `<small>${x.sets} sets</small>` : ''}</span>${x.state === 'done' ? `<span class="rc-ok">${ic('check', 16)}</span>` : pill(stateTxt[x.state], x.state === 'missed' ? 'coral' : '')}</div>`).join('') : '<p class="fine">No workouts this week.</p>';
+  const prRows = R.prs.map(p => { const ex = EX[p.id]; const val = p.m.kind === 'sec' ? `${p.set.r}s hold` : p.m.kind === 'reps' ? `${p.set.r} reps` : `${fmtW(p.set.w)} × ${p.set.r}`; return `<div class="prrow">${ic('trophy', 18)}<div class="prrow-b"><b>${esc(ex.name)}</b><span>${val}</span></div><span class="fine">${DOW_SHORT[dow(p.date)]}</span></div>`; }).join('');
+  const volDelta = R.llbs ? Math.round((R.lbs - R.llbs) / R.llbs * 100) : null;
+  const mealsLabel = R.mdays.length === 7 ? 'Mon–Sun' : R.mdays.length ? `Mon–${DOW_SHORT[dow(R.mdays[R.mdays.length - 1])]}` : '';
+  const meals = R.logged.length ? `
+      <div class="kv"><span>Days logged</span><b>${R.logged.length} of ${R.mdays.length}</b></div>
+      <div class="kv"><span>Average calories</span><b>${fmtInt(R.kcal)} <small class="muted">/ ${fmtInt(R.kcalT)}</small></b></div>
+      <div class="kv"><span>Calories within 10%</span><b>${R.calDays} of ${R.logged.length} days</b></div>
+      <div class="kv"><span>Average protein</span><b>${fmtInt(R.prot)} g <small class="muted">/ ${fmtInt(R.protT)}</small></b></div>
+      <div class="kv"><span>Protein on target</span><b>${R.protDays} of ${R.logged.length} days</b></div>`
+    : `<p class="fine">${R.mdays.length ? 'No meals checked off this week. Tap the circle next to each meal as you eat it and next Sunday fills in.' : 'Meals show up once the first day is done.'}</p>`;
+  const nextRows = R.nextLifts.map(x => `<span class="rc-chip"><b>${DOW_SHORT[dow(x.d)]}</b>${esc(workoutById(x.w).short)}</span>`).join('');
+  return `${navBar({ back })}<div class="pad"><div class="dh"><div class="eyebrow">Weekly recap</div><h1 class="h1">${fmtDate(v.mon)} – ${fmtDate(end)}</h1><div class="sub">${esc(recapHeadline(R))}</div></div>
+    <div class="row between rc-nav"><button class="btn-sm ghost" data-a="recapNav" data-d="-7">${ic('back', 14)} Earlier</button>${v.mon < cur ? `<button class="btn-sm ghost" data-a="recapNav" data-d="7">Later ${ic('chev', 14)}</button>` : '<span></span>'}</div>
+    <div class="stack">
+      <div class="sec-h rc-sec"><span>${ic('dumbbell', 18)} Workouts</span><span class="muted">${R.done} of ${R.lifts.length}</span></div>
+      <div class="card list rc-list">${liftRows}</div>
+      ${R.prs.length ? `<div class="card"><div class="lbl">New personal records</div>${prRows}</div>` : ''}
+      <div class="card"><div class="kv"><span>Working sets</span><b>${R.sets}</b></div><div class="kv"><span>Total lifted</span><b>${fmtInt(toU(R.lbs))} ${wu()}${volDelta != null && R.lbs ? ` <small class="${volDelta >= 0 ? 'good' : 'muted'}">${volDelta >= 0 ? '+' : ''}${volDelta}% vs last week</small>` : ''}</b></div></div>
+      <div class="sec-h rc-sec"><span>${ic('meals', 18)} Meals</span><span class="muted">${mealsLabel}</span></div>
+      <div class="card">${meals}${(w => `<div class="kv"><span>Bodyweight</span><b class="rc-w">${esc(w.main)}<small>${esc(w.note)}</small></b></div>`)(weightLine(R))}</div>
+      ${v.mon === cur ? `<div class="sec-h rc-sec"><span>${ic('calendar', 18)} Next week</span></div>
+      <div class="card">${nextRows ? `<div class="rc-chips">${nextRows}</div>` : '<p class="fine">No workouts planned.</p>'}
+        </div>
+      <div class="card list"><button class="lrow" data-a="recapPrep" data-d="${R.next}">${ic('clock', 21)}<span>Sunday prep${R.prep ? ` · ${R.prep.lines.length} task${R.prep.lines.length === 1 ? '' : 's'}` : ''}<small>${R.prep ? `Covers ${R.prep.cover}` : 'Nothing to batch-cook'}</small></span>${ic('chev', 18, 'muted')}</button>
+        <button class="lrow" data-a="recapGrocery" data-d="${R.next}">${ic('cart', 21)}<span>Groceries for next week<small>${R.groceries} items</small></span>${ic('chev', 18, 'muted')}</button></div>` : ''}
+    </div></div>`;
+};
+
+/* ============ STRETCH TAB ============ */
+function areaChips(areas, max = 5) { return areas.slice(0, max).map(a => `<span class="chip">${AREA_NAMES[a]}</span>`).join(''); }
+function stretchStatus(date, k, min) {
+  const e = stretchEntry(date, k);
+  if (e && e.full) return `<span class="st-ok">${ic('check', 16)}</span>`;
+  if (e) return `<span class="st-part">${Math.round(e.min)}/${min}</span>`;
+  return '';
+}
+const AREA_MUS = { hips: ['glutes', 'hipFlexors'], hamstrings: ['hamstrings'], quads: ['quads'], glutes: ['glutes'], calves: ['calves'], adductors: ['adductors'], lowback: ['lowerBack'], thoracic: ['midBack', 'traps'], chest: ['chest'], shoulders: ['frontDelts', 'sideDelts', 'rearDelts'], lats: ['lats'], triceps: ['triceps'], arms: ['biceps', 'forearms'], neck: ['neck'], core: ['abs', 'obliques'] };
+const areaMus = areas => [...new Set(areas.flatMap(a => AREA_MUS[a] || []))];
+const sym2 = (icon, txt) => `<span class="sym">${ic(icon, 15)}${txt}</span>`;
+function sessionCard(date, spec) {
+  const plan = stretchPlan(date, spec.k); const e = stretchEntry(date, spec.k);
+  const typeIc = spec.type === 'd' ? 'wave' : 'hold';
+  return `<div class="card scard ${e && e.full ? 'is-done' : ''}">
+    <button class="scard-main" data-a="openStretch" data-d="${date}" data-k="${spec.k}">
+      ${dualBody(areaMus(plan.focus.pri), areaMus(plan.focus.sec), 64)}
+      <span class="scard-b"><span class="scard-t">${esc(spec.short || spec.title)}</span>
+      <span class="syms">${sym2('clock', mins(spec.min))}${sym2('repeat', `${plan.items.length}×${plan.rounds}`)}${sym2(typeIc, '')}${plan.warmStep ? sym2('flame', mins(SET().stretch.warmFirst || 5)) : ''}</span>
+      ${e && !e.full ? `<span class="st-part">${Math.round(e.min)}/${spec.min}m</span>` : ''}</span>
+    </button>
+    ${e && e.full ? `<span class="st-ok">${ic('check', 18)}</span>` : `<button class="playbtn" data-a="startStretchK" data-d="${date}" data-k="${spec.k}" aria-label="Start ${esc(spec.title)}">${ic('play', 18)}</button>`}</div>`;
+}
+function doseCard(mon) {
+  const dose = stretchDose(mon), T = DOSE_TARGET;
+  const rows = DOSE_AREAS.map(a => ({ a, v: dose[a] || 0 })).sort((x, y) => (x.v >= T) - (y.v >= T) || x.v - y.v);
+  const met = rows.filter(r => r.v >= T), some = rows.filter(r => r.v > 0 && r.v < T);
+  return `<div class="card dosecard"><div class="row between"><div class="lbl">${ic('target', 15)} 5 min / area</div><span class="dose-n2"><b>${met.length}</b>/${rows.length}</span></div>
+    <button class="dose-body" data-a="doseToggle" aria-label="Show minutes per area">${dualBody(areaMus(met.map(r => r.a)), areaMus(some.map(r => r.a)), 132)}</button>
+    <div class="legend-b"><span><i class="lg p"></i>5m+</span><span><i class="lg s"></i>started</span><button class="iconbtn sm" data-a="stretchWhy" aria-label="How your stretching works">${ic('info', 18)}</button></div>
+    ${UI.doseOpen ? `<div class="dose">${rows.map(r => `<div class="dose-r ${r.v >= T ? 'ok' : ''}"><span class="dose-n">${AREA_NAMES[r.a]}</span><span class="dose-bar"><i style="width:${Math.min(100, r.v / T * 100)}%"></i></span><span class="dose-v">${r.v >= T ? ic('check', 14) : fmtDur(Math.round(r.v / 5) * 5)}</span></div>`).join('')}</div>` : ''}</div>`;
+}
+ACT.doseToggle = () => { UI.doseOpen = !UI.doseOpen; render(); };
+function orderStrip(w) {
+  const steps = w ? [['flame', 'Cardio'], ...(SET().stretch.s1 > 0 ? [['wave', 'Prep']] : []), ['dumbbell', workoutById(w).short], ['hold', 'Cool-down']] : [['flame', 'Warm'], ['wave', 'Move'], ['hold', 'Hold']];
+  return `<div class="ostrip">${steps.map(([i, l], n) => `${n ? `<span class="ost-a">${ic('chev', 14)}</span>` : ''}<span class="ost" title="${esc(l)}">${ic(i, 18)}<small>${esc(l)}</small></span>`).join('')}<button class="iconbtn sm" data-a="stretchWhy" aria-label="Why this order">${ic('info', 18)}</button></div>`;
+}
+VIEWS.sroot = () => {
+  const d = UI.sdate || today(), mon = mondayOf(today());
+  const wk = weekStretch(mon), total = sum(wk), goal = SET().stretch.rest * 7 || 315, streak = stretchStreak();
+  const dmax = Math.max(SET().stretch.rest, ...wk);
+  const bars = weekDates(mon).map((x, i) => `<div class="wb ${x === today() ? 'is-today' : ''}"><span class="wb-bar"><i style="height:${Math.min(100, wk[i] / dmax * 100)}%" class="${wk[i] >= SET().stretch.rest - 1 ? 'full' : ''}"></i></span><span class="wb-l">${DOW_SHORT[dow(x)].slice(0, 1)}</span></div>`).join('');
+  const kinds = stretchKinds(d), w = dayWorkout(d);
+  const due = checkinDue();
+  return `<div class="pad top"><div class="ltitle-row"><h1 class="ltitle">Stretch</h1></div>
+    <div class="stack">
+    <div class="card"><div class="row between"><div class="big">${fmtInt(total)}<small> / ${goal}m</small></div>
+      ${streak ? `<div class="streak">${ic('flame', 18)}<b>${streak}</b></div>` : ''}</div>
+      <div class="meter"><i style="width:${Math.min(100, total / goal * 100)}%"></i></div>
+      <div class="wbars">${bars}</div></div>
+    ${weekStrip(mon, d, 'pickStretchDay')}
+    ${orderStrip(w)}
+    ${kinds.map(k => sessionCard(d, k)).join('')}
+    ${doseCard(mon)}
+    <div class="card list">
+      <button class="lrow" data-a="openCheckin">${ic('ruler', 21)}<span>Check-in</span>${due ? pill('Due', 'coral') : `<span class="sym">${fmtDate(addDays(Store.d.body.checkins.map(x => x.d).sort().pop(), 21))}</span>`}${ic('chev', 18, 'muted')}</button>
+      <button class="lrow" data-a="openStretchLib">${ic('list', 21)}<span>Library</span><span class="sym">${ST_LIST.length}</span>${ic('chev', 18, 'muted')}</button>
+    </div></div></div>`;
+};
+ACT.pickStretchDay = d => { UI.sdate = d.d; render(); };
+ACT.openStretch = d => push({ v: 'spreview', date: d.d, k: d.k });
+ACT.startStretchK = d => { closeSheet(); Player.open(stretchPlan(d.d || today(), d.k)); };
+
+function preRowsHTML(plan) {
+  if (!plan.pre.length) return '';
+  const wf = SET().stretch.warmFirst || 5;
+  return `<div class="card list">${plan.pre.map(it => it.warm
+    ? `<div class="srow"><span class="srow-main static"><span class="icon-tile warm">${ic('flame', 20)}</span><span class="srow-b"><span class="exname">Warm-up</span><span class="exmeta">${pill(mins(wf))}<span class="sym">${ic('walk', 15)}${ic('bolt', 15)}</span></span></span></span></div>`
+    : `<div class="srow"><button class="srow-main" data-a="stretchInfo" data-x="${it.id}">${bodySVG(bestView(ST[it.id].mus), ST[it.id].mus, [], 50)}<span class="srow-b"><span class="exname">${esc(ST[it.id].name)}</span><span class="exmeta">${pill(it.dur + 's')}${ST[it.id].sides ? `<span class="sym">${ic('swap', 14)}</span>` : ''}<span class="sym">1×</span></span></span></button></div>`).join('')}</div>`;
+}
+function feelStrip(type) {
+  return type === 's' ? `<div class="feelstrip">${sym2('gauge', '5/10')}${sym2('wind', 'slow')}${sym2('hold', 'still')}</div>`
+    : `<div class="feelstrip">${sym2('wave', 'smooth')}${sym2('arrowR', 'grow')}</div>`;
+}
+VIEWS.spreview = v => {
+  const plan = stretchPlan(v.date, v.k); const e = stretchEntry(v.date, v.k);
+  const rows = plan.items.map((it, i) => {
+    const s = ST[it.id];
+    return `<div class="srow"><button class="srow-main" data-a="stretchInfo" data-x="${s.id}">${bodySVG(bestView(s.mus), s.mus, [], 50)}<span class="srow-b"><span class="exname">${esc(s.name)}</span><span class="exmeta">${pill(it.dur + 's')}${s.sides ? `<span class="sym" title="each side">${ic('swap', 14)}</span>` : ''}</span></span></button>
+      <button class="iconbtn" data-a="swapStretch" data-i="${i}" aria-label="Swap ${esc(s.name)}">${ic('swap', 20)}</button></div>`;
+  }).join('');
+  return `${navBar({ back: 'Stretch' })}<div class="pad"><div class="dh"><h1 class="h1">${esc(plan.short || plan.title)}</h1>
+    <div class="syms">${sym2('clock', mins(Math.round(plan.total / 60)))}${sym2('repeat', `${plan.items.length}×${plan.rounds}`)}${sym2(plan.ctype === 'd' ? 'wave' : 'hold', '')}</div></div>
+    <div class="stack"><div class="card center">${dualBody(areaMus(plan.focus.pri), areaMus(plan.focus.sec), 120)}${feelStrip(plan.ctype)}</div>
+    ${preRowsHTML(plan)}
+    <div class="circ-h"><div class="sym">${ic('repeat', 18)}<b>${plan.items.length}</b></div><div class="circ-r"><b>× ${plan.rounds}</b></div></div>
+    <div class="card list">${rows}</div>
+    ${e ? `<p class="fine center">${e.full ? ic('check', 14) : Math.round(e.min) + 'm'} · <button class="link" data-a="unlogStretch" data-d="${v.date}" data-k="${v.k}">Clear</button></p>` : `<button class="btn-text" data-a="markStretch" data-d="${v.date}" data-k="${v.k}">${ic('check', 18)} Mark done</button>`}
+    </div></div><div class="actionbar"><button class="btn" data-a="startStretchK" data-d="${v.date}" data-k="${v.k}">${ic('play', 18)} Start</button></div>`;
+};
+ACT.markStretch = d => { const plan = stretchPlan(d.d, d.k); logStretch(d.d, d.k, plan.min, true); render(); toast(`${plan.min} min logged`, 'stretch'); };
+ACT.unlogStretch = d => { unlogStretch(d.d, d.k); render(); };
+function stretchInfoHTML(s) {
+  return `${sheetHead(s.name, `${s.t === 'd' ? 'Dynamic — keep moving' : 'Static — hold still'}${s.sides ? ' · both sides' : ''}`)}
+    <div class="center">${dualBody(s.mus, [], 150)}</div>
+    <div class="chips">${s.areas.map(a => `<span class="chip">${AREA_NAMES[a]}</span>`).join('')}</div>
+    <div class="stack mt">${guideHTML(s.id, 'stretch')}</div>`;
+}
+ACT.stretchInfo = d => openSheet(() => stretchInfoHTML(ST[d.x]), 'tall');
+function stretchAlternatives(plan, i) {
+  const cur = ST[plan.items[i].id], used = plan.items.map(x => x.id);
+  const type = cur.t; const main = cur.areas[0];
+  return ST_LIST.filter(s => s.t === type && !used.includes(s.id) && s.areas.some(a => cur.areas.includes(a)))
+    .sort((a, b) => (b.areas.includes(main) - a.areas.includes(main)) || (sum(b.areas.map(x => cur.areas.includes(x))) - sum(a.areas.map(x => cur.areas.includes(x)))));
+}
+ACT.swapStretch = d => {
+  const v = topView(); const plan = stretchPlan(v.date, v.k); const i = +d.i; const cur = ST[plan.items[i].id];
+  const alts = stretchAlternatives(plan, i);
+  openSheet(() => `${sheetHead('Swap ' + cur.name, 'Same body area')}<div class="pk-list">${alts.length ? alts.map(s => `<button class="pk-row" data-a="doSwapStretch" data-i="${i}" data-x="${s.id}">${bodySVG(bestView(s.mus), s.mus, [], 48)}<span class="pk-b"><span class="pk-n">${esc(s.name)}</span><span class="pk-m">${s.areas.map(a => AREA_NAMES[a]).join(', ')}${s.sides ? ' · both sides' : ''}</span></span></button>`).join('') : '<p class="fine">No other stretches for this area.</p>'}</div>`, 'tall');
+};
+ACT.doSwapStretch = d => {
+  const v = topView(); const plan = stretchPlan(v.date, v.k); const ids = plan.items.map(x => x.id); ids[+d.i] = d.x;
+  saveStretchOverride(plan, ids); closeSheet(); render(); toast('Stretch swapped', 'swap');
+};
+
+/* ---- Stretch library ---- */
+ACT.openStretchLib = () => push({ v: 'slib', area: 'all', t: 'all' });
+VIEWS.slib = v => {
+  let list = ST_LIST.filter(s => (v.area === 'all' || s.areas.includes(v.area)) && (v.t === 'all' || s.t === v.t));
+  return `${navBar({ back: 'Stretch' })}<div class="pad"><div class="dh"><h1 class="h1">Stretch library</h1><div class="sub">${list.length} of ${ST_LIST.length} stretches</div></div>
+    ${seg('slibT', [['all', 'All'], ['d', 'Dynamic'], ['s', 'Static']], v.t)}
+    <div class="chips scroll mt">${[['all', 'All areas'], ...Object.entries(AREA_NAMES)].map(([k, l]) => `<button class="chip ${v.area === k ? 'on' : ''}" data-a="slibArea" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="card list mt">${list.map(s => `<button class="pk-row" data-a="stretchInfo" data-x="${s.id}">${bodySVG(bestView(s.mus), s.mus, [], 48)}<span class="pk-b"><span class="pk-n">${esc(s.name)}</span><span class="pk-m">${s.t === 'd' ? 'Dynamic' : 'Static'} · ${s.areas.map(a => AREA_NAMES[a]).join(', ')}</span></span></button>`).join('')}</div></div>`;
+};
+ACT.slibArea = d => { topView().area = d.v; render(); };
+
+/* ---- Flexibility check-ins ---- */
+ACT.openCheckin = () => push({ v: 'checkin' });
+VIEWS.checkin = () => {
+  const C = [...Store.d.body.checkins].sort((a, b) => (a.d < b.d ? -1 : 1)); const last = C[C.length - 1];
+  const tests = CHECKIN_TESTS.map(t => {
+    const vals = C.filter(c => c[t.k] != null).map(c => ({ d: c.d, y: c[t.k] }));
+    const first = vals[0], lv = vals[vals.length - 1];
+    const delta = vals.length > 1 ? lv.y - first.y : null;
+    return `<div class="ci">
+      <div class="ci-h"><label for="ci-${t.k}"><b>${esc(t.name)}</b></label>${delta != null ? `<span class="${delta >= 0 ? 'good' : 'bad'}">${delta >= 0 ? '+' : ''}${nice(delta, 1)} ${t.unit} since ${fmtDate(first.d)}</span>` : ''}</div>
+      <p class="fine">${esc(t.help)}</p>
+      <div class="bw-in"><input class="num lg" id="ci-${t.k}" type="text" inputmode="decimal" placeholder="${lv ? nice(lv.y, 1) : '0'}"><span class="fl">${t.unit}</span></div>
+      ${vals.length >= 2 ? lineChart({ series: [{ name: t.name, cls: 'c1', pts: vals, dots: 'all', area: true }], h: 120, fmt: x => nice(x, 1), unit: t.unit }) : ''}</div>`;
+  }).join('');
+  return `${navBar({ back: 'Stretch' })}<div class="pad"><div class="dh"><h1 class="h1">Flexibility check-in</h1><div class="sub">${last ? 'Last one ' + fmtDate(last.d, 'full') : 'Your first check-in sets the baseline'} · every 3 weeks</div></div>
+    <div class="stack"><div class="card">${tests}</div></div></div>
+    <div class="actionbar"><button class="btn" data-a="saveCheckin">Save check-in</button></div>`;
+};
+ACT.saveCheckin = () => {
+  const entry = { d: today() }; let any = false;
+  for (const t of CHECKIN_TESTS) { const el = $('#ci-' + t.k); const v = parseFloat(String(el.value).replace(',', '.')); if (!isNaN(v)) { entry[t.k] = v; any = true; } }
+  if (!any) { toast('Fill in at least one test', 'info'); return; }
+  const C = Store.d.body.checkins; const i = C.findIndex(x => x.d === entry.d); if (i >= 0) C[i] = Object.assign(C[i], entry); else C.push(entry);
+  Store.save('body'); render(); toast('Check-in saved', 'ruler');
+};
+
+/* ============ GUIDED PLAYER ============ */
+const WARM_STEP = { name: 'Get warm', t: 'w', how: 'Brisk walk, march in place, stairs or an easy bike. Keep going until you feel warm and are breathing a little harder — that is when muscles stretch best.', cues: ['Start easy, then pick up the pace', 'Swing your arms', 'A light sweat is the goal'], areas: [], mus: [] };
+const Player = {
+  on: false, plan: null, steps: [], i: 0, phase: 'prep', end: 0, left: 0, paused: false, active: 0, lastT: 0, iv: null, lock: null, lastBeep: 0,
+  open(plan) {
+    audio();
+    this.plan = plan; this.buildSteps(); this.i = 0; this.active = 0; this.paused = false; this.on = true;
+    $('#player').hidden = false; document.documentElement.classList.add('locked');
+    this.setPhase('prep', Math.max(5, SET().stretch.prep));
+    this.lastT = Date.now(); clearInterval(this.iv); this.iv = setInterval(() => this.tick(), 200);
+    try { navigator.wakeLock && navigator.wakeLock.request('screen').then(l => this.lock = l).catch(() => {}); } catch (e) {}
+    say(this.steps[0].warm ? `${plan.title}. First, get warm: ${Math.round(this.steps[0].dur / 60)} minutes of brisk walking or easy cardio.` : `${plan.title}. First up, ${ST[this.steps[0].id].name}`);
+  },
+  buildSteps() {
+    const out = [];
+    (this.plan.pre || []).forEach((it, j) => {
+      const base = { idx: -1 - j, r: -1, dur: it.dur };
+      if (it.warm) out.push(Object.assign({ warm: true, side: null }, base));
+      else if (ST[it.id].sides) { out.push(Object.assign({ id: it.id, side: 'Left', flow: true }, base)); out.push(Object.assign({ id: it.id, side: 'Right', flow: true }, base)); }
+      else out.push(Object.assign({ id: it.id, side: null, flow: true }, base));
+    });
+    for (let r = 0; r < this.plan.rounds; r++) this.plan.items.forEach((it, idx) => { const s = ST[it.id]; if (s.sides) { out.push({ id: it.id, idx, r, side: 'Left', dur: it.dur }); out.push({ id: it.id, idx, r, side: 'Right', dur: it.dur }); } else out.push({ id: it.id, idx, r, side: null, dur: it.dur }); });
+    this.steps = out;
+  },
+  setPhase(ph, secs) { this.phase = ph; this.phaseDur = secs; this.end = Date.now() + secs * 1000; this.left = secs; this.lastBeep = 0; this.draw(true); },
+  tick() {
+    if (!this.on) return; const now = Date.now(); const dt = (now - this.lastT) / 1000; this.lastT = now;
+    if (this.paused) return;
+    if (this.phase === 'work') this.active += Math.min(dt, 1);
+    this.left = Math.max(0, (this.end - now) / 1000);
+    const c = Math.ceil(this.left);
+    if (c <= 3 && c > 0 && c !== this.lastBeep && (this.phase === 'prep' || this.phase === 'work')) { this.lastBeep = c; if (soundOn()) tone(620, 0.07, 0, 0.14); }
+    if (this.left <= 0) { this.advance(); return; }
+    this.draw(false);
+  },
+  advance() {
+    const st = this.steps[this.i];
+    if (this.phase === 'prep' || this.phase === 'switch') { cue('go'); this.setPhase('work', st.dur); return; }
+    const next = this.steps[this.i + 1];
+    if (!next) { this.finish(); return; }
+    this.i++;
+    if (next.id === st.id && next.r === st.r) { cue('switch'); say('Switch sides'); this.setPhase('switch', 3); }
+    else if (next.r !== st.r) { cue('switch'); say(next.r < 0 ? `Mobility flow. ${ST[next.id].name}` : `Round ${next.r + 1}. ${ST[next.id].name}`); this.setPhase('prep', Math.max(8, SET().stretch.prep)); }
+    else if (st.warm) { cue('switch'); say(`You're warm. ${ST[next.id].name}`); this.setPhase('prep', Math.max(8, SET().stretch.prep)); }
+    else { cue('switch'); say(ST[next.id].name); this.setPhase('prep', SET().stretch.prep); }
+  },
+  jumpTo(stepIdx) { this.i = clamp(stepIdx, 0, this.steps.length - 1); this.setPhase('prep', 3); },
+  same(a, b) { return a && b && a.idx === b.idx && a.r === b.r; },
+  skip() { const cur = this.steps[this.i]; let j = this.i + 1; while (j < this.steps.length && this.same(this.steps[j], cur)) j++; if (j >= this.steps.length) { this.finish(); return; } const nx = this.steps[j]; say(nx.warm ? 'Get warm' : ST[nx.id].name); this.jumpTo(j); },
+  prev() {
+    const cur = this.steps[this.i]; let start = this.steps.findIndex(s => this.same(s, cur));
+    const elapsed = this.phaseDur - this.left;
+    if (this.i === start && (this.phase === 'prep' || elapsed < 3) && start > 0) { const p = this.steps[start - 1]; start = this.steps.findIndex(s => this.same(s, p)); }
+    this.jumpTo(start);
+  },
+  toggle() { if (this.paused) { this.paused = false; this.end = Date.now() + this.left * 1000; this.lastT = Date.now(); } else { this.paused = true; } this.draw(true); },
+  swapCurrent(newId) {
+    const cur = this.steps[this.i]; const ids = this.plan.items.map(x => x.id); ids[cur.idx] = newId;
+    saveStretchOverride(this.plan, ids);
+    const dur = this.plan.items[cur.idx].dur; this.plan.items[cur.idx] = { id: newId, dur };
+    this.buildSteps(); const j = this.steps.findIndex(s => this.same(s, cur)); this.jumpTo(j);
+  },
+  finish() {
+    this.phase = 'done'; clearInterval(this.iv); cue('done'); say('Session complete. Nice work.');
+    logStretch(this.plan.date, this.plan.k, this.plan.min, true);
+    this.draw(true);
+  },
+  close() {
+    if (this.phase !== 'done' && this.active >= 60) { logStretch(this.plan.date, this.plan.k, this.active / 60, this.active >= this.plan.min * 60 * 0.9); toast(`Logged ${Math.round(this.active / 60)} min of stretching`, 'stretch'); }
+    this.on = false; clearInterval(this.iv); $('#player').hidden = true; $('#player').innerHTML = ''; document.documentElement.classList.remove('locked');
+    try { this.lock && this.lock.release(); } catch (e) {} this.lock = null;
+    try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) {}
+    render();
+  },
+  draw(full) {
+    const el = $('#player'); if (!this.on) return;
+    if (this.phase === 'done') {
+      el.innerHTML = `<div class="pl pl-done">${ic('check', 44)}<div class="pl-name">Session complete</div><p class="pl-sub">${esc(this.plan.title)} · ${this.plan.min} min · ${this.plan.items.length}-stretch circuit × ${this.plan.rounds}</p>
+        <p class="pl-sub">${fmtInt(sum(weekStretch(mondayOf(today()))))} of ${SET().stretch.rest * 7} minutes this week</p><button class="btn" data-a="plClose">Done</button></div>`;
+      return;
+    }
+    const st = this.steps[this.i], s = st.warm ? WARM_STEP : ST[st.id];
+    const R = 64, C = 2 * Math.PI * R, f = this.phaseDur ? this.left / this.phaseDur : 0;
+    if (!full && $('#plTime')) {
+      $('#plTime').textContent = fmtDur(Math.ceil(this.left));
+      const ring = $('#plRing'); if (ring) ring.setAttribute('stroke-dashoffset', C * (1 - f));
+      return;
+    }
+    const doneIdx = st.idx, total = this.plan.items.length, RN = this.plan.rounds;
+    const nextStep = this.steps.slice(this.i + 1).find(x => !this.same(x, st));
+    const newRound = this.phase === 'prep' && st.r > 0 && st.idx === 0;
+    const phaseLabel = this.paused ? 'Paused' : newRound ? `Round ${st.r + 1} — get ready` : this.phase === 'prep' ? 'Get ready' : this.phase === 'switch' ? 'Switch sides' : st.warm ? 'Get warm' : st.side ? `${st.side} side` : s.t === 'd' ? 'Move' : 'Hold';
+    const where = st.warm ? ic('flame', 15) : st.r < 0 ? ic('wave', 15) : `${ic('repeat', 15)} ${st.r + 1}/${RN}`;
+    const hint = st.warm ? '' : feelStrip(s.t);
+    el.innerHTML = `<div class="pl ${this.phase}">
+      <div class="pl-top"><button class="iconbtn" data-a="plClose" aria-label="End session">${ic('close', 22)}</button><div class="pl-title" aria-label="Round ${st.r + 1} of ${RN}">${esc(this.plan.short || this.plan.title)} <span class="pl-where">${where}</span></div><span class="pl-count">${st.r < 0 ? '' : `${doneIdx + 1}/${total}`}</span></div>
+      <div class="pl-bar">${this.plan.items.map((_, j) => `<i class="${j < doneIdx ? 'done' : j === doneIdx ? 'cur' : ''}"></i>`).join('')}</div>
+      <div class="pl-rounds" aria-label="Round ${st.r + 1} of ${RN}">${Array.from({ length: RN }, (_, j) => `<i class="${j < st.r ? 'done' : j === st.r ? 'cur' : ''}"></i>`).join('')}</div>
+      <div class="pl-main">
+        <div class="pl-fig">${st.warm ? `<span class="pl-warm">${ic('flame', 64)}</span>` : bodySVG(bestView(s.mus), s.mus, [], 170)}</div>
+        <div class="pl-name">${esc(s.name)}</div>
+        <div class="pl-tags">${st.warm ? `${pill(ic('walk', 14), 'coral')}${pill(ic('bolt', 14), 'coral')}` : `${st.side ? pill(st.side === 'Left' ? `${ic('arrowL', 14)} L` : `R ${ic('arrowR', 14)}`, 'blue') : ''}${pill(ic(s.t === 'd' ? 'wave' : 'hold', 14))}${pill(AREA_NAMES[s.areas[0]])}`}</div>
+        <div class="pl-clock"><svg width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="${R}" class="pl-track"/><circle id="plRing" cx="75" cy="75" r="${R}" class="pl-prog" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - f)}" transform="rotate(-90 75 75)"/></svg>
+          <div class="pl-clock-in"><div id="plTime" class="pl-time">${fmtDur(Math.ceil(this.left))}</div><div class="pl-phase">${phaseLabel}</div></div></div>
+        <ul class="pl-cues">${s.cues.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+        ${hint}${st.warm ? `<p class="pl-how">${esc(s.how)}</p>` : ''}
+      </div>
+      <div class="pl-next">${nextStep ? `${ic('arrowR', 15)}${nextStep.r !== st.r ? ` <span class="pl-rd">${ic('repeat', 13)}${nextStep.r + 1}</span>` : ''} <b>${esc(ST[nextStep.id].name)}</b>` : ic('flag', 16)}</div>
+      <div class="pl-ctrl"><button class="pl-b" data-a="plPrev" aria-label="Previous stretch">${ic('prev', 26)}</button>
+        <button class="pl-play" data-a="plToggle" aria-label="${this.paused ? 'Resume' : 'Pause'}">${ic(this.paused ? 'play' : 'pause', 30)}</button>
+        <button class="pl-b" data-a="plSkip" aria-label="Skip stretch">${ic('next', 26)}</button></div>
+      ${st.warm ? `<button class="pl-swap" data-a="plSkip">${ic('check', 18)} I'm warm</button>` : `<div class="pl-links"><button class="pl-ib" data-a="plHow" aria-label="How to do it">${ic('info', 22)}</button>${st.r < 0 ? '' : `<button class="pl-ib" data-a="plSwap" aria-label="Swap this stretch">${ic('swap', 22)}</button>`}</div>`}</div>`;
+  },
+};
+ACT.plClose = () => Player.close();
+ACT.plToggle = () => Player.toggle();
+ACT.plSkip = () => Player.skip();
+ACT.plPrev = () => Player.prev();
+ACT.plSwap = () => {
+  const P = Player; const cur = P.steps[P.i]; const alts = stretchAlternatives(P.plan, cur.idx);
+  if (!P.paused) P.toggle();
+  openSheet(() => `${sheetHead('Swap ' + ST[cur.id].name, 'Same body area')}<div class="pk-list">${alts.map(s => `<button class="pk-row" data-a="plDoSwap" data-x="${s.id}">${bodySVG(bestView(s.mus), s.mus, [], 48)}<span class="pk-b"><span class="pk-n">${esc(s.name)}</span><span class="pk-m">${s.areas.map(a => AREA_NAMES[a]).join(', ')}</span></span></button>`).join('') || '<p class="fine">No alternatives for this area.</p>'}</div>`, 'tall top');
+};
+ACT.plDoSwap = d => { closeSheet(); Player.swapCurrent(d.x); if (Player.paused) Player.toggle(); };
+ACT.stretchWhy = () => openSheet(() => `${sheetHead('How your stretching works', 'Warm first, stretch when it counts')}
+  <ol class="why">
+    <li><b>Warm up before any stretching.</b> A few minutes of easy cardio raises muscle temperature so tissue lengthens more comfortably. Rest-day sessions and any session you start cold begin with a ${SET().stretch.warmFirst || 5}-minute warm-up.</li>
+    <li><b>Before lifting: move, don't hold.</b> Movement prep is dynamic only — controlled swings, circles and lunges that grow each rep. Long static holds (over about 60 seconds per muscle) right before heavy lifting can briefly cost strength. Your warm-up sets finish the job.</li>
+    <li><b>After lifting: static holds.</b> Your muscles are as warm as they'll get, so this is where flexibility is built. Holds are 30–60 seconds, repeated in rounds.</li>
+    <li><b>Mild tension, never pain.</b> Ease in to about a 5 out of 10 pull, breathe out and let it relax. No bouncing on static holds.</li>
+    <li><b>Dose is what counts.</b> About 5 minutes per muscle group each week, over 5 or more days, is where range of motion reliably improves. The dose card tracks it.</li>
+    <li><b>Know what it won't do.</b> Stretching builds range of motion. It isn't a cure for soreness or a guarantee against injury — sleep, food and smart loading handle those.</li>
+    <li><b>Check it's working.</b> The flexibility check-in every 3 weeks measures real progress.</li>
+  </ol>`, 'tall');
+
+/* ============ HOW-TO GUIDES (UI) ============ */
+function demoURL(name, kind) {
+  const q = kind === 'stretch' ? `${name} stretch how to #shorts` : `${name} proper form #shorts`;
+  return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+}
+function demoLink(name, kind) {
+  return `<a class="demo-pill" href="${demoURL(name, kind)}" target="_blank" rel="noopener" aria-label="Watch short demo videos on YouTube">${ic('play', 16)} Demo</a>`;
+}
+/* Full guide as a stack of cards. kind: 'ex' | 'stretch' */
+function guideHTML(id, kind) {
+  const g = GUIDE[id], item = kind === 'stretch' ? ST[id] : EX[id];
+  if (!g) return `<div class="card"><p class="prose">${esc(item.how)}</p><ul class="cues">${item.cues.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div><div class="center">${demoLink(item.name, kind)}</div>`;
+  return `<div class="center">${demoLink(item.name, kind)}</div>
+    <div class="card guide">
+      <div class="g-row g-setup">${ic('flag', 18)}<p>${esc(g.setup)}</p></div>
+      <ol class="steps g-steps">${g.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
+      <div class="g-feel">${ic('target', 18)}<span>${esc(g.feel)}</span></div>
+      ${g.breathe ? `<div class="g-row g-soft">${ic('wind', 18)}<p>${esc(g.breathe)}</p></div>` : ''}
+      ${g.easier ? `<div class="g-row g-soft">${ic('leaf', 18)}<p>${esc(g.easier)}</p></div>` : ''}
+    </div>
+    ${g.safety ? `<div class="card g-row g-safe">${ic('shield', 20)}<p>${esc(g.safety)}</p></div>` : ''}
+    <div class="card g-mist" aria-label="Common mistakes">${g.mistakes.map(([m, f]) => `<div class="g-m"><span class="g-x">${ic('close', 13)}</span><div><b>${esc(m)}</b><span class="g-fix">${ic('check', 13)}${esc(f)}</span></div></div>`).join('')}</div>`;
+}
+/* Exercise guide inside a sheet (from the exercise picker) */
+ACT.pickInfo = d => {
+  const back = SHEET_FN, e = EX[d.x];
+  openSheet(() => `${sheetHead(e.name, `${EQUIP_NAMES[e.eq]} · ${e.prim.map(m => MUSCLE_NAMES[m]).join(', ')}`)}
+    <div class="center">${dualBody(e.prim, e.sec, 150)}</div>
+    <div class="stack">${guideHTML(e.id, 'ex')}</div>
+    <div class="btnrow sticky-b"><button class="btn2" data-a="pickInfoBack">Back to list</button><button class="btn" data-a="pickEx" data-x="${e.id}">Use this one</button></div>`, 'tall');
+  UI.pickBack = back;
+};
+ACT.pickInfoBack = () => { if (UI.pickBack) openSheet(UI.pickBack, 'tall'); else closeSheet(); };
+ACT.exHowTo = () => { topView().t = 'ov'; render({ top: true }); };
+/* Stretch player: pause and show the full how-to */
+ACT.plHow = () => {
+  const P = Player, cur = P.steps[P.i]; if (!cur || cur.warm) return;
+  if (!P.paused) P.toggle();
+  openSheet(() => stretchInfoHTML(ST[cur.id]) + `<button class="btn mt" data-a="plHowDone">${ic('play', 18)} Resume</button>`, 'tall top');
+};
+ACT.plHowDone = () => { closeSheet(); if (Player.on && Player.paused) Player.toggle(); };
+
+/* ============ MEALS TAB ============ */
+const TAG_NAMES = { portable: 'Job-site friendly', batch: 'Batch prep', traeger: 'Traeger', grill: 'Grill', nocook: 'No-cook', quick: 'Quick' };
+function slotName(r) { return r.k === 'pre' ? 'Pre-workout' : r.k === 'post' ? 'Post-workout' : r.k === 'breakfast' && r.post ? 'Breakfast · post-workout' : SLOT_INFO[r.k].name; }
+function addonsLine(r) { return (r.add || []).length ? `<span class="mrow-add">+ ${r.add.map(id => esc(ADDONS[id].name)).join(' · ')}</span>` : ''; }
+function mealDayStrip(mon, sel) {
+  return `<div class="wstrip">${weekDates(mon).map(d => {
+    const gym = !!dayWorkout(d);
+    return `<button class="wday ${d === sel ? 'on' : ''} ${d === today() ? 'is-today' : ''} ${gym ? 'gym' : ''}" data-a="pickMealDay" data-d="${d}" aria-label="${fmtDate(d, 'long')}">
+      <span class="wd-d">${DOW_SHORT[dow(d)].slice(0, 1)}</span><span class="wd-n">${parseD(d).getDate()}</span><span class="wd-w">${ic(gym ? 'dumbbell' : 'moon', 13)}</span></button>`;
+  }).join('')}</div>`;
+}
+function macroBar(k, eaten, target) {
+  const pct = target ? Math.min(100, eaten / target * 100) : 0;
+  return `<div class="mb2"><span class="md ${k}" title="${MACRO_TIP[k]}"><i></i>${k.toUpperCase()}</span><span class="mb-t"><i class="${k}" style="width:${pct}%"></i></span><span class="mb-v"><b>${fmtInt(eaten)}</b>/${fmtInt(target)}</span></div>`;
+}
+function calRing(eaten, target, size = 104) {
+  const R = size / 2 - 7, C = 2 * Math.PI * R, f = target ? Math.min(1, eaten / target) : 0, left = target - eaten;
+  return `<div class="ring" style="width:${size}px;height:${size}px"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size / 2}" cy="${size / 2}" r="${R}" class="ring-t"/><circle cx="${size / 2}" cy="${size / 2}" r="${R}" class="ring-p ${left < 0 ? 'over' : ''}" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - f)}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>
+    <div class="ring-in"><b>${fmtInt(Math.abs(left))}</b><span>${left >= 0 ? 'left' : 'over'}</span></div></div>`;
+}
+const slotIc = (r, eaten) => `<span class="slot-ic" title="${slotName(r)}">${ic(r.staff ? 'people' : SLOT_ICON[r.k] || 'meals', 18)}</span>`;
+function staffRow(date, r, compact) {
+  const eaten = !!(mealLog(date).e || {})[r.k], o = rowMac(r);
+  return `<div class="mrow staff ${eaten ? 'is-done' : ''}">${slotIc(r)}
+    <button class="mrow-main" data-a="staffLunch" data-d="${date}">
+      <span class="mrow-when">${fmtClock(r.t)}</span>
+      <span class="mrow-n">${esc(r.m.name)}</span>
+      ${compact ? '' : `<span class="mrow-m">${r.logged ? '' : '~'}${kcalTag(o.kcal)}${r.logged ? macroDots(o) : ''}</span>`}
+    </button>
+    ${compact ? `<span class="mrow-k">${fmtInt(o.kcal)}</span>` : `<button class="btn-sm ${r.logged ? 'ghost' : 'alt'}" data-a="staffLunch" data-d="${date}">${r.logged ? ic('pencil', 16) : 'Log'}</button>`}
+    ${checkCircle(eaten, 'eatMeal', `data-d="${date}" data-k="${r.k}"`, 'Mark staff lunch eaten')}</div>`;
+}
+function mealRow(date, r, compact = false) {
+  if (r.staff) return staffRow(date, r, compact);
+  const eaten = !!(mealLog(date).e || {})[r.k], o = rowMac(r);
+  return `<div class="mrow ${eaten ? 'is-done' : ''}">${slotIc(r)}
+    <button class="mrow-main" data-a="openMeal" data-d="${date}" data-k="${r.k}">
+      <span class="mrow-when">${fmtClock(r.t)}</span>
+      <span class="mrow-n">${esc(r.m.name)}${r.x !== 1 ? ` <span class="xpill">${fracStr(r.x)}×</span>` : ''}${(r.add || []).length ? ` <span class="xpill add" title="${esc(r.add.map(id => ADDONS[id].name).join(', '))}">+${r.add.length}</span>` : ''}</span>
+      ${compact ? '' : `<span class="mrow-m">${kcalTag(o.kcal)}${macroDots(o)}</span>`}
+    </button>
+    ${compact ? `<span class="mrow-k">${fmtInt(o.kcal)}</span>` : `<button class="iconbtn" data-a="swapMeal" data-d="${date}" data-k="${r.k}" aria-label="Swap ${esc(r.m.name)}">${ic('swap', 20)}</button>`}
+    ${checkCircle(eaten, 'eatMeal', `data-d="${date}" data-k="${r.k}"`, 'Mark ' + slotName(r) + ' eaten')}</div>`;
+}
+function waterFx(date) { const f = UI.waterFx; return f && f.d === date && Date.now() - f.t < 1200 ? f : null; }
+const waterBtn = (compact) => compact ? `+${SET().meals.bottleOz}` : `${ic('plus', 16)} ${SET().meals.bottleOz} oz`;
+function waterCard(date, compact = false) {
+  const ms = SET().meals, n = Math.max(1, Math.round(ms.waterOz / ms.bottleOz)), have = mealLog(date).w || 0;
+  const oz = have * ms.bottleOz, pct = Math.min(100, oz / ms.waterOz * 100), fx = waterFx(date), hit = oz >= ms.waterOz;
+  const bar = `<span class="wbar"><i style="width:${pct}%;--from:${fx ? fx.from : pct}%"></i></span>`;
+  if (compact) return `<div class="water-mini ${fx ? 'fx' : ''} ${hit ? 'hit' : ''}" data-wd="${date}"><span class="wm-ic">${ic('drop', 22)}</span>
+    <span class="wm-b"><span class="wm-t"><b>${fmtInt(oz)}</b>/${ms.waterOz} oz${hit ? ' ' + ic('check', 14) : ''}</span>${bar}</span>
+    <button class="btn-sm wbtn ${fx ? 'ok' : 'ghost'}" data-a="water" data-d="${date}" data-v="1" aria-label="Add ${ms.bottleOz} ounces of water">${fx ? ic('check', 16) : waterBtn(true)}</button></div>`;
+  return `<div class="card water ${fx ? 'fx' : ''} ${hit ? 'hit' : ''}" data-wd="${date}"><div class="row between"><span class="wm-ic">${ic('drop', 22)}</span><span class="fine"><b>${fmtInt(oz)}</b>/${ms.waterOz} oz</span></div>
+    <div class="drops" style="grid-template-columns:repeat(${Math.min(10, Math.max(n, have))},minmax(0,1fr))">${Array.from({ length: Math.max(n, have) }, (_, i) => `<button class="drop ${i < have ? 'on' : ''} ${fx && fx.idx === i ? 'new' : ''}" data-a="waterSet" data-d="${date}" data-v="${i + 1}" aria-label="${i + 1} bottles">${ic('drop', 26)}</button>`).join('')}</div>
+    <div class="row gap-s"><button class="btn-sm ghost" data-a="water" data-d="${date}" data-v="-1" aria-label="Remove a bottle">${ic('minus', 16)}</button><button class="btn-sm wbtn ${fx ? 'ok' : ''}" data-a="water" data-d="${date}" data-v="1" aria-label="Add a bottle">${fx ? ic('check', 16) : waterBtn(false)}</button></div></div>`;
+}
+function waterChange(date, next) {
+  const L = mealLogW(date), ms = SET().meals, before = L.w || 0;
+  L.w = Math.max(0, next); Store.save('m:' + monthKey(date));
+  if (L.w > before) {
+    UI.waterFx = { d: date, t: Date.now(), from: Math.min(100, before * ms.bottleOz / ms.waterOz * 100), idx: L.w - 1 };
+    const hitNow = before * ms.bottleOz < ms.waterOz && L.w * ms.bottleOz >= ms.waterOz;
+    if (hitNow) { cue('done'); toast(`Water goal hit · ${L.w * ms.bottleOz} oz`, 'drop'); } else cue('water');
+    buzz(15);
+    clearTimeout(UI.waterT);
+    UI.waterT = setTimeout(() => { UI.waterFx = null; $$('.wbtn.ok').forEach(b => { b.classList.remove('ok'); const card = b.closest('[data-wd]'); const mini = !!b.closest('.water-mini'); if (mini) b.classList.add('ghost'); b.innerHTML = waterBtn(mini); if (card) card.classList.remove('fx'); }); $$('.drop.new').forEach(x => x.classList.remove('new')); }, 1200);
+  } else UI.waterFx = null;
+  render();
+}
+VIEWS.mroot = () => {
+  const s = UI.seg.meals;
+  const body = s === 'day' ? mealDayContent() : s === 'week' ? mealWeekContent() : groceryContent();
+  return `<div class="pad top"><div class="ltitle-row"><h1 class="ltitle">Meals</h1></div>
+    ${seg('meals', [['day', 'Day'], ['week', 'Week'], ['grocery', 'Groceries']], s)}<div class="stack">${body}</div></div>`;
+};
+function mealDayContent() {
+  const d = UI.mdate, { rows, N } = dayMeals(d), eaten = dayEaten(d), left = N.kcal - eaten.kcal;
+  const adj = d === today() ? adjustSuggestion() : null;
+  const W = weights(), last = W[W.length - 1];
+  const w = dayWorkout(d);
+  return `${mealDayStrip(mondayOf(d), d)}
+    ${d === today() ? recapCard('meals') : ''}
+    <div class="card dayhead">${calRing(eaten.kcal, N.kcal)}
+      <div class="dh-r"><div class="dh-t"><span class="sym">${ic(w ? 'dumbbell' : 'moon', 16)}${w ? esc(workoutById(w).short) : 'Rest'}</span><span class="sym">${kcalTag(N.kcal)}</span><button class="iconbtn sm" data-a="targetsInfo" aria-label="How targets are calculated">${ic('info', 18)}</button></div>
+        <div class="mbs2">${macroBar('p', eaten.p, N.p)}${macroBar('c', eaten.c, N.c)}${macroBar('f', eaten.f, N.f)}</div></div></div>
+    ${adj ? `<div class="card note-card"><div class="lbl">${ic(adj.delta > 0 ? 'bolt' : 'scale', 18)} Calorie check-in</div><p class="prose">${esc(adj.why)} ${adj.delta > 0 ? 'Add' : 'Trim'} <b>${Math.abs(adj.delta)} kcal</b> a day?</p>
+      <div class="btnrow"><button class="btn2" data-a="snoozeAdjust">Not now</button><button class="btn" data-a="applyAdjust" data-v="${adj.delta}">${adj.delta > 0 ? 'Add' : 'Trim'} ${Math.abs(adj.delta)} kcal</button></div></div>` : ''}
+    <div class="card list">${dayRowsHTML(d, rows)}</div>
+    <button class="btn2 wide" data-a="addFood" data-d="${d}">${ic('plus', 20)} Add food</button>
+    ${waterCard(d)}
+    <button class="lrow card" data-a="weighSheet">${ic('scale', 21)}<span>Weigh-in</span><span class="sym">${last ? `${nice(toU(last.w), 1)} ${bwu()} · ${fmtDate(last.d)}` : '—'}</span>${ic('chev', 18, 'muted')}</button>`;
+}
+ACT.pickMealDay = d => { UI.mdate = d.d; render(); };
+ACT.eatMeal = d => { if (!staffPick(d.d)) { const rr = dayMeals(d.d).rows.find(z => z.k === d.k); if (rr && rr.staff && !(mealLog(d.d).e || {})[d.k]) { ACT.staffLunch(d); return; } } const L = mealLogW(d.d); L.e = L.e || {}; L.e[d.k] = !L.e[d.k]; Store.save('m:' + monthKey(d.d)); render(); };
+ACT.water = d => waterChange(d.d, (mealLog(d.d).w || 0) + +d.v);
+ACT.waterSet = d => { const cur = mealLog(d.d).w || 0, v = +d.v; waterChange(d.d, cur === v ? v - 1 : v); };
+ACT.applyAdjust = d => { const s = SET(); s.calAdjust = (s.calAdjust || 0) + +d.v; s.lastAdjust = today(); Store.save('settings'); render(); toast(`Daily target ${+d.v > 0 ? 'raised' : 'lowered'} by ${Math.abs(+d.v)} kcal`); };
+ACT.snoozeAdjust = () => { SET().snoozeAdjust = today(); Store.save('settings'); render(); };
+ACT.weighSheet = () => openSheet(() => `${sheetHead('Weigh-in', 'Same time each morning, after the bathroom, before food.')}
+  <div class="bw-in"><input class="num lg" id="bwInput" type="text" inputmode="decimal" placeholder="${nice(toU(SET().weightLb), 1)}" aria-label="Weight"><span class="fl">${bwu()}</span><button class="btn-sm" data-a="logWeightSheet">Log today</button></div>
+  <p class="fine">Your chart and history are under Workout → Progress.</p>`);
+ACT.logWeightSheet = () => { const el = $('#bwInput'); const v = parseFloat(String(el.value || '').replace(',', '.')); if (!(v > 40 && v < 700)) { toast('Enter a weight first', 'info'); return; } logWeight(today(), fromU(v)); closeSheet(); render(); toast(`Logged ${nice(v, 1)} ${bwu()}`, 'scale'); };
+ACT.targetsInfo = () => {
+  const s = SET(), N = nutrition(null), g = nutrition(null);
+  const gymK = Math.round((N.base + N.bonus) / 10) * 10, restK = Math.round((N.base - N.minus) / 10) * 10;
+  openSheet(() => `${sheetHead('How your targets work')}
+    <div class="card flat"><div class="kv"><span>BMR (Mifflin-St Jeor)</span><b>${fmtInt(N.bmr)} kcal</b></div>
+    <div class="kv"><span>× ${ACTIVITY[s.activity].m} ${esc(ACTIVITY[s.activity].n.toLowerCase())}</span><b>${fmtInt(N.tdee)} kcal</b></div>
+    <div class="kv"><span>+ lean-gain surplus (${esc(RATES[s.rate].n.toLowerCase())})</span><b>+${RATES[s.rate].surplus}</b></div>
+    ${s.calAdjust ? `<div class="kv"><span>Auto-adjust so far</span><b>${s.calAdjust > 0 ? '+' : ''}${s.calAdjust}</b></div>` : ''}
+    <div class="kv total"><span>Daily average</span><b>${fmtInt(N.base)} kcal</b></div></div>
+    <div class="card flat"><div class="kv"><span>Gym days (+${N.bonus} kcal, all carbs)</span><b>${fmtInt(gymK)}</b></div><div class="kv"><span>Rest days (−${N.minus} kcal)</span><b>${fmtInt(restK)}</b></div>
+    <div class="kv"><span>Protein · ${s.proteinPerLb || 1} g per lb</span><b>${g.p} g</b></div><div class="kv"><span>Fat · 27% of calories</span><b>${g.f} g</b></div><div class="kv"><span>Carbs · the rest</span><b>${nutrition(null).c} g on gym days</b></div></div>
+    <p class="prose">Log your weight a few times a week. If your 3-week trend drops below ${RATES[s.rate].band[0]} lb/week, you'll be asked about adding calories; if it runs above ${RATES[s.rate].band[1]}, you'll be asked about trimming.</p>`);
+};
+
+/* ---- Week ---- */
+function mealWeekContent() {
+  const mon = UI.mweek || mondayOf(today());
+  const prep = batchPrep(mon);
+  const days = weekDates(mon).map(d => {
+    const { rows } = dayMeals(d); const w = dayWorkout(d);
+    return `<button class="card dayplan ${d === today() ? 'is-today' : ''}" data-a="gotoMealDay" data-d="${d}"><div class="row between"><b>${fmtDate(d, 'dow')}</b><span class="fine">${w ? 'Gym · ' + esc(workoutById(w).short) : 'Rest'} · ${fmtInt(sum(rows.map(r => rowMac(r).kcal)))} kcal</span></div>
+      <div class="dp-list">${rows.map(r => `<span><em>${slotName(r)}</em>${esc(r.m.name)}${r.x !== 1 ? ` ${fracStr(r.x)}×` : ''}${(r.add || []).length ? ` <i>+${r.add.length}</i>` : ''}</span>`).join('')}</div>${isNoPrepDay(d) ? '<span class="fine noprep">No-cook day · everything is pre-made or grab-and-go</span>' : ''}</button>`;
+  }).join('');
+  const prepHTML = prep.length ? prep.map(p => `<div class="card prep"><div class="row between"><div><div class="lbl">${ic('clock', 16)} ${esc(p.name)}</div><div class="fine">${fmtDate(p.when, 'dow')} · covers ${p.cover}</div></div></div>
+    <ul class="preplist">${p.lines.map(l => `<li><b>${esc(l.text)}</b><span>${esc(l.amt)}${l.meals > 1 ? ` · ${l.meals} meals` : ''}</span></li>`).join('')}</ul></div>`).join('')
+    : `<div class="card"><p class="fine">No batch-cooked meals this week.</p></div>`;
+  return `<div class="row between"><button class="iconbtn" data-a="mweekNav" data-d="-7" aria-label="Previous week">${ic('back', 20)}</button><b>Week of ${fmtDate(mon)}</b><button class="iconbtn" data-a="mweekNav" data-d="7" aria-label="Next week">${ic('chev', 20)}</button></div>
+    <div class="sec-h"><span>Batch prep</span><span class="muted">Cooked food keeps 3–4 days</span></div>${prepHTML}
+    <div class="sec-h"><span>Plan</span><button class="link" data-a="regenAsk" data-d="${mon}">${ic('refresh', 16)} New plan</button></div>
+    <button class="lrow card taste-row" data-a="openTaste">${ic('heart', 21)}<span>Planned around your taste<small>${esc(tasteNote())}</small></span>${ic('chev', 18, 'muted')}</button>${days}
+    <button class="btn2 wide" data-a="openMealLib">${ic('heart', 20)} Browse meals & favorites</button>`;
+}
+ACT.mweekNav = d => { const cur = UI.mweek || mondayOf(today()); UI.mweek = addDays(cur, +d.d); render(); };
+ACT.gotoMealDay = d => { UI.mdate = d.d; UI.seg.meals = 'day'; render({ top: true }); };
+ACT.regenAsk = d => openSheet(() => `${sheetHead('Make a new plan for this week?')}<p class="prose">Every meal from today on gets reshuffled (favorites show up more often). Past days and meals you've already checked off stay put. Single swaps are quicker with ${ic('swap', 16)} on the Day view.</p>
+  <div class="btnrow"><button class="btn2" data-a="sheetClose">Cancel</button><button class="btn" data-a="regen" data-d="${d.d}">New plan</button></div>`);
+ACT.regen = d => { regenPlan(d.d); closeSheet(); render(); toast('Fresh plan ready', 'refresh'); };
+
+/* ---- Groceries ---- */
+function groceryContent() {
+  const mon = UI.gweek || mondayOf(today());
+  const groups = groceryList(mon); const checks = (Store.d.meals.grocery[mon] = Store.d.meals.grocery[mon] || {});
+  const total = sum(groups.map(g => g.items.length)), got = sum(groups.map(g => g.items.filter(i => checks[i.k]).length));
+  const fam = SET().meals.family;
+  return `<div class="row between"><button class="iconbtn" data-a="gweekNav" data-d="-7" aria-label="Previous week">${ic('back', 20)}</button><div class="center"><b>Week of ${fmtDate(mon)}</b><div class="fine">${got} of ${total} in the cart</div></div><button class="iconbtn" data-a="gweekNav" data-d="7" aria-label="Next week">${ic('chev', 20)}</button></div>
+    ${fam ? `<p class="fine">Dinners include ${fam} extra portion${fam > 1 ? 's' : ''} for the family. Change it in Settings → Meals.</p>` : ''}
+    ${groups.map(g => `<div class="card list glist"><div class="g-h"><b>${esc(g.sec)}</b><span class="fine">${g.items.filter(i => checks[i.k]).length}/${g.items.length}</span></div>
+      ${g.sec === 'Spices & Sauces' ? '<p class="fine g-note">Check the pantry — you probably have most of these.</p>' : ''}
+      ${g.items.map(i => `<button class="gi ${checks[i.k] ? 'on' : ''}" data-a="gcheck" data-k="${i.k}" data-w="${mon}" aria-pressed="${!!checks[i.k]}"><span class="gbox">${ic('check', 15)}</span><span class="gi-n">${esc(i.name)}</span><span class="gi-a">${esc(i.amt)}${i.hint ? `<small>${esc(i.hint)}</small>` : ''}</span></button>`).join('')}</div>`).join('')}
+    ${got ? `<button class="btn-text" data-a="gclear" data-w="${mon}">Uncheck everything</button>` : ''}`;
+}
+ACT.gweekNav = d => { const cur = UI.gweek || mondayOf(today()); UI.gweek = addDays(cur, +d.d); render(); };
+ACT.gcheck = d => { const G = Store.d.meals.grocery; G[d.w] = G[d.w] || {}; G[d.w][d.k] = !G[d.w][d.k]; Store.save('meals'); render(); };
+ACT.gclear = d => { Store.d.meals.grocery[d.w] = {}; Store.save('meals'); render(); };
+
+/* ---- Meal detail ---- */
+ACT.openMeal = d => { const rr = d.d && dayMeals(d.d).rows.find(z => z.k === d.k); if (rr && rr.staff) { ACT.staffLunch(d); return; } if (UI.tab !== 'meals') goTab('meals', { v: 'meal', date: d.d, k: d.k }); else push({ v: 'meal', date: d.d, k: d.k }); };
+VIEWS.meal = v => {
+  let m, x = 1, r = null;
+  if (v.date) { r = dayMeals(v.date).rows.find(z => z.k === v.k); if (!r || r.staff) return navBar({ back: 'Meals' }) + `<div class="pad">${emptyState('meals', 'Meal not in this day', 'Your meal settings changed.')}</div>`; m = r.m; x = r.x; }
+  else m = MEALS[v.id];
+  const tot = r ? rowMac(r) : { kcal: m.kcal, p: m.p, c: m.c, f: m.f };
+  const fav = Store.d.meals.favs.includes(m.id);
+  const eaten = v.date && (mealLog(v.date).e || {})[v.k];
+  const heart = `<button class="iconbtn ${fav ? 'fav' : ''}" data-a="favMeal" data-x="${m.id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from favorites' : 'Add to favorites'}">${ic('heart', 22)}</button>`;
+  return `${navBar({ back: 'Meals', right: heart })}<div class="pad"><div class="dh">
+    ${r ? `<div class="eyebrow">${fmtDate(v.date, 'dow')} · ${fmtClock(r.t)} · ${slotName(r)}</div>` : ''}<h1 class="h1">${esc(m.name)}</h1>
+    <div class="chips">${m.tags.map(t => `<span class="chip">${TAG_NAMES[t] || t}</span>`).join('')}${m.min ? `<span class="chip">${m.min >= 120 ? Math.round(m.min / 60) + ' hr' : m.min + ' min'}</span>` : ''}</div></div>
+    <div class="stack"><div class="card">
+      <div class="row between"><div class="lbl">${v.date ? 'Your portion' : 'Per serving'}</div>${v.date ? stepper('mealServ', fracStr(x) + '×', `data-d="${v.date}" data-k="${v.k}"`, 'Servings') : ''}</div>
+      <div class="macros"><div><b>${fmtInt(tot.kcal)}</b><span>kcal</span></div><div><b>${Math.round(tot.p)}g</b><span>protein</span></div><div><b>${Math.round(tot.c)}g</b><span>carbs</span></div><div><b>${Math.round(tot.f)}g</b><span>fat</span></div></div>
+      ${r && (r.add || []).length ? `<div class="addons"><div class="lbl">On the side</div>${r.add.map(id => `<div class="kv"><span>+ ${esc(ADDONS[id].name)}</span><b>${fmtInt(ADDONS[id].kcal)} kcal · ${Math.round(ADDONS[id].p)}P</b></div>`).join('')}</div>` : ''}
+      ${r && r.manual ? `<p class="fine">Portion set by you · <button class="link" data-a="mealServAuto" data-d="${v.date}" data-k="${v.k}">Fit to target</button></p>` : v.date ? `<p class="fine">Real portions, topped up with simple sides to hit today's ${fmtInt(nutrition(v.date).kcal)} kcal.</p>` : ''}</div>
+    ${tasteButtons(m)}
+    <div class="card"><div class="lbl">Ingredients</div><ul class="ings">${m.ing.map(([k, q]) => `<li><span>${esc(ING[k].name)}</span><b>${esc(qtyText(k, q * x, true))}</b></li>`).join('')}</ul></div>
+    <div class="card"><div class="lbl">How to make it</div><ol class="steps">${m.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>
+    </div></div>
+    ${v.date ? `<div class="actionbar two"><button class="btn2" data-a="swapMeal" data-d="${v.date}" data-k="${v.k}">${ic('swap', 20)} Swap</button><button class="btn ${eaten ? 'done' : ''}" data-a="eatMeal" data-d="${v.date}" data-k="${v.k}">${eaten ? ic('check', 18) + ' Eaten' : 'Mark eaten'}</button></div>` : ''}`;
+};
+ACT.favMeal = d => { const F = Store.d.meals.favs; const i = F.indexOf(d.x); if (i >= 0) F.splice(i, 1); else F.push(d.x); Store.save('meals'); render(); if (SHEET_FN) refreshSheet(); toast(i >= 0 ? 'Removed from favorites' : 'Saved to favorites', 'heart'); };
+ACT.mealServ = d => {
+  const r = dayMeals(d.d).rows.find(z => z.k === d.k); const X = Store.d.meals.x;
+  X[d.d + '|' + d.k] = clamp(r.x + 0.5 * (+d.step || 0), 0.5, 4);
+  Store.save('meals'); render();
+};
+ACT.mealServAuto = d => { delete Store.d.meals.x[d.d + '|' + d.k]; Store.save('meals'); render(); };
+ACT.swapMeal = d => {
+  const r = dayMeals(d.d).rows.find(z => z.k === d.k); const cands = swapCandidates(d.d, d.k, r.m.id);
+  UI.swapAll = false;
+  openSheet(() => {
+    const favs = Store.d.meals.favs; const list = UI.swapAll ? cands : cands.slice(0, 8);
+    return `${sheetHead('Swap ' + slotName(r).toLowerCase(), 'Closest macros first, sized to the same target')}<div class="pk-list">${list.map(m => {
+      const x = servingsFor(m, r.tk);
+      return `<div class="pk-row as-row"><button class="pk-b" data-a="doSwapMeal" data-d="${d.d}" data-k="${d.k}" data-x="${m.id}"><span class="pk-n">${esc(m.name)}${favs.includes(m.id) ? ' ' + ic('heart', 14, 'fav') : ''}${tasteScore(m) > 1.2 ? ' <span class="like-tag">You like this</span>' : ''}</span><span class="pk-m">${fmtInt(m.kcal * x)} kcal · ${Math.round(m.p * x)}P · ${Math.round(m.c * x)}C · ${Math.round(m.f * x)}F${m.tags.includes('traeger') ? ' · Traeger' : m.tags.includes('portable') ? ' · Job-site' : ''}</span></button></div>`;
+    }).join('')}</div>${!UI.swapAll && cands.length > 8 ? `<button class="btn-text" data-a="swapShowAll">Show all ${cands.length}</button>` : ''}`;
+  }, 'tall');
+};
+ACT.swapShowAll = () => { UI.swapAll = true; refreshSheet(); };
+ACT.doSwapMeal = d => {
+  const plan = weekPlan(mondayOf(d.d)); const from = plan.days[d.d][d.k]; if (from && from !== d.x) recordSwap(d.d, d.k, from, d.x); plan.days[d.d][d.k] = d.x; delete Store.d.meals.x[d.d + '|' + d.k];
+  Store.save('meals'); closeSheet(); render(); toast(`Swapped in ${MEALS[d.x].name}`, 'swap');
+};
+
+/* ---- Meal library ---- */
+ACT.openMealLib = () => push({ v: 'mlib', f: 'all' });
+VIEWS.mlib = v => {
+  const favs = Store.d.meals.favs;
+  const filters = [['all', 'All'], ['fav', 'Favorites'], ['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snack', 'Snacks'], ['pre', 'Pre-workout'], ['post', 'Post-workout'], ['traeger', 'Traeger'], ['portable', 'Job-site']];
+  const list = MEAL_LIST.filter(m => v.f === 'all' || (v.f === 'fav' ? favs.includes(m.id) : m.slots.includes(v.f) || m.tags.includes(v.f)));
+  return `${navBar({ back: 'Meals' })}<div class="pad"><div class="dh"><h1 class="h1">Meals</h1><div class="sub">Tap ♡ on a meal to see it more often in your plans.</div></div>
+    <div class="chips scroll">${filters.map(([k, l]) => `<button class="chip ${v.f === k ? 'on' : ''}" data-a="mlibF" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="card list mt">${list.length ? list.map(m => `<div class="pk-row as-row"><button class="pk-b" data-a="openMealBase" data-x="${m.id}"><span class="pk-n">${esc(m.name)}${isHidden(m.id) ? ' <span class="hid-tag">Hidden</span>' : ''}</span><span class="pk-m">${fmtInt(m.kcal)} kcal · ${Math.round(m.p)}P · ${Math.round(m.c)}C · ${Math.round(m.f)}F per serving</span></button>
+      <button class="iconbtn ${favs.includes(m.id) ? 'fav' : ''}" data-a="favMeal" data-x="${m.id}" aria-pressed="${favs.includes(m.id)}" aria-label="Favorite">${ic('heart', 20)}</button></div>`).join('') : `<p class="fine pad-s">No favorites yet.</p>`}</div></div>`;
+};
+ACT.mlibF = d => { topView().f = d.v; render(); };
+ACT.openMealBase = d => push({ v: 'meal', id: d.x });
+
+/* ---- Staff lunch ---- */
+function staffSheetHTML() {
+  const S = UI.staff, P = STAFF_LUNCH.find(x => x.id === S.id), por = +S.por;
+  return `${sheetHead('Staff lunch', 'Pick the closest match. Numbers are estimates for a normal plate.')}
+    <div class="sl-grid">${STAFF_LUNCH.map(x => `<button class="sl-opt ${S.id === x.id ? 'on' : ''}" data-a="staffSet" data-v="${x.id}" aria-pressed="${S.id === x.id}"><b>${esc(x.name)}</b><span>${esc(x.note)} · ~${fmtInt(x.kcal)} kcal</span></button>`).join('')}</div>
+    <div class="lbl mt">How much did you eat?</div>
+    <div class="sl-por">${STAFF_PORTIONS.map(([v, l]) => `<button class="chip ${S.por === v ? 'on' : ''}" data-a="staffPor" data-v="${v}">${l}</button>`).join('')}</div>
+    ${P ? `<p class="sl-sum"><b>${fmtInt(P.kcal * por)} kcal</b> · ${Math.round(P.p * por)}P · ${Math.round(P.c * por)}C · ${Math.round(P.f * por)}F${P.p * por < STAFF_TYPICAL.p - 12 ? ' · light on protein, so a shake gets added later today' : ''}</p>` : '<p class="fine">Pick what was served.</p>'}
+    <button class="btn" data-a="staffSave" ${P ? '' : 'disabled'}>Log staff lunch</button>
+    <div class="row between mt"><button class="link" data-a="staffOther">Something else…</button><button class="link" data-a="staffNone">I didn't have it</button></div>
+    ${staffPick(S.date) ? `<button class="btn-text" data-a="staffClear">Clear what I logged</button>` : ''}`;
+}
+ACT.staffLunch = d => { const cur = staffPick(d.d) || {}; UI.staff = { date: d.d, id: cur.id && cur.id !== 'none' ? cur.id : null, por: String(cur.por || 1) }; openSheet(staffSheetHTML, 'tall'); };
+ACT.staffSet = d => { UI.staff.id = d.v; refreshSheet(); };
+ACT.staffPor = d => { UI.staff.por = d.v; refreshSheet(); };
+ACT.staffSave = () => {
+  const S = UI.staff; if (!S.id) return; const L = mealLogW(S.date);
+  L.staff = { id: S.id, por: +S.por }; L.e = L.e || {}; L.e.lunch = true;
+  Store.save('m:' + monthKey(S.date)); closeSheet(); render(); toast('Staff lunch logged — the rest of today adjusted', 'check');
+};
+ACT.staffNone = () => { const S = UI.staff, L = mealLogW(S.date); L.staff = { id: 'none' }; if (L.e) delete L.e.lunch; Store.save('m:' + monthKey(S.date)); closeSheet(); render(); toast('Planned a grab-and-go lunch instead', 'swap'); };
+ACT.staffClear = () => { const S = UI.staff, L = mealLogW(S.date); delete L.staff; if (L.e) delete L.e.lunch; Store.save('m:' + monthKey(S.date)); closeSheet(); render(); };
+ACT.staffOther = () => { const S = UI.staff; closeSheet(); setTimeout(() => ACT.addFood({ d: S.date, rep: 'lunch' }), 240); };
+
+/* ============ OFF-PLAN FOOD LOG ============ */
+const WHEN = [['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snack', 'Snack']];
+const WHEN_TIME = { breakfast: 510, lunch: 750, dinner: 1110, snack: 930 };
+const COMMON_ING = ['egg', 'tortilla', 'ham', 'cheddar', 'bacon', 'bread', 'rice', 'chx', 'gb', 'potato', 'milk', 'banana', 'salsa', 'butter'];
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+function defaultWhen() { const t = nowMin(); return t < 630 ? 'breakfast' : t < 870 ? 'lunch' : t < 1020 ? 'snack' : 'dinner'; }
+function ingStep(k) {
+  const g = ING[k], u = g.unit;
+  if (g.db || g.custom) return u === 'cup' || u === 'pint' ? 0.25 : u === 'tbsp' || u === 'tsp' ? 0.5 : u === 'g' || u === 'ml' ? 10 : u === 'oz' || u === 'fl oz' || u === 'lb' ? (u === 'lb' ? 0.25 : 1) : 0.5;
+  return u === 'cup' || u === 'can' ? 0.25 : u === 'tbsp' || u === 'tsp' ? 0.5 : 1;
+}
+function ingDefault(k) {
+  const g = ING[k];
+  if (g.def) return g.def;
+  if (g.custom) return g.unit === 'g' || g.unit === 'ml' ? 100 : 1;
+  if (g.db) return 1;
+  if (k === 'egg') return 2;
+  if (g.unit === 'oz') return ['cheddar', 'mozz', 'jerky', 'chips', 'pretzels', 'trail_mix'].includes(k) ? 1 : 3;
+  if (g.unit === 'cup') return ['salsa', 'marinara', 'granola'].includes(k) ? 0.25 : ['rice', 'milk', 'whole_milk', 'choc_milk', 'gy', 'cc', 'mac_cheese'].includes(k) ? 1 : 0.5;
+  return g.unit === 'can' ? 0.5 : 1;
+}
+const macroLine = (m, x = 1) => `${fmtInt(m.kcal * x)} kcal · ${Math.round(m.p * x)}P · ${Math.round(m.c * x)}C · ${Math.round(m.f * x)}F`;
+
+/* rows shown in the day list */
+function extraRow(date, x, compact = false) {
+  const sv = x.sv || 1;
+  return `<div class="mrow xrow"><span class="slot-ic off" title="Off-plan">${ic('plus', 18)}</span>
+    <button class="mrow-main" data-a="editExtra" data-d="${date}" data-id="${x.id}">
+      <span class="mrow-when">${fmtClock(x.t)}</span>
+      <span class="mrow-n">${esc(x.name)}${sv !== 1 ? ` <span class="xpill">${fracStr(sv)}×</span>` : ''}</span>
+      ${compact ? '' : `<span class="mrow-m">${kcalTag(x.kcal * sv)}${macroDots(x, sv)}</span>`}
+    </button>
+    ${compact ? `<span class="mrow-k">${fmtInt(x.kcal * sv)}</span>` : ''}
+    <span class="chk on static" aria-label="Eaten">${ic('check', 20)}</span></div>`;
+}
+function replacedRow(date, r, x, compact = false) {
+  return `<div class="mrow is-replaced"><span class="slot-ic">${ic('swap', 18)}</span>
+    <button class="mrow-main" data-a="openMeal" data-d="${date}" data-k="${r.k}">
+      <span class="mrow-when">${fmtClock(r.t)}</span>
+      <span class="mrow-n"><s>${esc(r.m.name)}</s></span>
+      <span class="mrow-m">Swapped for ${esc(x.name)}</span>
+    </button>
+    <button class="link" data-a="unreplace" data-d="${date}" data-id="${x.id}">Undo</button></div>`;
+}
+/* planned + off-plan rows merged by time of day */
+function dayRowsHTML(date, rows, compact = false) {
+  const items = rows.map(r => { const x = replacedBy(date, r.k); return { t: r.t, html: x ? replacedRow(date, r, x, compact) : mealRow(date, r, compact) }; });
+  extras(date).forEach(x => items.push({ t: x.t + 0.5, html: extraRow(date, x, compact) }));
+  return items.sort((a, b) => a.t - b.t).map(i => i.html).join('');
+}
+
+/* ---- Add food sheet ---- */
+function afEntry() { // current draft -> {name, kcal,p,c,f, ing?}
+  const A = UI.af;
+  if (A.mode === 'build') { const m = ingMacros(A.ing); return Object.assign({ name: A.name.trim() || 'Homemade meal', ing: A.ing.map(x => x.slice()) }, m); }
+  if (A.mode === 'quick') { const q = A.quick; return { name: A.name.trim() || 'Quick add', kcal: +q.kcal || 0, p: +q.p || 0, c: +q.c || 0, f: +q.f || 0 }; }
+  if (A.pick) {
+    if (A.pick.type === 'food') { const f = Store.d.meals.foods.find(z => z.id === A.pick.id); if (f) return { name: f.name, kcal: f.kcal, p: f.p, c: f.c, f: f.f, ing: f.ing, food: f.id }; }
+    if (A.pick.type === 'meal') { const m = MEALS[A.pick.id]; if (m) return { name: m.name, kcal: m.kcal, p: m.p, c: m.c, f: m.f, meal: m.id }; }
+  }
+  return null;
+}
+function afOpenSlots() {
+  const A = UI.af; const { rows } = dayMeals(A.date); const e = mealLog(A.date).e || {};
+  return rows.filter(r => !e[r.k] && !replacedBy(A.date, r.k));
+}
+function afAutoRep() {
+  const A = UI.af; if (A.repTouched) return;
+  const open = afOpenSlots(); const want = A.when === 'snack' ? null : A.when;
+  const hit = want && open.find(r => r.k === want);
+  A.rep = hit ? hit.k : '';
+}
+function afTotalsHTML() {
+  const e = afEntry(), sv = UI.af.mode === 'saved' ? UI.af.sv : 1;
+  return e && e.kcal > 0 ? `<b>${fmtInt(e.kcal * sv)}</b> kcal · <b>${Math.round(e.p * sv)}</b>P · <b>${Math.round(e.c * sv)}</b>C · <b>${Math.round(e.f * sv)}</b>F` : '<span class="muted">Add something to see macros</span>';
+}
+function afIngListHTML() {
+  const A = UI.af;
+  if (!A.ing.length) return `<p class="fine af-empty">Add each thing that goes in it. Macros add up as you go.</p>`;
+  return A.ing.map(([k, q], i) => { const g = ING[k]; return `<div class="af-ing"><span class="af-ing-n">${esc(g.name)}<small>${fmtInt(g.kcal * q)} kcal · ${Math.round(g.p * q)}g protein</small></span>
+    <div class="stepper sm"><button data-a="afQty" data-i="${i}" data-step="-1" aria-label="Less">${ic('minus', 16)}</button><span class="st-val">${esc(qtyText(k, q, true))}</span><button data-a="afQty" data-i="${i}" data-step="1" aria-label="More">${ic('plus', 16)}</button></div>
+    <button class="iconbtn sm" data-a="afRemove" data-i="${i}" aria-label="Remove ${esc(g.name)}">${ic('close', 16)}</button></div>`; }).join('');
+}
+/* Word-by-word food search: every word must match; name starts and word starts rank first; your own ingredients lead. */
+const normQ = s => s.toLowerCase().replace(/[’']/g, '').replace(/&/g, 'and').replace(/[^a-z0-9%]+/g, ' ').trim();
+function foodSearch(q, limit = 25) {
+  const words = normQ(q).split(' ').filter(Boolean); if (!words.length) return [];
+  const out = [];
+  for (const g of Object.values(ING)) {
+    const n = g._n || (g._n = normQ(g.name + ' ' + (g.cat || ''))), nw = n.split(' ');
+    let score = 0, okAll = true;
+    for (const w of words) {
+      const i = n.indexOf(w); if (i < 0) { okAll = false; break; }
+      score += i === 0 ? 6 : nw.some(x => x.startsWith(w)) ? 4 : 1;
+    }
+    if (!okAll) continue;
+    if (g.custom) score += 5; if (!g.db && !g.custom) score += 1;
+    out.push({ g, score: score - n.length / 60 });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.g);
+}
+const perUnit = g => g.unit === 'each' ? 'each' : `per ${MEASURE_UNITS.includes(g.unit) || !g.db && !g.custom ? '' : '1 '}${g.unit}`.replace('per  ', 'per ');
+function afResultsHTML() {
+  const q = (UI.af.q || '').trim();
+  const mine = Object.values(ING).filter(g => g.custom);
+  if (!q) return `<div class="chips">${[...mine.map(g => g.id), ...COMMON_ING].filter(k => ING[k] && !UI.af.ing.some(x => x[0] === k)).slice(0, 18).map(k => `<button class="chip ${ING[k].custom ? 'mine' : ''}" data-a="afAddIng" data-k="${k}">${ic('plus', 14)} ${esc(ING[k].name.replace(/ \(.*\)/, ''))}</button>`).join('')}</div>
+    <p class="fine">Search ${fmtInt(Object.keys(ING).length)} foods — groceries, fast food, drinks — or <button class="link inl" data-a="ingNew">create your own</button>.</p>`;
+  const hits = foodSearch(q);
+  const create = `<button class="pk-row af-create" data-a="ingNew" data-v="${esc(q)}"><span class="pk-b"><span class="pk-n">${ic('plus', 16)} Create “${esc(q)}”</span><span class="pk-m">Type the numbers from the label once — it's saved for next time</span></span></button>`;
+  if (!hits.length) return `<div class="af-res">${create}</div>`;
+  return `<div class="af-res">${hits.map(g => `<button class="pk-row" data-a="afAddIng" data-k="${g.id}"><span class="pk-b"><span class="pk-n">${esc(g.name)}${g.custom ? ' <span class="mine-tag">Mine</span>' : ''}</span><span class="pk-m">${fmtInt(g.kcal)} kcal · ${Math.round(g.p * 10) / 10}g protein ${perUnit(g)}${g.cat ? ' · ' + esc(g.cat) : ''}</span></span>${ic('plus', 18)}</button>`).join('')}${create}</div>`;
+}
+function afSavedHTML() {
+  const A = UI.af, q = (A.lq || '').toLowerCase().trim();
+  const foods = [...Store.d.meals.foods].sort((a, b) => (b.last || 0) - (a.last || 0)).filter(f => !q || f.name.toLowerCase().includes(q));
+  const meals = MEAL_LIST.filter(m => !q || m.name.toLowerCase().includes(q)).slice(0, q ? 20 : 8);
+  const sel = x => A.pick && A.pick.type === x.type && A.pick.id === x.id ? 'on' : '';
+  return `${foods.length ? `<div class="pk-sec">My foods</div>${foods.map(f => `<div class="pk-row as-row af-pick ${sel({ type: 'food', id: f.id })}"><button class="pk-b" data-a="afPick" data-t="food" data-id="${f.id}"><span class="pk-n">${esc(f.name)}</span><span class="pk-m">${macroLine(f)}</span></button><button class="iconbtn sm" data-a="afForget" data-id="${f.id}" aria-label="Remove ${esc(f.name)} from My foods">${ic('trash', 16)}</button></div>`).join('')}` : (q ? '' : `<p class="fine">Foods you build or quick-add are saved here for one-tap logging next time.</p>`)}
+    ${meals.length ? `<div class="pk-sec">Plan meals</div>${meals.map(m => `<div class="pk-row as-row af-pick ${sel({ type: 'meal', id: m.id })}"><button class="pk-b" data-a="afPick" data-t="meal" data-id="${m.id}"><span class="pk-n">${esc(m.name)}</span><span class="pk-m">${macroLine(m)} per serving</span></button></div>`).join('')}` : ''}`;
+}
+function afHTML() {
+  const A = UI.af, open = afOpenSlots(), e = afEntry(), sv = A.mode === 'saved' ? A.sv : 1;
+  let body = '';
+  if (A.mode === 'build') body = `<input class="search af-name" id="afName" type="text" placeholder="What is it? e.g. Ham & egg burrito" value="${esc(A.name)}" data-in="afName" autocomplete="off">
+      <div class="af-list" id="afList">${afIngListHTML()}</div>
+      <input class="search" id="afQ" type="search" placeholder="Add an ingredient…" value="${esc(A.q)}" data-in="afQ" autocomplete="off">
+      <div id="afRes">${afResultsHTML()}</div>`;
+  else if (A.mode === 'quick') body = `<input class="search af-name" id="afName" type="text" placeholder="What is it?" value="${esc(A.name)}" data-in="afName" autocomplete="off">
+      <div class="af-quick">${[['kcal', 'Calories', 'kcal'], ['p', 'Protein', 'g'], ['c', 'Carbs', 'g'], ['f', 'Fat', 'g']].map(([k, l, u]) => `<label class="af-q"><span>${l}</span><input class="num" id="afq-${k}" type="text" inputmode="decimal" value="${esc(A.quick[k])}" placeholder="0" data-in="afQuick" data-k="${k}"><em>${u}</em></label>`).join('')}</div>
+      <p class="fine">Straight from a label or a restaurant menu.</p>`;
+  else body = `<input class="search" id="afL" type="search" placeholder="Search your foods and plan meals" value="${esc(A.lq)}" data-in="afL" autocomplete="off">
+      <div id="afSaved" class="pk-list">${afSavedHTML()}</div>`;
+  const short = r => `${slotName(r)} · ${esc(r.m.name.length > 20 ? r.m.name.slice(0, 19) + '…' : r.m.name)}`;
+  const want = A.when === 'snack' ? null : open.find(r => r.k === A.when);
+  const shown = A.repAll ? open : open.filter(r => r.k === A.rep || (want && r.k === want.k));
+  const repChips = open.length ? `<div class="af-lbl">Instead of a planned meal?</div><div class="chips">${shown.map(r => `<button class="chip ${A.rep === r.k ? 'on' : ''}" data-a="afRep" data-v="${r.k}">${short(r)}</button>`).join('')}<button class="chip ${!A.rep ? 'on' : ''}" data-a="afRep" data-v="">No — it's extra</button>${!A.repAll && open.length > shown.length ? `<button class="chip ghost" data-a="afRepAll">Other meal…</button>` : ''}</div>` : '';
+  return `${sheetHead('Add food', `${fmtDate(A.date, 'dow')} · counts toward today's macros`)}
+    <div class="seg af-seg">${[['build', 'Build it'], ['quick', 'Quick macros'], ['saved', 'Saved']].map(([k, l]) => `<button class="${A.mode === k ? 'on' : ''}" data-a="afMode" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="af-body">${body}</div>
+    <div class="af-opts">
+      <div class="af-lbl">When</div><div class="chips">${WHEN.map(([k, l]) => `<button class="chip ${A.when === k ? 'on' : ''}" data-a="afWhen" data-v="${k}">${l}</button>`).join('')}</div>
+      ${repChips}
+      ${A.mode !== 'saved' ? `<div class="srow static af-save"><span class="srow-l">Save to My foods<small>Log it again with one tap</small></span><button class="switch ${A.save ? 'on' : ''}" role="switch" aria-checked="${A.save}" aria-label="Save to My foods" data-a="afSave"><i></i></button></div>` : ''}
+    </div>
+    <div class="af-bar">
+      ${A.mode === 'saved' && A.pick ? `<div class="kv af-sv"><span>Servings</span>${stepper('afSv', fracStr(A.sv) + '×', '', 'Servings')}</div>` : ''}
+      <div class="af-tot" id="afTot">${afTotalsHTML()}</div>
+      <button class="btn" id="afLogBtn" data-a="afLog" ${e && e.kcal > 0 ? '' : 'disabled'}>Log it${e && e.kcal > 0 ? ` · ${fmtInt(e.kcal * sv)} kcal` : ''}</button>
+    </div>`;
+}
+function afLive() { // refresh the parts that change while typing, without touching focused inputs
+  const t = $('#afTot'); if (t) t.innerHTML = afTotalsHTML();
+  const e = afEntry(), sv = UI.af.mode === 'saved' ? UI.af.sv : 1, b = $('#afLogBtn');
+  if (b) { b.disabled = !(e && e.kcal > 0); b.textContent = 'Log it' + (e && e.kcal > 0 ? ` · ${fmtInt(e.kcal * sv)} kcal` : ''); }
+}
+ACT.addFood = d => {
+  UI.af = { date: d.d || today(), mode: Store.d.meals.foods.length ? 'saved' : 'build', name: '', ing: [], q: '', lq: '', quick: { kcal: '', p: '', c: '', f: '' }, when: defaultWhen(), rep: '', repTouched: false, save: true, pick: null, sv: 1 };
+  if (UI.af.date !== today()) UI.af.when = 'snack';
+  afAutoRep();
+  if (d.rep) { UI.af.rep = d.rep; UI.af.repTouched = true; UI.af.mode = 'quick'; }
+  openSheet(afHTML, 'tall');
+};
+ACT.afMode = d => { UI.af.mode = d.v; refreshSheet(); };
+INP.afName = el => { UI.af.name = el.value; afLive(); };
+INP.afQ = el => { UI.af.q = el.value; const r = $('#afRes'); if (r) r.innerHTML = afResultsHTML(); };
+INP.afL = el => { UI.af.lq = el.value; const r = $('#afSaved'); if (r) r.innerHTML = afSavedHTML(); };
+INP.afQuick = el => { UI.af.quick[el.dataset.k] = el.value; afLive(); };
+ACT.afAddIng = d => {
+  const A = UI.af, i = A.ing.findIndex(x => x[0] === d.k);
+  if (i >= 0) A.ing[i][1] += ingStep(d.k); else A.ing.push([d.k, ingDefault(d.k)]);
+  if (!A.name && A.ing.length === 1) A.name = '';
+  A.q = ''; refreshSheet(); buzz(8);
+};
+ACT.afQty = d => {
+  const A = UI.af, it = A.ing[+d.i]; if (!it) return;
+  it[1] = Math.round((it[1] + ingStep(it[0]) * +d.step) * 100) / 100;
+  if (it[1] <= 0) A.ing.splice(+d.i, 1);
+  refreshSheet();
+};
+ACT.afRemove = d => { UI.af.ing.splice(+d.i, 1); refreshSheet(); };
+ACT.afWhen = d => { UI.af.when = d.v; afAutoRep(); refreshSheet(); };
+ACT.afRep = d => { UI.af.rep = d.v; UI.af.repTouched = true; refreshSheet(); };
+ACT.afRepAll = () => { UI.af.repAll = true; refreshSheet(); };
+ACT.afSave = () => { UI.af.save = !UI.af.save; refreshSheet(); };
+ACT.afPick = d => { UI.af.pick = { type: d.t, id: d.id }; UI.af.sv = 1; refreshSheet(); };
+ACT.afSv = d => { UI.af.sv = clamp(UI.af.sv + 0.25 * +d.step, 0.25, 4); refreshSheet(); };
+ACT.afForget = d => { const F = Store.d.meals.foods; const i = F.findIndex(f => f.id === d.id); if (i >= 0) { F.splice(i, 1); Store.save('meals'); } if (UI.af.pick && UI.af.pick.id === d.id) UI.af.pick = null; refreshSheet(); };
+ACT.afLog = () => {
+  const A = UI.af, e = afEntry(); if (!e || !(e.kcal > 0)) { toast('Add something first', 'info'); return; }
+  const r1 = v => Math.round(v * 10) / 10;
+  const entry = { id: uid('f'), name: e.name, when: A.when, t: A.date === today() ? nowMin() : WHEN_TIME[A.when], kcal: r1(e.kcal), p: r1(e.p), c: r1(e.c), f: r1(e.f), sv: A.mode === 'saved' ? A.sv : 1 };
+  if (e.ing) entry.ing = e.ing; if (e.food) entry.food = e.food; if (e.meal) entry.meal = e.meal;
+  if (A.rep) entry.rep = A.rep;
+  const L = mealLogW(A.date); L.x.push(entry); if (A.rep && L.e) L.e[A.rep] = false;
+  Store.save('m:' + monthKey(A.date));
+  const F = Store.d.meals.foods;
+  if (A.mode !== 'saved' && A.save) {
+    const same = F.find(f => f.name.toLowerCase() === entry.name.toLowerCase());
+    const rec = { name: entry.name, kcal: entry.kcal, p: entry.p, c: entry.c, f: entry.f, ing: entry.ing || null, last: Date.now() };
+    if (same) Object.assign(same, rec, { uses: (same.uses || 0) + 1 }); else F.push(Object.assign({ id: uid('mf'), uses: 1 }, rec));
+    Store.save('meals');
+  } else if (e.food) { const f = F.find(z => z.id === e.food); if (f) { f.uses = (f.uses || 0) + 1; f.last = Date.now(); Store.save('meals'); } }
+  closeSheet(); render(); buzz(15);
+  const left = nutrition(A.date).kcal - dayEaten(A.date).kcal;
+  toast(`Logged ${entry.name} · ${fmtInt(entry.kcal * entry.sv)} kcal${A.date === today() ? ` · ${fmtInt(Math.abs(left))} ${left >= 0 ? 'left' : 'over'}` : ''}`);
+};
+
+/* ---- edit a logged item ---- */
+function findExtra(date, id) { return (mealLog(date).x || []).find(x => x.id === id) || null; }
+ACT.editExtra = d => {
+  UI.xe = { date: d.d, id: d.id };
+  openSheet(() => {
+    const x = findExtra(UI.xe.date, UI.xe.id); if (!x) return sheetHead('Already removed');
+    const { rows } = dayMeals(UI.xe.date); const rep = x.rep && rows.find(r => r.k === x.rep);
+    return `${sheetHead(x.name, `Off-plan · ${fmtClock(x.t)} · ${fmtDate(UI.xe.date, 'dow')}`)}
+      <div class="card flat"><div class="kv"><span>Servings</span>${stepper('xeSv', fracStr(x.sv || 1) + '×', '', 'Servings')}</div></div>
+      <div class="macros">${[['kcal', 'kcal', ''], ['p', 'protein', 'g'], ['c', 'carbs', 'g'], ['f', 'fat', 'g']].map(([k, l, u]) => `<div><b>${k === 'kcal' ? fmtInt(x[k] * (x.sv || 1)) : Math.round(x[k] * (x.sv || 1)) + u}</b><span>${l}</span></div>`).join('')}</div>
+      ${x.ing ? `<ul class="ings">${x.ing.map(([k, q]) => ING[k] ? `<li><span>${esc(ING[k].name)}</span><b>${esc(qtyText(k, q * (x.sv || 1), true))}</b></li>` : '').join('')}</ul>` : ''}
+      ${rep ? `<p class="fine">Took the place of ${slotName(rep).toLowerCase()} (${esc(rep.m.name)}).</p>` : ''}
+      <div class="btnrow"><button class="btn2 danger-t" data-a="xeDelete">${ic('trash', 18)} Delete</button><button class="btn" data-a="sheetClose">Done</button></div>`;
+  });
+};
+ACT.xeSv = d => { const x = findExtra(UI.xe.date, UI.xe.id); if (!x) return; x.sv = clamp((x.sv || 1) + 0.25 * +d.step, 0.25, 4); Store.save('m:' + monthKey(UI.xe.date)); refreshSheet(); render(); };
+ACT.xeDelete = () => { const L = mealLogW(UI.xe.date); const x = findExtra(UI.xe.date, UI.xe.id); L.x = L.x.filter(z => z.id !== UI.xe.id); Store.save('m:' + monthKey(UI.xe.date)); closeSheet(); render(); toast(`Removed ${x ? x.name : 'item'}`, 'trash'); };
+ACT.unreplace = d => { const x = findExtra(d.d, d.id); if (x) { delete x.rep; Store.save('m:' + monthKey(d.d)); render(); toast('Planned meal is back on', 'refresh'); } };
+
+/* ---- Your own ingredients ---- */
+function syncCustomIng() {
+  const list = (Store.d.meals && Store.d.meals.ing) || [];
+  for (const k of Object.keys(ING)) if (ING[k].custom && !list.some(x => x.id === k)) delete ING[k];
+  for (const x of list) ING[x.id] = { id: x.id, name: x.name, unit: x.unit || 'serving', kcal: +x.kcal || 0, p: +x.p || 0, c: +x.c || 0, f: +x.f || 0, sec: 'Pantry & Snacks', buy: null, custom: true, cat: 'My ingredients' };
+}
+const ING_UNITS = ['serving', 'oz', 'g', 'cup', 'tbsp', 'slice', 'piece', 'bar', 'scoop', 'each'];
+function ingFormHTML() {
+  const F = UI.ingf, kc = F.kcal !== '' ? +F.kcal : Math.round((+F.p || 0) * 4 + (+F.c || 0) * 4 + (+F.f || 0) * 9);
+  return `${sheetHead(F.id ? 'Edit ingredient' : 'New ingredient', 'Straight from the nutrition label')}
+    <input class="search" id="ingName" type="text" placeholder="Name, e.g. Kodiak protein waffles" value="${esc(F.name)}" data-in="ingF" data-k="name" autocomplete="off">
+    <div class="af-lbl">Nutrition is for one</div>
+    <div class="chips">${ING_UNITS.map(u => `<button class="chip ${F.unit === u ? 'on' : ''}" data-a="ingUnit" data-v="${u}">${u}</button>`).join('')}</div>
+    <div class="af-quick mt">${[['kcal', 'Calories', 'kcal'], ['p', 'Protein', 'g'], ['c', 'Carbs', 'g'], ['f', 'Fat', 'g']].map(([k, l, u]) => `<label class="af-q"><span>${l}</span><input class="num" id="ingf-${k}" type="text" inputmode="decimal" value="${esc(F[k])}" placeholder="${k === 'kcal' ? 'auto' : '0'}" data-in="ingF" data-k="${k}"><em>${u}</em></label>`).join('')}</div>
+    <p class="fine" id="ingHint">${F.kcal === '' && kc ? `Calories left blank — ${fmtInt(kc)} kcal worked out from the macros.` : 'Leave calories blank and they’re worked out from protein, carbs and fat.'}</p>
+    <div class="btnrow">${F.id ? `<button class="btn2 danger-t" data-a="ingDelete">${ic('trash', 18)} Delete</button>` : `<button class="btn2" data-a="ingCancel">Cancel</button>`}<button class="btn" data-a="ingSaveF">${F.id ? 'Save' : F.back ? 'Save & add' : 'Save'}</button></div>`;
+}
+ACT.ingNew = d => { UI.ingf = { id: null, name: d.v || '', unit: 'serving', kcal: '', p: '', c: '', f: '', back: !!UI.af && !!SHEET_FN && SHEET_FN === afHTML }; openSheet(ingFormHTML, 'tall'); setTimeout(() => { const el = $('#ingName'); if (el && !el.value) el.focus(); }, 250); };
+ACT.ingEdit = d => { const x = (Store.d.meals.ing || []).find(z => z.id === d.id); if (!x) return; UI.ingf = { id: x.id, name: x.name, unit: x.unit, kcal: String(x.kcal), p: String(x.p), c: String(x.c), f: String(x.f), back: false }; openSheet(ingFormHTML, 'tall'); };
+INP.ingF = el => { UI.ingf[el.dataset.k] = el.value; const h = $('#ingHint'); const F = UI.ingf; if (h) { const kc = Math.round((+F.p || 0) * 4 + (+F.c || 0) * 4 + (+F.f || 0) * 9); h.textContent = F.kcal === '' && kc ? `Calories left blank — ${fmtInt(kc)} kcal worked out from the macros.` : 'Leave calories blank and they’re worked out from protein, carbs and fat.'; } };
+ACT.ingUnit = d => { UI.ingf.unit = d.v; refreshSheet(); };
+ACT.ingCancel = () => { if (UI.ingf.back) openSheet(afHTML, 'tall'); else closeSheet(); };
+ACT.ingSaveF = () => {
+  const F = UI.ingf, num = v => Math.max(0, parseFloat(String(v).replace(',', '.')) || 0);
+  const name = F.name.trim(); if (!name) { toast('Give it a name', 'info'); return; }
+  const p = num(F.p), c = num(F.c), f = num(F.f), kcal = F.kcal !== '' ? num(F.kcal) : Math.round(p * 4 + c * 4 + f * 9);
+  if (!(kcal > 0)) { toast('Add calories or macros', 'info'); return; }
+  const MP = Store.d.meals; MP.ing = MP.ing || [];
+  const rec = { name, unit: F.unit, kcal, p, c, f, t: Date.now() };
+  let id = F.id;
+  if (id) Object.assign(MP.ing.find(z => z.id === id) || {}, rec); else { id = 'u_' + uid('i').replace(/[^a-z0-9]/gi, ''); MP.ing.push(Object.assign({ id }, rec)); }
+  Store.save('meals'); syncCustomIng();
+  if (F.back && UI.af) { UI.af.q = ''; UI.af.mode = 'build'; if (!UI.af.ing.some(x => x[0] === id)) UI.af.ing.push([id, ingDefault(id)]); openSheet(afHTML, 'tall'); toast(`${name} saved and added`, 'check'); }
+  else { closeSheet(); render(); toast(`${name} saved`, 'check'); }
+};
+ACT.ingDelete = () => { const F = UI.ingf, MP = Store.d.meals; MP.ing = (MP.ing || []).filter(z => z.id !== F.id); Store.save('meals'); syncCustomIng(); closeSheet(); render(); toast('Ingredient deleted', 'trash'); };
+VIEWS.setmying = () => {
+  const list = [...(Store.d.meals.ing || [])].sort((a, b) => a.name.localeCompare(b.name));
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">My ingredients</h1><div class="sub">Foods you added yourself. They show up first when you search in Add food.</div></div><div class="stack">
+    ${list.length ? `<div class="card list">${list.map(x => `<button class="srow" data-a="ingEdit" data-id="${x.id}"><span class="srow-l">${esc(x.name)}<small>${fmtInt(x.kcal)} kcal · ${Math.round(x.p)}P · ${Math.round(x.c)}C · ${Math.round(x.f)}F per ${esc(x.unit)}</small></span>${ic('chev', 16, 'muted')}</button>`).join('')}</div>` : `<div class="card"><p class="fine">Nothing yet. Add anything that isn't in the list — your protein waffles, a local bakery item, a label from the gas station.</p></div>`}
+    <button class="btn" data-a="ingNew">${ic('plus', 18)} New ingredient</button></div></div>`;
+};
+
+/* ============ TASTE LEARNING ============
+   Learns what Anthony actually eats and leans future plans toward it.
+   Signals (newer counts more; half-life 6 weeks):
+     meal checked off      +1   meal and, lightly, its ingredients
+     skipped on a day he logged   −0.4
+     replaced by off-plan food    −1
+     swapped away                 −1.5   (the meal he swapped in +0.75)
+     off-plan food eaten          +0.6 per ingredient, +1 if it was a plan meal
+     "More like this" / "Less"    ±1 strong nudge;  "Never show" hides it
+   A meal's weight in the planner = e^(meal score + a share of its best ingredients),
+   so meals he has never tried still come up when they use things he likes. */
+const TASTE_HALF = 42, TASTE_DAYS = 70;
+let TASTE = null;
+const tasteDecay = d => Math.pow(0.5, Math.max(0, daysBetween(d, today())) / TASTE_HALF);
+const TASTE_SKIP_ING = ['butter', 'oil', 'honey', 'maple', 'salsa', 'lite_mayo', 'mustard', 'ketchup', 'hot_sauce'];
+const tasteIngs = m => m.ing.map(([k]) => k).filter(k => ING[k] && ING[k].sec !== 'Spices & Sauces' && !TASTE_SKIP_ING.includes(k));
+function tasteModel() {
+  const key = DATA_VER + '|' + today();
+  if (TASTE && TASTE.key === key) return TASTE;
+  const MP = Store.d.meals, T = { key, meal: {}, ing: {}, n: { eat: 0, skip: 0, swap: 0, rep: 0, off: 0 }, eaten: {}, ex: Object.assign({}, (MP.taste && MP.taste.ex) || {}), hidden: new Set(MP.hidden || []), favs: new Set(MP.favs || []) };
+  const addM = (id, v) => { if (!MEALS[id]) return; T.meal[id] = (T.meal[id] || 0) + v; };
+  const addI = (k, v) => { if (!ING[k]) return; T.ing[k] = (T.ing[k] || 0) + v; };
+  const forgive = (MP.taste && MP.taste.fg) || {};
+  const mealSig = (m, v, share, d) => { if (v < 0 && forgive[m.id] && d <= forgive[m.id]) return; addM(m.id, v); const ks = tasteIngs(m); ks.forEach(k => addI(k, v * share)); };
+  const start = SET().since || today();
+  TASTE = T; // guard against re-entry while we build
+  for (let i = 1; i <= TASTE_DAYS; i++) {
+    const d = addDays(today(), -i); if (d < start) break;
+    if (!MP.plans[mondayOf(d)]) continue; // only weeks that really had a plan
+    const w = tasteDecay(d), L = mealLog(d), e = L.e || {}, xs = extras(d);
+    const rows = dayMeals(d).rows.filter(r => !r.staff && MEALS[r.m.id]);
+    const active = rows.some(r => e[r.k]) || xs.length > 0;
+    for (const r of rows) {
+      if (replacedBy(d, r.k)) { mealSig(r.m, -1 * w, 0.2, d); T.n.rep++; }
+      else if (e[r.k]) { mealSig(r.m, 1 * w, 0.25, d); T.n.eat++; T.eaten[r.m.id] = (T.eaten[r.m.id] || 0) + 1; }
+      else if (active) { mealSig(r.m, -0.4 * w, 0.1, d); T.n.skip++; }
+    }
+    for (const x of xs) {
+      T.n.off++;
+      if (x.meal && MEALS[x.meal]) mealSig(MEALS[x.meal], 1 * w, 0.25, d);
+      for (const [k] of x.ing || []) addI(k, 0.6 * w);
+    }
+  }
+  for (const s of (MP.taste && MP.taste.sw) || []) {
+    const d = s.d || today(); if (daysBetween(d, today()) > TASTE_DAYS) continue;
+    const w = tasteDecay(d);
+    if (MEALS[s.from]) mealSig(MEALS[s.from], -1.5 * w, 0.2, d);
+    if (MEALS[s.to]) addM(s.to, 0.75 * w);
+    T.n.swap++;
+  }
+  return T;
+}
+function tasteIngScore(m, T) {
+  const s = tasteIngs(m).map(k => T.ing[k] || 0).sort((a, b) => b - a);
+  return s.length ? sum(s.slice(0, 3)) / Math.min(3, s.length) : 0;
+}
+function tasteScore(m, T = tasteModel()) { return (T.meal[m.id] || 0) + 0.7 * tasteIngScore(m, T) + 1.6 * (T.ex[m.id] || 0); }
+function tastePref(m, T = tasteModel()) {
+  if (T.hidden.has(m.id)) return 0;
+  let w = Math.exp(clamp(0.45 * tasteScore(m, T), -2.3, 2.2));
+  if (T.favs.has(m.id)) w *= 2.5;
+  return clamp(w, 0.1, 15);
+}
+const isHidden = id => (Store.d.meals.hidden || []).includes(id);
+
+/* ---- actions ---- */
+function tasteStore() { const MP = Store.d.meals; MP.taste = MP.taste || { sw: [], ex: {} }; MP.taste.sw = MP.taste.sw || []; MP.taste.ex = MP.taste.ex || {}; MP.taste.fg = MP.taste.fg || {}; return MP.taste; }
+function recordSwap(date, k, from, to) {
+  const t = tasteStore(); t.sw.push({ d: date, k, from, to });
+  if (t.sw.length > 300) t.sw = t.sw.slice(-300);
+}
+ACT.tasteMore = d => { const t = tasteStore(); t.ex[d.x] = t.ex[d.x] === 1 ? 0 : 1; if (!t.ex[d.x]) delete t.ex[d.x]; Store.save('meals'); render(); toast(t.ex[d.x] ? 'Got it — more meals like this' : 'Back to normal', 'check'); };
+ACT.tasteLess = d => { const t = tasteStore(); t.ex[d.x] = t.ex[d.x] === -1 ? 0 : -1; if (!t.ex[d.x]) delete t.ex[d.x]; Store.save('meals'); render(); toast(t.ex[d.x] ? 'Got it — this shows up less' : 'Back to normal', 'check'); };
+ACT.tasteHide = d => { const MP = Store.d.meals; MP.hidden = MP.hidden || []; if (!MP.hidden.includes(d.x)) MP.hidden.push(d.x); Store.save('meals'); render(); toast(`${MEALS[d.x].name} won't be planned again`, 'close'); };
+ACT.tasteUnhide = d => { const MP = Store.d.meals; MP.hidden = (MP.hidden || []).filter(x => x !== d.x); Store.save('meals'); render(); toast('Back in the rotation', 'refresh'); };
+ACT.tasteForget = d => { const t = tasteStore(); delete t.ex[d.x]; t.fg[d.x] = today(); t.sw = t.sw.filter(s => s.from !== d.x); Store.d.meals.hidden = (Store.d.meals.hidden || []).filter(x => x !== d.x); Store.save('meals'); render(); toast('Skips forgiven — back to normal', 'refresh'); };
+ACT.tasteResetAsk = () => openSheet(() => `${sheetHead('Start taste learning over?')}<p class="prose">This clears swaps, "more / less like this" and hidden meals. Meals you've checked off stay in your history, so it relearns from those.</p>
+  <div class="btnrow"><button class="btn2" data-a="sheetClose">Cancel</button><button class="btn" data-a="tasteReset">Start over</button></div>`);
+ACT.tasteReset = () => { Store.d.meals.taste = { sw: [], ex: {}, fg: {} }; Store.d.meals.hidden = []; Store.save('meals'); closeSheet(); render(); toast('Taste learning reset', 'refresh'); };
+ACT.openTaste = () => push({ v: 'taste' });
+
+/* ---- UI ---- */
+function tasteButtons(m) {
+  const T = tasteModel(), ex = T.ex[m.id] || 0, hidden = T.hidden.has(m.id);
+  if (hidden) return `<div class="card taste-card"><div class="lbl">Your taste</div><p class="fine">You hid this meal, so it won't be planned.</p><button class="btn-sm ghost" data-a="tasteUnhide" data-x="${m.id}">Show it again</button></div>`;
+  const eaten = T.eaten[m.id] || 0;
+  return `<div class="card taste-card"><div class="row between"><div class="lbl">Your taste</div>${eaten ? `<span class="fine">Eaten ${eaten}× lately</span>` : ''}</div>
+    <div class="taste-btns"><button class="chip ${ex === 1 ? 'on' : ''}" data-a="tasteMore" data-x="${m.id}" aria-pressed="${ex === 1}">${ic('plus', 14)} More like this</button><button class="chip ${ex === -1 ? 'on neg-soft' : ''}" data-a="tasteLess" data-x="${m.id}" aria-pressed="${ex === -1}">${ic('minus', 14)} Less like this</button></div>
+    <button class="link subtle" data-a="tasteHide" data-x="${m.id}">Never plan this meal</button></div>`;
+}
+function tasteNote() {
+  const T = tasteModel(), n = T.n.eat + T.n.off + T.n.swap;
+  if (n < 3) return 'Check meals off as you eat them — plans start leaning toward what you like.';
+  const top = Object.entries(T.ing).filter(([, v]) => v > 0.4).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => ING[k].name.replace(/ \(.*\)|,.*$/, '').toLowerCase());
+  return top.length ? `Leaning toward ${top.join(', ')}` : `Learning from ${n} meals`;
+}
+VIEWS.taste = () => {
+  const T = tasteModel(), n = T.n.eat + T.n.off + T.n.swap;
+  const scored = MEAL_LIST.map(m => ({ m, s: tasteScore(m, T), own: (T.meal[m.id] || 0) + 1.6 * (T.ex[m.id] || 0) }));
+  const liked = scored.filter(x => x.own > 0.3).sort((a, b) => b.own - a.own).slice(0, 6);
+  const less = scored.filter(x => x.own < -0.3 && !T.hidden.has(x.m.id)).sort((a, b) => a.own - b.own).slice(0, 6);
+  const tryNext = scored.filter(x => !T.eaten[x.m.id] && !T.hidden.has(x.m.id) && (T.ex[x.m.id] || 0) >= 0 && (T.meal[x.m.id] || 0) >= 0 && tasteIngScore(x.m, T) > 0.25).sort((a, b) => b.s - a.s).slice(0, 4);
+  const ings = Object.entries(T.ing).filter(([, v]) => v > 0.3).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const hidden = [...T.hidden].filter(id => MEALS[id]);
+  const mrow = (x, why, act = '') => `<div class="pk-row as-row"><button class="pk-b" data-a="openMealBase" data-x="${x.m.id}"><span class="pk-n">${esc(x.m.name)}${T.favs.has(x.m.id) ? ' ' + ic('heart', 14, 'fav') : ''}</span><span class="pk-m">${why}</span></button>${act}</div>`;
+  return `${navBar({ back: UI.tab === 'settings' ? 'Settings' : 'Meals' })}<div class="pad"><div class="dh"><h1 class="h1">Your taste</h1><div class="sub">Every meal you check off, skip, swap or log teaches the planner. New weeks lean toward what you actually eat, with a few new things mixed in.</div></div><div class="stack">
+    <div class="tiles"><div class="tile">${ic('check', 18)}<b>${T.n.eat}</b><span>meals eaten</span></div><div class="tile">${ic('swap', 18)}<b>${T.n.swap}</b><span>swaps</span></div><div class="tile">${ic('plus', 18)}<b>${T.n.off}</b><span>foods logged</span></div></div>
+    ${n < 3 ? `<div class="card"><p class="fine">Not much to go on yet. Check meals off as you eat them and log what you eat off-plan — after a week or two this fills in.</p></div>` : ''}
+    ${ings.length ? `<div class="card"><div class="lbl">Ingredients you lean toward</div><div class="chips">${ings.map(([k]) => `<span class="chip p">${esc(ING[k].name.replace(/ \(.*\)/, ''))}</span>`).join('')}</div></div>` : ''}
+    ${liked.length ? `<div class="sec-h"><span>Meals you like</span><span class="muted">show up more</span></div><div class="card list">${liked.map(x => mrow(x, `${T.eaten[x.m.id] ? `Eaten ${T.eaten[x.m.id]}×` : 'Picked by you'}${T.ex[x.m.id] === 1 ? ' · more like this' : ''}`)).join('')}</div>` : ''}
+    ${tryNext.length ? `<div class="sec-h"><span>You might like</span><span class="muted">not tried yet</span></div><div class="card list">${tryNext.map(x => mrow(x, 'Uses things you eat a lot', (T.ex[x.m.id] === 1 ? `<span class="like-tag">Added</span>` : `<button class="btn-sm alt" data-a="tasteMore" data-x="${x.m.id}">${ic('plus', 14)} Try it</button>`))).join('')}</div>` : ''}
+    ${less.length ? `<div class="sec-h"><span>Showing up less</span><span class="muted">skipped or swapped</span></div><div class="card list">${less.map(x => mrow(x, T.ex[x.m.id] === -1 ? 'You said less like this' : 'Skipped or swapped out', `<button class="btn-sm ghost" data-a="tasteForget" data-x="${x.m.id}">Undo</button>`)).join('')}</div>` : ''}
+    ${hidden.length ? `<div class="sec-h"><span>Never planned</span></div><div class="card list">${hidden.map(id => mrow({ m: MEALS[id] }, 'Hidden by you', `<button class="btn-sm ghost" data-a="tasteUnhide" data-x="${id}">Show again</button>`)).join('')}</div>` : ''}
+    <p class="fine">Changes kick in on the next weekly plan, or right away with “New plan” on the Week view. Favorites (♡) count extra.</p>
+    <button class="btn-text" data-a="tasteResetAsk">Start learning over</button>
+  </div></div>`;
+};
+
+/* ============ SETTINGS ============ */
+function srow(label, value, act, attrs = '', icon = '') {
+  return `<button class="srow" data-a="${act}" ${attrs}>${icon ? `<span class="srow-ic">${ic(icon, 18)}</span>` : ''}<span class="srow-l">${label}</span><span class="srow-v">${value}</span>${ic('chev', 16, 'muted')}</button>`;
+}
+function toggleRow(label, on, act, attrs = '', note = '', icon = '') {
+  return `<div class="srow static">${icon ? `<span class="srow-ic">${ic(icon, 18)}</span>` : ''}<span class="srow-l">${label}${note ? `<small>${note}</small>` : ''}</span><button class="switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-a="${act}" ${attrs}><i></i></button></div>`;
+}
+const staticRow = (icon, label, ctrl) => `<div class="srow static"><span class="srow-ic">${ic(icon, 18)}</span><span class="srow-l">${label}</span>${ctrl}</div>`;
+function heightText(inches) { return isKg() ? `${Math.round(inches * 2.54)} cm` : `${Math.floor(inches / 12)}′ ${Math.round(inches % 12)}″`; }
+VIEWS.setroot = () => {
+  const s = SET(), st = s.stretch, ms = s.meals;
+  const gd = [1, 2, 3, 4, 5, 6, 0].map(d => `<button class="daychip ${s.gymDays.includes(d) ? 'on' : ''}" data-a="toggleGymDay" data-v="${d}" aria-pressed="${s.gymDays.includes(d)}">${DOW_SHORT[d].slice(0, 2)}</button>`).join('');
+  const N = nutrition(null);
+  const SG = (icon, t) => `<div class="sg-h">${ic(icon, 14)} ${t}</div>`;
+  return `<div class="pad top"><div class="ltitle-row"><h1 class="ltitle">Settings</h1></div><div class="stack">
+    <div class="sgroup">${SG('user', 'You')}<div class="card list">
+      ${srow('Age', s.age, 'editNum', 'data-f="age"', 'user')}
+      ${srow('Height', heightText(s.heightIn), 'editHeight', '', 'ruler')}
+      ${srow('Weight', `${nice(toU(s.weightLb), 1)} ${bwu()}`, 'weighSheet', '', 'scale')}
+      ${srow('Sex', s.sex === 'female' ? 'Female' : 'Male', 'editSex', '', 'people')}
+      ${srow('Activity', ACTIVITY[s.activity].n, 'editActivity', '', 'bolt')}
+      ${srow('Gain', `${nice(toU(RATES[s.rate].lb), 2)} ${bwu()}/wk`, 'editRate', '', 'chart')}
+      <div class="srow static"><span class="srow-ic">${ic('scale', 18)}</span><span class="srow-l">Units</span>${seg('units', [['lb', 'lb'], ['kg', 'kg']], s.units)}</div>
+    </div></div>
+    <div class="sgroup">${SG('dumbbell', 'Training')}<div class="card list">
+      <div class="srow static col"><div class="daychips">${gd}</div></div>
+      ${srow('Start', fmtClock(s.gymTime), 'editGymTime', '', 'clock')}
+      ${srow('Rotation', s.rotation.mode === 'auto' ? 'Auto' : 'Locked', 'openSetPage', 'data-p="setrot"', 'repeat')}
+      ${srow('Cardio', `${mins(s.warmup.walk)} + ${mins(s.warmup.machine)}`, 'openSetPage', 'data-p="setwarmup"', 'walk')}
+      ${srow('Rest timer', fmtDur(s.restDefault), 'editRest', '', 'timer')}
+      ${srow('Warm-up sets', s.warm.map(w => `${w.r}@${w.p}%`).join(' · '), 'openSetPage', 'data-p="setwarm"', 'flame')}
+      ${srow('Plates', `+${nice(incs().db, 2)} · ${nice(incs().bar, 1)}`, 'openSetPage', 'data-p="setplates"', 'dumbbell')}
+      ${srow('Starting weights', `${Object.keys(PRG().start).length}`, 'openSetPage', 'data-p="setstart"', 'target')}
+      ${srow('Check-in', s.card.code ? esc(s.card.code) : '—', 'openSetPage', 'data-p="setcard"', 'barcode')}
+    </div></div>
+    <div class="sgroup">${SG('stretch', 'Stretching')}<div class="card list">
+      ${srow('Prep', st.s1 ? mins(st.s1) : 'Off', 'editStretchLen', 'data-f="s1"', 'wave')}
+      ${srow('Cool-down', mins(st.s2), 'editStretchLen', 'data-f="s2"', 'hold')}
+      ${srow('Warm-up first', mins(st.warmFirst || 5), 'editWarmFirst', '', 'flame')}
+      ${srow('Rest day', mins(st.rest), 'editStretchLen', 'data-f="rest"', 'moon')}
+      ${toggleRow('Split rest day', st.splitRest, 'toggleS', 'data-f="splitRest"', '', 'repeat')}
+      ${srow('Get-set time', st.prep + 's', 'editPrep', '', 'timer')}
+      ${toggleRow('Sounds', st.sound, 'toggleS', 'data-f="sound"', '', 'bell')}
+      ${toggleRow('Voice', st.voice, 'toggleS', 'data-f="voice"', '', 'sound')}
+      ${srow('How it works', '', 'stretchWhy', '', 'info')}
+    </div></div>
+    <div class="sgroup">${SG('meals', 'Meals')}<div class="card list">
+      ${srow('Targets', `${fmtInt(Math.round((N.base + N.bonus) / 10) * 10)} · ${fmtInt(Math.round((N.base - N.minus) / 10) * 10)}`, 'targetsInfo', '', 'flame')}
+      ${staticRow('apple', 'Snacks', seg('snacks', [['0', '0'], ['1', '1'], ['2', '2']], String(ms.snacks)))}
+      ${toggleRow('Pre / post meals', ms.prepost, 'toggleM', 'data-f="prepost"', '', 'bolt')}
+      ${srow('Skip foods', ms.dislikes.length ? String(ms.dislikes.length) : '—', 'openSetPage', 'data-p="setdislike"', 'close')}
+      ${staticRow('people', 'Family', stepper('famStep', ms.family, '', 'Extra dinner portions'))}
+      ${staticRow('drop', 'Water', stepper('waterStep', ms.waterOz + ' oz', '', 'Water goal'))}
+      ${srow('Bottle', ms.bottleOz + ' oz', 'editBottle', '', 'cup')}
+      ${srow('Your taste', '', 'openSetPage', 'data-p="taste"', 'heart')}
+      ${srow('My ingredients', `${(Store.d.meals.ing || []).length}`, 'openSetPage', 'data-p="setmying"', 'box')}
+      ${srow('Staff lunch', daysShort(ms.staffDays), 'editMealDays', 'data-f="staffDays"', 'people')}
+      ${srow('No-cook', daysShort(ms.noPrepDays), 'editMealDays', 'data-f="noPrepDays"', 'leaf')}
+      ${srow('Prep night', DOW_SHORT[ms.midPrep] || 'Tue', 'editMidPrep', '', 'clock')}
+      ${staticRow('scale', 'Adjust', stepper('calStep', (s.calAdjust > 0 ? '+' : '') + s.calAdjust, '', 'Calorie adjustment'))}
+    </div></div>
+    <div class="sgroup">${SG('home', 'App')}<div class="card list">
+      <button class="srow" data-a="openSetPage" data-p="sethome"><img class="srow-icon" src="${appIconSrc()}" alt="" width="28" height="28"><span class="srow-l">Home Screen</span>${ic('chev', 16, 'muted')}</button>
+    </div></div>
+    <div class="sgroup">${SG('download', 'Data')}<div class="card list">
+      ${srow('Export', 'JSON', 'exportData', '', 'download')}
+      ${srow('Import', '', 'importData', '', 'upload')}
+      <button class="srow danger" data-a="resetAsk"><span class="srow-ic">${ic('trash', 18)}</span><span class="srow-l">Reset</span></button>
+    </div>
+    <p class="fine center syncline">${ic(Store.online ? 'check' : 'home', 14)} ${Store.online ? 'Synced' : 'This device'}</p>
+    <p class="fine center"><button class="link inl" data-a="artCredit">Body art</button> · MIT</p></div>
+  </div></div>`;
+};
+ACT.goSettings = d => { closeSheet(); goTab('settings', d.p === 'rotation' ? { v: 'setrot' } : d.p === 'startw' ? { v: 'setstart' } : d.p === 'card' ? { v: 'setcard' } : null); };
+ACT.openSetPage = d => push({ v: d.p });
+ACT.toggleGymDay = d => {
+  const s = SET(), v = +d.v, i = s.gymDays.indexOf(v);
+  if (i >= 0) { if (s.gymDays.length <= 1) { toast('Keep at least one gym day', 'info'); return; } s.gymDays.splice(i, 1); } else s.gymDays.push(v);
+  s.gymDays.sort(); Store.save('settings'); render();
+};
+function numSheet(title, sub, value, unit, onSave, opts = {}) {
+  UI.numSave = onSave;
+  openSheet(() => `${sheetHead(title, sub)}<div class="bw-in"><input class="num lg" id="numIn" type="text" inputmode="${opts.int ? 'numeric' : 'decimal'}" value="${esc(value)}" aria-label="${esc(title)}"><span class="fl">${esc(unit)}</span><button class="btn-sm" data-a="numSave">Save</button></div>${opts.note ? `<p class="fine">${opts.note}</p>` : ''}`);
+  setTimeout(() => { const el = $('#numIn'); if (el) { el.focus(); el.select(); } }, 250);
+}
+ACT.numSave = () => { const v = parseFloat(String($('#numIn').value).replace(',', '.')); if (isNaN(v)) { toast('Enter a number', 'info'); return; } if (UI.numSave(v) !== false) { closeSheet(); render(); } };
+ACT.editNum = d => {
+  if (d.f === 'age') numSheet('Age', 'Used for calorie math', SET().age, 'years', v => { if (v < 13 || v > 99) { toast('Enter an age between 13 and 99', 'info'); return false; } SET().age = Math.round(v); Store.save('settings'); }, { int: true });
+};
+ACT.editHeight = () => {
+  if (isKg()) numSheet('Height', '', Math.round(SET().heightIn * 2.54), 'cm', v => { SET().heightIn = v / 2.54; Store.save('settings'); }, { int: true });
+  else {
+    const h = SET().heightIn;
+    openSheet(() => `${sheetHead('Height')}<div class="row gap-s"><div class="bw-in"><input class="num lg" id="hFt" type="text" inputmode="numeric" value="${Math.floor(h / 12)}" aria-label="Feet"><span class="fl">ft</span></div><div class="bw-in"><input class="num lg" id="hIn" type="text" inputmode="numeric" value="${Math.round(h % 12)}" aria-label="Inches"><span class="fl">in</span></div></div><button class="btn" data-a="saveHeight">Save</button>`);
+  }
+};
+ACT.saveHeight = () => { const ft = parseInt($('#hFt').value, 10) || 0, inch = parseFloat($('#hIn').value) || 0; const t = ft * 12 + inch; if (t < 48 || t > 96) { toast('That height looks off', 'info'); return; } SET().heightIn = t; Store.save('settings'); closeSheet(); render(); };
+function optionSheet(title, sub, opts, cur, act) {
+  openSheet(() => `${sheetHead(title, sub)}<div class="menu">${opts.map(([k, l, note]) => `<button class="menu-i ${k === cur ? 'sel' : ''}" data-a="${act}" data-v="${k}"><span>${esc(l)}${note ? `<small class="muted">${esc(note)}</small>` : ''}</span>${k === cur ? ic('check', 20) : ''}</button>`).join('')}</div>`);
+}
+ACT.editSex = () => optionSheet('Sex', 'Mifflin-St Jeor uses a different constant for each', [['male', 'Male'], ['female', 'Female']], SET().sex, 'setSex');
+ACT.setSex = d => { SET().sex = d.v; Store.save('settings'); closeSheet(); render(); };
+ACT.editActivity = () => optionSheet('Activity level', 'Multiplier on your BMR — already counts your lifting days', Object.entries(ACTIVITY).map(([k, a]) => [k, `${a.n} · ×${a.m}`, a.d]), SET().activity, 'setActivity');
+ACT.setActivity = d => { SET().activity = d.v; Store.save('settings'); closeSheet(); render(); toast('Targets updated'); };
+ACT.editRate = () => optionSheet('Goal rate of gain', 'Lean gaining: slow and steady keeps it mostly muscle', Object.entries(RATES).map(([k, r]) => [k, `${r.n} · ${nice(toU(r.lb), 2)} ${bwu()}/week`, `+${r.surplus} kcal/day · target band ${r.band.map(b => nice(toU(b), 2)).join('–')} ${bwu()}/wk`]), SET().rate, 'setRate');
+ACT.setRate = d => { SET().rate = d.v; Store.save('settings'); closeSheet(); render(); toast('Targets updated'); };
+ACT.editGymTime = () => {
+  const opts = [240, 270, 300, 330, 360, 420, 480, 720, 960, 1020, 1080, 1140];
+  openSheet(() => `${sheetHead('Gym start time', 'Sets the Today timeline and when pre/post-workout meals land')}<div class="grid3">${opts.map(t => `<button class="optbtn ${t === SET().gymTime ? 'on' : ''}" data-a="setGymTime" data-v="${t}">${fmtClock(t)}</button>`).join('')}</div>`);
+};
+ACT.setGymTime = d => { SET().gymTime = +d.v; Store.save('settings'); closeSheet(); render(); };
+ACT.editRest = () => openSheet(() => `${sheetHead('Default rest timer', 'Used for new exercises. Each exercise can have its own.')}<div class="grid3">${[30, 45, 60, 75, 90, 120, 150, 180, 240].map(s => `<button class="optbtn ${s === SET().restDefault ? 'on' : ''}" data-a="setRestDefault" data-v="${s}">${fmtDur(s)}</button>`).join('')}</div>`);
+ACT.setRestDefault = d => { SET().restDefault = +d.v; Store.save('settings'); closeSheet(); render(); };
+ACT.editStretchLen = d => {
+  const f = d.f, cur = SET().stretch[f];
+  const opts = f === 's2' ? [10, 15, 20, 25, 30, 35, 40, 45] : f === 's1' ? [0, 5, 8, 10, 12, 15] : [15, 20, 30, 40, 45, 50, 60, 75];
+  const title = f === 's1' ? 'Movement prep' : f === 's2' ? 'Cool-down stretch' : 'Rest-day routine length';
+  const sub = f === 's1' ? 'Dynamic moves after your cardio warm-up. Off moves all stretching to after the workout.' : f === 's2' ? 'Static holds right after lifting, while you’re warm' : 'Starts with a short warm-up, then mobility and static holds';
+  openSheet(() => `${sheetHead(title, sub)}<div class="grid3">${opts.map(m => `<button class="optbtn ${m === cur ? 'on' : ''}" data-a="setStretchLen" data-f="${f}" data-v="${m}">${m ? m + ' min' : 'Off'}</button>`).join('')}</div>`);
+};
+ACT.editWarmFirst = () => openSheet(() => `${sheetHead('Warm-up before stretching', 'Easy cardio before rest-day stretching, or any session you start cold')}<div class="grid3">${[3, 5, 8, 10].map(m => `<button class="optbtn ${m === (SET().stretch.warmFirst || 5) ? 'on' : ''}" data-a="setWarmFirst" data-v="${m}">${m} min</button>`).join('')}</div>`);
+ACT.setWarmFirst = d => { SET().stretch.warmFirst = +d.v; Store.save('settings'); closeSheet(); render(); };
+ACT.setStretchLen = d => { SET().stretch[d.f] = +d.v; Store.save('settings'); closeSheet(); render(); };
+ACT.editPrep = () => openSheet(() => `${sheetHead('Time between stretches')}<div class="grid3">${[3, 5, 8, 10, 15].map(s => `<button class="optbtn ${s === SET().stretch.prep ? 'on' : ''}" data-a="setPrep" data-v="${s}">${s} sec</button>`).join('')}</div>`);
+ACT.setPrep = d => { SET().stretch.prep = +d.v; Store.save('settings'); closeSheet(); render(); };
+ACT.toggleS = d => { const st = SET().stretch; st[d.f] = !st[d.f]; Store.save('settings'); render(); if (d.f === 'sound' && st.sound) cue('go'); };
+ACT.toggleM = d => { const m = SET().meals; m[d.f] = !m[d.f]; Store.save('settings'); render(); };
+ACT.famStep = d => { const m = SET().meals; m.family = clamp(m.family + +d.step, 0, 6); Store.save('settings'); render(); };
+ACT.waterStep = d => { const m = SET().meals; m.waterOz = clamp(m.waterOz + 8 * +d.step, 32, 256); Store.save('settings'); render(); };
+ACT.calStep = d => { const s = SET(); s.calAdjust = clamp((s.calAdjust || 0) + 50 * +d.step, -1000, 1000); Store.save('settings'); render(); };
+ACT.editBottle = () => openSheet(() => `${sheetHead('Bottle size')}<div class="grid3">${[8, 12, 16, 20, 24, 32, 40].map(o => `<button class="optbtn ${o === SET().meals.bottleOz ? 'on' : ''}" data-a="setBottle" data-v="${o}">${o} oz</button>`).join('')}</div>`);
+ACT.setBottle = d => { SET().meals.bottleOz = +d.v; Store.save('settings'); closeSheet(); render(); };
+
+/* ---- Rotation page ---- */
+VIEWS.setrot = () => {
+  const R = SET().rotation, mon = mondayOf(today());
+  const order = R.order.filter(id => workoutById(id));
+  const firstGym = weekDates(mon).find(d => SET().gymDays.includes(dow(d)));
+  const startsWith = firstGym ? rotationFor(firstGym) : null;
+  const weeks = [0, 1, 2, 3].map(i => addDays(mon, i * 7));
+  const gdays = gymOrder();
+  const table = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Week of</th>${gdays.map(d => `<th>${DOW_SHORT[d]}</th>`).join('')}</tr></thead><tbody>${weeks.map(w => `<tr><td>${fmtDate(w)}</td>${gdays.map(dd => { const date = addDays(w, (dd + 6) % 7); const id = rotationFor(date); return `<td>${id ? esc(tinyName(workoutById(id))) : '—'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Workout rotation</h1></div><div class="stack">
+    ${seg('rotmode', [['auto', 'Auto rotate weekly'], ['locked', 'Locked order']], R.mode)}
+    <div class="card"><div class="lbl">Order</div><p class="fine">Drag to change the loop.</p>
+      <div class="list" data-sortable="reorderRot">${order.map((id, i) => `<div class="exrow" data-idx="${i}"><span class="rot-n">${i + 1}</span><span class="exname grow">${esc(workoutById(id).name)}</span><span class="drag-h" aria-label="Drag to reorder">${ic('grip', 18)}</span></div>`).join('')}</div></div>
+    ${R.mode === 'auto' ? `<div class="card"><div class="lbl">This week starts with</div><div class="chips">${order.map(id => `<button class="chip ${id === startsWith ? 'on' : ''}" data-a="rotStart" data-v="${id}">${esc(workoutById(id).short)}</button>`).join('')}</div></div>` : ''}
+    <div class="card"><div class="lbl">Next 4 weeks</div>${table}</div>
+    <div class="card"><div class="lbl">Why this rotation</div>
+      <p class="prose">Your four workouts run in a fixed loop — <b>Legs → Chest & Tri → Back & Bi → Shoulders & Abs</b> — and ${R.mode === 'auto' ? 'each week the loop starts one step later. Over four weeks every workout lands on every weekday once, so no muscle group is stuck on a Friday when you\'re worn out from the job.' : 'with a locked order the same workout lands on the same day every week.'}</p>
+      <p class="prose">The loop order keeps overlapping muscles apart: Chest & Triceps never lands the day before or after Shoulders (both hammer front delts and triceps), and Back (deadlifts) never touches Legs (RDLs) — both load the hamstrings and low back. Back & Bi before Shoulders only shares a little rear-delt work.</p>
+      <p class="prose">Missed a day? Use <b>Move</b> on the workout, or tap <b>Do it today</b> on the Today screen and the rest of the week slides back one day.</p></div>
+    </div></div>`;
+};
+ACT.reorderRot = ({ from, to }) => { const o = SET().rotation.order; const [it] = o.splice(from, 1); o.splice(to, 0, it); Store.save('settings'); render(); };
+ACT.rotStart = d => {
+  const R = SET().rotation, mon = mondayOf(today()); const firstGym = weekDates(mon).find(x => SET().gymDays.includes(dow(x)));
+  for (let o = 0; o < 16; o++) { R.offset = o; if (rotationFor(firstGym) === d.v) break; }
+  Store.save('settings'); render(); toast(`This week starts with ${workoutById(d.v).short}`);
+};
+
+/* ---- Warm-up page ---- */
+VIEWS.setwarm = () => {
+  const W = SET().warm;
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Warm-up sets</h1><div class="sub">Generated from your last working weight and rounded to real dumbbells and plates.</div></div><div class="stack">
+    <div class="card">${W.map((w, i) => `<div class="wu-edit"><b>Set ${i + 1}</b><div class="kv"><span>Reps</span>${stepper('warmStep', w.r, `data-i="${i}" data-f="r"`, 'Reps')}</div><div class="kv"><span>% of working weight</span>${stepper('warmStep', w.p + '%', `data-i="${i}" data-f="p"`, 'Percent')}</div></div>`).join('')}</div>
+    <button class="btn-text" data-a="warmReset">Reset to 12 @ 30%, 10 @ 50%, 4 @ 70%</button>
+    <p class="fine">Warm-ups skip bodyweight, timed and assisted exercises. Turn them off for a single exercise from its ••• menu.</p></div></div>`;
+};
+ACT.warmStep = d => { const w = SET().warm[+d.i]; if (d.f === 'r') w.r = clamp(w.r + +d.step, 1, 20); else w.p = clamp(w.p + 5 * +d.step, 10, 95); Store.save('settings'); render(); };
+ACT.warmReset = () => { SET().warm = [{ r: 12, p: 30 }, { r: 10, p: 50 }, { r: 4, p: 70 }]; Store.save('settings'); render(); };
+
+/* ---- Plates page ---- */
+VIEWS.setplates = () => {
+  const I = incs(), kg = isKg(), u = wu();
+  const allPlates = kg ? [25, 20, 15, 10, 5, 2.5, 1.25] : [45, 35, 25, 10, 5, 2.5];
+  const opt = (f, vals, cur) => `<div class="chips">${vals.map(v => `<button class="chip ${v === cur ? 'on' : ''}" data-a="setInc" data-f="${f}" data-v="${v}">${nice(v, 2)} ${u}</button>`).join('')}</div>`;
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Weights & plates</h1><div class="sub">Targets and warm-ups round to what your gym actually has. Settings are kept separately for ${kg ? 'kg' : 'lbs'}.</div></div><div class="stack">
+    <div class="card"><div class="lbl">Dumbbell jumps</div>${opt('db', kg ? [1, 2, 2.5] : [2.5, 5], I.db)}</div>
+    <div class="card"><div class="lbl">Barbell</div>${opt('bar', kg ? [20, 15] : [45, 35], I.bar)}
+      <div class="lbl mt">Plates you have</div><div class="chips">${allPlates.map(p => `<button class="chip ${I.plates.includes(p) ? 'on' : ''}" data-a="togglePlate" data-v="${p}">${nice(p, 2)}</button>`).join('')}</div>
+      <div class="lbl mt">Barbell progression jump</div>${opt('barJump', kg ? [2.5, 5] : [5, 10], I.barJump)}</div>
+    <div class="card"><div class="lbl">Machine stack jumps</div>${opt('machine', kg ? [2.5, 5] : [5, 10, 15], I.machine)}<div class="lbl mt">Cable stack jumps</div>${opt('cable', kg ? [1.25, 2.5, 5] : [2.5, 5, 10], I.cable)}</div>
+  </div></div>`;
+};
+ACT.setInc = d => { incs()[d.f] = +d.v; Store.save('settings'); render(); };
+ACT.togglePlate = d => { const I = incs(), v = +d.v, i = I.plates.indexOf(v); if (i >= 0) { if (I.plates.length <= 1) return; I.plates.splice(i, 1); } else I.plates.push(v); I.plates.sort((a, b) => b - a); Store.save('settings'); render(); };
+
+/* ---- Starting weights ---- */
+VIEWS.setstart = () => {
+  const S = PRG().start;
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Starting weights</h1><div class="sub">Coming from Caliber? Enter your current working weight for each lift so targets and warm-ups work from day one. For dumbbells, enter one dumbbell.</div></div><div class="stack">
+    ${PRG().workouts.map(w => `<div class="card list"><div class="g-h"><b>${esc(w.name)}</b></div>${w.slots.map(sl => { const ex = EX[sl.id]; if (ex.time || (ex.bw && !ex.assist)) return ''; const l = lastPerf(ex.id, '9999-12-31'); const lw = l ? Math.max(...l.sets.map(x => x.w || 0)) : null;
+      return `<div class="srow static"><span class="srow-l">${esc(ex.name)}${lw ? `<small>Last logged ${fmtW(lw)} ${wu()}</small>` : ''}</span><div class="bw-in sm"><input class="num" id="sw-${ex.id}" type="text" inputmode="decimal" value="${S[ex.id] != null ? esc(fmtW(S[ex.id])) : ''}" placeholder="—" data-in="startW" data-x="${ex.id}" aria-label="${esc(ex.name)} starting weight"><span class="fl">${wu()}${ex.pair ? ' each' : ''}${ex.assist ? ' assist' : ''}</span></div></div>`; }).join('')}</div>`).join('')}
+    <p class="fine">Saved as you type. Once you log a session, your real history takes over.</p></div></div>`;
+};
+INP.startW = el => { const v = parseFloat(String(el.value).replace(',', '.')); if (isNaN(v)) delete PRG().start[el.dataset.x]; else PRG().start[el.dataset.x] = fromU(v); Store.save('program'); };
+
+/* ---- Dislikes ---- */
+VIEWS.setdislike = () => {
+  const D = SET().meals.dislikes; const excluded = MEAL_LIST.filter(m => !mealOK(m)).length;
+  const bySec = SECTIONS.filter(s => s !== 'Spices & Sauces').map(sec => [sec, Object.values(ING).filter(g => g.sec === sec)]);
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Foods you don’t eat</h1><div class="sub">${excluded ? `${excluded} meal${excluded > 1 ? 's' : ''} left out of your plans.` : 'Tap anything you want kept out of your meal plans.'}</div></div><div class="stack">
+    ${bySec.map(([sec, list]) => `<div class="card"><div class="lbl">${esc(sec)}</div><div class="chips">${list.map(g => `<button class="chip ${D.includes(g.id) ? 'on neg' : ''}" data-a="toggleDislike" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>`).join('')}
+    <p class="fine">New plans respect this right away. Tap “New plan” on the Week view to reshuffle the current week.</p></div></div>`;
+};
+ACT.toggleDislike = d => { const D = SET().meals.dislikes; const i = D.indexOf(d.v); if (i >= 0) D.splice(i, 1); else D.push(d.v); Store.save('settings'); render(); };
+
+/* ---- Data ---- */
+ACT.exportData = async () => {
+  const json = JSON.stringify(Store.exportAll(), null, 1); const name = `bird-fitness-backup-${today()}.json`;
+  let dl = null; try { dl = window.nest && window.nest.use ? await window.nest.use('downloads') : null; } catch (e) {}
+  if (dl) { try { await dl.save({ filename: name, data: json }); toast('Backup saved', 'download'); return; } catch (e) { if (e && e.code === 'declined') return; } }
+  openSheet(() => `${sheetHead('Backup', 'Copy this text and keep it somewhere safe (Notes, email to yourself).')}<textarea class="note mono" id="expTxt" rows="10" readonly>${esc(json)}</textarea><button class="btn" data-a="copyExport">Copy backup</button>`);
+};
+ACT.copyExport = () => { const t = $('#expTxt'); try { navigator.clipboard.writeText(t.value).then(() => toast('Backup copied'), () => { t.focus(); t.select(); toast('Select all and copy', 'info'); }); } catch (e) { t.focus(); t.select(); } };
+ACT.importData = () => openSheet(() => `${sheetHead('Import backup', 'This replaces everything in the app with the backup.')}
+  <label class="btn2 wide filebtn">${ic('upload', 20)} Choose a .json file<input type="file" id="impFile" accept=".json,application/json" data-ch="impFile" hidden></label>
+  <p class="fine center">or paste the backup text</p><textarea class="note mono" id="impTxt" rows="6" placeholder="{ &quot;app&quot;: &quot;bird-fitness&quot;, … }"></textarea><button class="btn" data-a="importPaste">Import</button>`);
+CHG.impFile = el => { const f = el.files && el.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { $('#impTxt').value = r.result; ACT.importPaste(); }; r.readAsText(f); };
+ACT.importPaste = async () => {
+  let data; try { data = JSON.parse($('#impTxt').value); } catch (e) { toast('That isn’t valid backup text', 'info'); return; }
+  try { await Store.importAll(data); } catch (e) { toast(e.message, 'info'); return; }
+  closeSheet(); render(); toast('Backup restored');
+};
+ACT.resetAsk = () => { UI.resetArm = false; openSheet(() => `${sheetHead('Reset everything?')}<p class="prose">This erases every workout log, stretch session, weigh-in, meal plan, note and setting, and puts your program back to the default split. Export a backup first if you might want it.</p>
+  <div class="btnrow"><button class="btn2" data-a="sheetClose">Cancel</button><button class="btn danger" data-a="resetGo">${UI.resetArm ? 'Tap again to erase' : 'Erase everything'}</button></div>`); };
+ACT.resetGo = async () => { if (!UI.resetArm) { UI.resetArm = true; refreshSheet(); return; } await Store.resetAll(); closeSheet(); UI.stacks.settings = [{ v: 'setroot' }]; render({ top: true }); toast('Everything reset'); };
+
+/* ---- Warm-up cardio page ---- */
+VIEWS.setwarmup = () => {
+  const wu = SET().warmup;
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Warm-up cardio</h1><div class="sub">A walk, then one machine that primes the muscles you're about to train.</div></div><div class="stack">
+    <div class="card list">
+      <div class="srow static"><span class="srow-l">Walk</span>${stepper('warmMin', wu.walk + ' min', 'data-f="walk"', 'Walk minutes')}</div>
+      <div class="srow static"><span class="srow-l">Machine</span>${stepper('warmMin', wu.machine + ' min', 'data-f="machine"', 'Machine minutes')}</div>
+    </div>
+    <div class="sg-h">Machine for each workout</div>
+    <div class="card list">${PRG().workouts.map(w => { const m = warmMachine(w.id); return `<button class="srow" data-a="warmPick" data-w="${w.id}"><span class="srow-l">${esc(w.name)}<small>${esc(m.why)}</small></span><span class="srow-v">${esc(m.name)}</span>${ic('chev', 16, 'muted')}</button>`; }).join('')}</div>
+    <p class="fine">Your Today timeline and meal times shift to match the total warm-up length.</p></div></div>`;
+};
+ACT.warmMin = d => { const wu = SET().warmup; wu[d.f] = clamp((wu[d.f] || 0) + 5 * +d.step, 0, 30); Store.save('settings'); render(); };
+ACT.artCredit = () => openSheet(() => `${sheetHead('Body artwork', 'Muscle map figures')}<p class="fine">The front and back body figures come from the open-source react-native-body-highlighter project.</p><pre class="lic">${esc(BODY_ART_LICENSE)}</pre>`);
+
+function daysText(arr) { arr = arr || []; if (!arr.length) return 'None'; if (arr.length === 1) return DOW_LONG[arr[0]] + 's'; return [1, 2, 3, 4, 5, 6, 0].filter(d => arr.includes(d)).map(d => DOW_SHORT[d]).join(', '); }
+const MEAL_DAY_INFO = { staffDays: ['Staff lunch', 'Lunch is provided. The app sets calories aside and you log what it was afterward.'], noPrepDays: ['No-cook days', 'Only pre-made or grab-and-go meals on these days, and no prep lands on them.'] };
+ACT.editMealDays = d => openSheet(() => { const arr = SET().meals[d.f] || []; const [t, sub] = MEAL_DAY_INFO[d.f]; return `${sheetHead(t, sub)}<div class="daychips">${[1, 2, 3, 4, 5, 6, 0].map(x => `<button class="daychip ${arr.includes(x) ? 'on' : ''}" data-a="toggleMealDay" data-f="${d.f}" data-v="${x}" aria-pressed="${arr.includes(x)}">${DOW_SHORT[x].slice(0, 2)}</button>`).join('')}</div>`; });
+ACT.toggleMealDay = d => { const ms = SET().meals, arr = ms[d.f] = ms[d.f] || [], v = +d.v, i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); arr.sort(); Store.save('settings'); refreshSheet(); render(); };
+ACT.editMidPrep = () => optionSheet('Midweek prep night', 'Sunday prep covers Sunday through the day of this prep. Cooked food keeps 3–4 days.', [['1', 'Monday', 'Sunday covers Sun–Mon · Monday covers Tue–Sat'], ['2', 'Tuesday', 'Sunday covers Sun–Tue · Tuesday covers Wed–Sat']], String(SET().meals.midPrep), 'setMidPrep');
+ACT.setMidPrep = d => { SET().meals.midPrep = +d.v; Store.save('settings'); closeSheet(); render(); };
+
+function daysShort(arr) { arr = arr || []; return arr.length ? [1, 2, 3, 4, 5, 6, 0].filter(d => arr.includes(d)).map(d => DOW_SHORT[d]).join(' ') : '—'; }
+
+/* ============ HOME SCREEN ICON ============
+   The app runs inside claude.ai, so Safari's own "Add to Home Screen" always
+   uses claude.ai's icon. A Shortcuts "Open URLs" shortcut gets our own icon
+   and name instead. This page hands over the icon, the link and the steps.  */
+const APP_URL = 'https://claude.ai/artifact/RXcXhBjND8HKGhUBARhYB5';
+const APP_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7263"/><stop offset="1" stop-color="#E23A30"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#bg)"/><g transform="translate(512 512) scale(1.1) translate(-512 -556)"><g fill="#fff"><rect x="150" y="572" width="40" height="68" rx="14"/><rect x="184" y="496" width="62" height="220" rx="22"/><rect x="252" y="440" width="78" height="332" rx="28"/><rect x="320" y="582" width="384" height="48" rx="10"/><rect x="694" y="440" width="78" height="332" rx="28"/><rect x="778" y="496" width="62" height="220" rx="22"/><rect x="834" y="572" width="40" height="68" rx="14"/></g><g fill="#15171C"><ellipse cx="505" cy="486" rx="112" ry="80" transform="rotate(-16 505 486)"/><circle cx="600" cy="400" r="60"/><polygon points="430,498 350,540 340,514 416,466"/><polygon points="652,384 706,404 650,418"/></g><g stroke="#15171C" stroke-width="13" stroke-linecap="round" fill="none"><path d="M488 552 L484 584"/><path d="M532 548 L530 584"/></g><path d="M432 486 C 468 440, 540 432, 580 452 C 548 492, 486 506, 432 486 Z" fill="#343944"/><circle cx="614" cy="390" r="11" fill="#FF7263"/></g></svg>';
+const APP_ICON_180 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAQAElEQVR4nOx9ebQcx1nvr3r67lf3XklXlmRJlrxHsRM7IXnOwzwgy8PBL4dnXl4g+NhAHIcEAiExSdiSA4c/gMOeAFmAxDGHBA4cQjAEHGdhS0jgEGO874sky9ZiX+nu985S9EzX8lV3dXdVz8xdpP6OzmhuT033V/V9369+9auembD1npsYY5xz8QhwoP3IORiDeoR4odOGcXQe2+9C/N5W53inPfTZoscWJ6cR54Z+rzguz8Z4fC3dRj226HWlb+icv8B/cVxdSxyJzwPSJj5/0n/psrXvpF/iPC16fnkeS9/FOTP8b/HUcTU+ndPZ+yj77uy/GnPlm/Y/ZPGV1PVkK9FbgGYGxIXillw0kZ6pl8W15eiroVMeADJa4vSqZZwZoqX0XowslyNLvaIjCOF50n9xVX0gbqkzQ7bh1B+SParvsefiD+qI7DtXfTf9T/ZdOWpmj/afibNR/42+d07JTP917MSIpfxPxg60Gg3/ozYBl3kHmnfScdFvmXftR8SxR+y3DC/T486gc1O+ASYeqP5zyP4z2bLjpeybAgjhtxgLcS7RkunslF5J/8UzXXmqjewYY/pauo0YHYqX8oo6QkydKI593FJhm/afMzKIpDn1H6JXKvZx1SX9Z7SN4b8ZO8YYbP7T2En/GTiJMoldmERjACxdnRQPjLxTkWAJzABX+YRE3TATM0AwQ7ZUY0oOm14BFBtBMYOlMYMggb6IGDY5mrSSjMwgmNEZu3TNEUdFdZqYwWHMzgx6rGD6D+m/FTM0siYxw8A84psbZjDdCRq7IDFX6XwEXPNOZreZdyqrUpjBTcyQmZvCDNEfyJaQha9GitacxgxOMYPMwZDYo9uImgPFjBTHgsYMPRGRmmOq5sR5CGYYfWcSM4j/oEG0+G9gRrKPCbxP+w+X2DESOyi8j9qEibnKqCeezTOSc1UaM4C15xnMhWc41Jxtnobsl054KJ4hs7yIZzCb/1AZpBHIjhm6j33jGZo/cATcnKsg5yrOc3mGrCRYMKOfPMPADJ6LGWV4BmDBDCZ7GtecnnEMzLDxDPBcniH8h/S/c4Ke8gwGX55B8V4gh2VG7xnPAEryDG7zyh0z0jWnQmTwDObNM5iJGaA8A7SPsPMM1luekWhJMYO78AwLZsSnCOg8JzMUZEyTeceNvJO5yXJ4hj69J88gmMG8MAPmPM0IZiDNM7g3z+B0noYaX91G9V0TItN/dVgfT2MGHHkG5S42zEtiBmDyDAtmxC1Dkt2JvEOlZ0DXnAIvhRlyTDe/npHGDIEcstilMzk8g/P14RnIxQx0yzMqPQPcvq4MYVQnxQNUekay5oijZ5KeYWKGyCcer1Zc805mt5l3yMo7XoZnQGNG9jxt1BPkU9Wy0jOKeQayMQMKuEP9divPSM5VqPSMM0/PyIpdwHkuz1DZZMEMppLZqBsVrUrPMP2H9L9zgg2kZ2TFLuwdzwAqPcPkGZtFzxBjlYpdkDVXVXoGCHqneQbJWInwyONJOq4bT89QuULXXJ1dWZWbKu8qPUP3nZ8NeoYRO6ZjF++tmDyD8/XhGcjFDHTLMyo9Aw48g8Yu7I5nqHoy5ioU8wxUegaAYp5BMUMOUzFmMN0JFz0jK3ZBxlyVxgxk5l0ZngGNGdnztFFPkE9Vy0rPKOYZyMYMaJ5hiV3bwoy5CpWecfboGbbYtS2ATL/14RkGZuSvTcrwDMCCGZWe4RY7kF3ZSs9QsyfOLj0jK3ZBpWeAoPfZqWfo05ixC5mRd2QVsF48Ay48A/aaM/1PYYb4wwQvhRlyTM8+PUOdRromsjngCcxYA56BXMxAtzyj0jPQBc+Qc0L7cFjpGfLp2atnyNhJr8Rh8Yk3VHoG5Rk80XcmMYP4DxpEi//c5ElpzACHiXnUfxRhBmDyDGRjBjTPyNAzyFxmcMSw0jMqPYPyDBq7oNIzTP9lPuXxDOE/pP+dE2xiPYMTnkFjF1Z6hmY/qo+w84wzVc8gsQONXZDNM0ByyotnEMxgXpgBc55mBDNQ6RnxlU1c4T3RM+RhkyPqvZW15xlw4Rmw1xzIKoalMUP8YYKXwgw5ppWeoXkGLLHr7K30jWcgFzPQLc+o9Az0gWdI99ttQpNnqHrqaq4SuVnpGflrKzlMxZjBdCf6oWdYOWL0PLDkXRmeAZ132fO0UU+QT1XLSs8o5hnIxgxonuGpZ6QxI24TrinPqPSMteEZltgByNQzdOxg9D2A31xVxDMMzMhfm5ThGciep8U4SoRIYYaNZ8gTyeY4O/WMrNiFEH7DYa4Cd5irnDEjXXMqRAbPqPSMfusZKnYgmREdDUi6o9IzOD8b9Qyjj2Q2DIvmqq55Blx4Buw1B7KKYWnMEH+YBaAwQ45ppWdonoF8ngGz7wHvnmcgFzPQLc+o9AysFc+AGbuwB3NVpWfkr63UkBdiBtOdWEs9g/IMGrug0jM4P9v1DMozaL/CvvAM5sIzHGrONk9D1pweNCieIUeq0jO4h56RFbsA5XiGgRn5a5MyPAPZ87QYR4kQKcyw8Qx5ItkclZ7hErvQgWfwSs9Q/qs2Z5KeYY1dJznEW0RukqhXv28is18zu/bzerN5z9zSXafmn15ceXa1Hh3fNTiwf3To5ZNjL50YDcFy/VcVpXxz9V84YvqvQTbtfyJ29jZ5sQtVyaDSMzIwg8xH7M5jL3zw4SMnVhuw2daB2i+/aN93TU/1kWf0Qc+QoVI1IA4EcOcZtnlaz1XolmdscD3j+Mrq2+9+/B33PpWVGZHN1Js/eu9T77j3yWPLK8DG5RkiVwBdcGLNCIJwCD3mqrNYzzi2Un/r3Y8/ML8EB/viydPPLq9+7CXn7x4e2BR6hooddOzaVwlIzVV6RhIz4j4uNVrvvOcJx8yI7b75pZvveXyx3kpiBoCNp2eo2Okod7Ag6IpnnAV6Rgv4qfufvGt2EZ720MLK+x56utniPeAZJuYpM3lGeT1DV6Cq7U6kAp7PMwzM4LmYUYZnwMYzNpSecdfM3B0nTqOU3XFy9pun57ExeEZB7FSOCv7QbhkUzlXOmJGsORn6JM/YXHrG7z11DA52yeTYSC1IH/9d8XbKM/hG0zNSHFF4FfDq/gyuNYxEH+eaza/PzCPXBgL2tTdc/dU3fNuDb3zN95y3M/Hq12bmZusNk2fkYoaehE2eoeGME44IGTugBzwjwRHbS9lKzzD6rmuLsX88cbrOOXLtf+3cfvHkePRkdKB2/YV7Uq8Hb/7Px//y2ecXGi0/nrGGegblGbRNAF7pGTxr38RlhXJ6ta6erzRb9KW4148srvz0w0eu+voD73rg0JdOnm5T1LXiGUjETmCGaqOwHFSPUevKsNIz1JiqNqrlbL2JIvvmyVN//Ojh1+8958m5xQ/d/wR9iZHnKy3+9ydOR/+2DdTesGPqe86ZumJiVNbAOusZ8mwSyVTsVt9xvQKX7vZNWmabnuybKOZFvFJtZM3p9yb2HWSEWgpjyYjQllH1PzS3PNNoztbrs83WfKM5VgsmwtpXTp7+4slZlDZuJgixSHz8Pzsmf/7Cc6cGaszgGUn/kfTWtueV6pFn7DQToLFL/FKT+9oEKZ5h1NzG1zMemVv822Mz984u3j+3mKWIGzOOvwmKJ60GvGTLyKumxq6aGn/5ltHRsBaPnIEZBPOUmTyj93qGBe87bw7pKLjlHW2pT2vknZ7PdCbKQFkwA7pX8QSYhxmMrlqZylSzpZpNhFcaRU+t1m9/biZiiPf461olLLrogZGh75qevGpy7JVTo6Pt5a6JeTb/1bDqcabMkZXGjETsCBLbYhf65V1qntZlnOIZG03PWGg0PvrksU8cOrbS4nC2LsFjvBb83SsuHgwCkIQVY+XEMxRmqMPd8wzGc3gG0+MZ9mOu6o5n9P7+jHqz+ZnDJz/85NEXHAgmNSa5fTmL3v7/d2+LMsODJ8nw2uLSW55RxBHb3wmWhRlw4RnI4RkbRM84vLD8Y/c8cd9c2UmEy7P523DAfmTvNGz+842kZ2ieodaqnVwJaN6BrolxJugZXzh+6vXfeKB8ZsSgzUqCx/fv3rpzeFCP50bVMzg9p9ZwO99D6sgz+qVnTEzWDl4e7DpXjWlreYk/9kjz0Ye61DNue/rYLz58GF1bIjCO9sadUx+4aA/BDGTxjODSF4eXHmRDw+q9zaNHGvfe3To1A1nlXfMMA++TPANkPDX7QWgAf0/mKneeMTQy+OYfqn3H66yDy0+fWvmDD/H77ymep0UIDT3jTw8fd8yMtiPDI8Mjo2EY1mphLQhrYRjUalFPm41Gsxn9azbq9aWlhZXlJccM+YFdWz940bnI4hmy0sKXXDn67p8JJqesJ1m98/MLn/wIqzd6xzP8OCJbefsPJIdKPVUAkSBl1FfdRv+VeiqyOH6DuPR5+wff+b5gx07kGOeNL9y++hefRrORcoEn9Axxhc6Bzx59/qfufwq5FgTByOj4yMjY8OhYlBNwsChPFhZmF+ZPr64sZ7WZCoP3HNh1/Z7tSIwJp0MSQXY4csNNQ9delw9IzUNPLXz415tPPEoPZvTdjJ3UM0AyFKm/hINqNjFj1x6UjLzrr54R/o+rCzKj7Rmrvfoa9uU7+Ilj3FnP+Przs/mZEaXC5Nbp8S0TjAXwsQhWJia31mq1488diXIr8er+4YE37d5+w7nbxsOaZW1i+l/bvmPwtd9dOFXVzjswePW3L3WSwwcz/PQM84jmDO0e5vAMACbPAHqiZzDUXnctHCyaicPv/N9w1jOWG833ZWdG1KmpbTvO3XfBlokp38yIbXl56fkTR6PM4KZds33iS1e96O37doy1MwMg06qVZwy+9vVseNjlikPX/t84h/qnZ1CeoaMM9Z1gnK5N1Lqj41O8jpAvJPitYN2ELabWJnrBq8dr7wE2OAQ3C847X5/TXJtoniX9/7VHjxxZWrFALjA4PLJ77/mTU9vTRe9oiwtzEWbE52amzTab4ESnV2sTg2fE8WsPWe38CxwvGpUH271H95FghjV2UKOUuj8juTaRa0MVO2bGjvxSE187PYNtmYCzsYlJOOgZ0ePJlfqth44DeoDUScbGJ7fv2FVa62y1WqdeODE3O5PV4OmlFfjoGSyDhFqttmNn/ZnD/dMzCMxpvO8gB9ZHz/C1BGYIr9S4t7fXG2+561Eua5q+d+v2c6bP2V06M1ZWlp87+lROZkRWUyVF+s5z9Qwf66+eocgLCN5D7cpSntEvPQN64vUdHFpzaZ4RPd55fOaDDx6KNlfTGTC5dcfE5DaUskajfnrm5Pxc8Q3GF44OoUjP4JxUiJ/1V8+gPINGOeRAxpq4j/dnwNNy9Iznl1d/7sGn77TdIB69JRwYHB0dg6e1Ws3FxYXlhbnFxXlHby8dGwZdm3DL2oo6Bj/rr56RFbswm2ewHJ4BG8/wuj8DPmaMLDTv++ujJ3/p4cPW7bR4FCL16tlnnorWrpHGNTg4PDg8P32iYQAAEABJREFUPDg4FAS1dPuIVdQj+WJpYWlpcWXZW25/7fYJC88wNVziG3wtCzO41DNMngELz+CEZ2RzRIp5iV1ZfVoj7/z1jNrlV7J9+9mgrKf6Kj96uHHf3ULv88RVnU3CKxxeXvnA/U//ywtz+W+MfY4UzoX52QXMxicYHErmRySFrq6uluUkODAy+LKJMW7TM8heq8IV5g+dEjMGBweu+Jba/gMsHBAdXFlpPPlY4+5v8i70DCve611ZACbPQHk9Y8vk0M0/EVx+RbqHA88cXv7Ib7Kjh72RQw8Si0r8tsPHf+OxZxabmSfRc1Aq4NGBCCHSbymdGZF9366tbjyD6zWtp/GOIDb+3g9Ej+lX6//5H3O//av89AxK6RlmlLX/Ae+1njH4phusmdG+xJ59Ud6Urxvgifml6/79oV96+EhBZjDLmqVPtnto4Prd25GhZyiI5Gqtx/w3eaO3BcH4T77fmhmRDbzsFWM/9DbR0l/PkNOUWFtB+h/A5Lc5PMNFz2A7d9eu/s6cbgbnX1i7/KXwHZxo4cBbH3n86LXfeODe7Nv7eMc6SbEWaRHb77xo31gt4Bl6hgI9lTe8THGwgZe/snbhJTlNhl57TdDWysroGSzBEaX/AXqqZwQX5XUgtuCiF8HLOqefXW3+9hNHs+7wixYLv3LpvjVDC2Vv2zv98slRnqtnyFkb5LBnfnA+cPDywlbhRZeU0zMUZsg2wlG1t5Lit6X0DDY8UtgH1l5b+oxOx7ftQwOv3j6ZfnHv8OBvvHj/51918Pv3Tl+9dQvW0K6dnnjv+TsdeIZWMAG1EoSfDQwWNgmircTOFejaxJdngDia2FtJ8gz47pu4mk99x1gNvDHaBye2baD2Cxfv/dKrDv6/c7d3AJC9Zd8OrJV9x9bx3zq4j8XbYTB5hnJcrlDA9Dpf3jrkfin3RErxjNzYwcYzKOaFPdYzet5f0bx9xVdPT0YJEakaY0Hw1v07b95/znhYI13kr9kx+Zrpia908zEkN/vWqbGPvPi8QAsumXoG4RmJz5u4X809kUrqGZ23WjAvRHd6hro/Q9V3nyy6ymAQXL9nx1yz+eMHdkWzjIF50rcPXXbgmm88eHSljr7Zjedu+9kLdoXqe29y9QwSA9WG+XIOdw5bTs/gHMpR2qOwvJ5B0AUgGqhTJ+BlXCqet1ykbzW1Yt5orfbxKy548388utBqoaxlySSTYe3XLtkTgZMDz1CYoQ5r5g5PY4w5DVkveAbBlc53n5fTMzTPILOPa799ZlwonUPoMUhgBlQCd/x/8fjI7VddeslY8a00nZWvtS7FXRrqpaiGfvDc7Xd+y8UiM5z1DMIQuRLa3JGAnrO4XVk9I7W2EpgXlNMzQHmGwAzG+4cc5JJxFZqYIctD1s2BkaHPveLiN+0u3oxtx4vl+sf5d09PfPGVl3zwot3bBkPuqWckVvuyjV9xCIZXZFwyQnjqGfL0BPM6LUNdB2V5hjlXFXbBNzE6o0MxOWevmNz3MBTUfvXgeTfu2f6JQyf+zvYdLFxJw9ll+XMX7r5memLP8JDGp+54hj7iY3HeFzZT2NkNz9C8s7O3YrAHZ54BpOaquI1bH+BlejRd1lb6Mrhsy9hvXjb6s6v1O46f+vrMwr/OzM01k1xE5cauwfDg+PDBsZEHFpb+8YX50YDdtHc6vrzbvolFz7BgBuellDoH5AC65xm0jbkr24PvzyjsAp18XU1zDo0ZlGcU+D89MHDj3h037JmO2tx9auF4vT5bb/7bqYXPHmvf3BXBw7dt27JvaHC0c9d4dJH3P9T+wMt4rQZ7zVnuzyA7207fnwEvc2/uFrsMzCPR7Lw3LKlndP4Ips8ZvOGtQaTsdu4W5qdP8WefKfTffynnxDOy/Ne8vdPmisnR+Jwv1MV3clx3ztZtQ+074iSHwFyjjS7jYQDn+zN4pp6hMaNkZkB3Nd+Grv72sTffyKa2tv9YWV69+675P/hw69hzXjxD+9/WOVBKz+gcH7z5ncGll+kuTE653DfL/eRB+rYCnqH9z1BuFEmLHp5ZbmshQwGLaKZxJwTYfKN991CssPWQZzDzUwU+fXdarAy85Er9x9Dw4FXfumV09NTPvNuLZ1DMC314BgPVM3jnQwOlzGt0gn37x//kr9Fra93yPnzmzy6/8srJP7898dL4jT+ML3551/+8evKPb0WfrNnwa+8PN5GFF1zkyzMo5oXgvjxDf38GRkZRyvyQo1ZDH+zmm3545oWZW97zrvRL773l3QPhwM1vfQv6Z24fwIytVGK0Ldrj5PDjGXR2DhPzNFz1DNaFz128s3d2+eWX3fapP7K+9LKXXfmpW/8QG8bKzMLUfHiGbNOZGRRmAEjfnwGQM3KtwclZpqSzqMzHuhovwTNE7KBYM9V5ta5q3AsSFvEMIEPPKMO6hfkvV85u6wo5PHlGfK14xglMzBCnIvsmgGC5Ou+YzLuy1tWbz0Lj3WCHgPgUZljvL1FzSLwr66JndE7OmWWuKu1xhRwexsC6nVmceQZddQeSQ8SvcbJfBxMzmG2uqmwtTFZvyffCh2dQPSZ00TMSPIPkXWmPK/Oy8sjhyzPILr/elc3TMxJrYinnMn78GDun6Nt50uapkLaOHFr51MfoRMSR1mOIBirYkvysL3T3Egtw0jqpY6qWNn0ztW9Cz2Oekw4uuSQfe8dP1vbtdxyB0rNw8/DTLnpG1ne5hi56RmKuUl1cve3jQz92C8bGdS9mXmBbi+6iYJ4Mq9FoPHBv7JqOGYgObf6nnvLUzgBpKXZdzMPcJt9w8zC3rrbikbUs4XS+0hTlqK/C3dxEpdbzJ4Pt0/rKp0/NffRDvjyDHG7/InX+/RmpvCNdbNx3d/NdN7U/Ezs03B7o2VO1y146eOPbCjoh1lTupqNr03At+yYsw3+NeYJd9X7fBCnMkHhOW8Jvfcqdmi/++adX/+uuYGqqffXllfoTj7Jm0xgNgnnG/pQxStr/0EXPMPKOIGTb4UaDP/l4SxZXlBxwsDJ8JXevlfgvV+Mgd10YmCd5N91rhVVDlDvAEody7s/gZEetcwINyMaMDmhvPfvuYLx56KnmIfGcIdXHTJ7BCJvU/geyJJGjZ5D+iNqKB5CT6vHtrK8pPYZJPQZawxU9lb7Jmuj8wfTSnOs+0rW+bGley6gwaD2AGf5QbBCCgsweplYBUKPEY4boWxoenIMT/131DIp51P9QnLFAz9A8Q65fLHOVR2fhaYWYIT1X+GnDDIa+3Z+RhRkindSsJP33NOY8ZmX0DGT4H6Qww6pncMXCBGbAknf62gXmnRsSD2yYoUKm22RhhvDfwAy570BqTuEKCK5YMCOn5iRmSK4jzqb9h59xR7S1xq5Qz8jyP4STnmHyjLiluSYW5tQF5js6tOayeUYuZrjyDIUZ6nD3PEPlJfXK15xGrJyeYfU/ehaoeRpqfPXeCijP6Jw4kXcw+LlrSXDfvRU3npGLGYpncJNnSEdIzRV83sSfZ6jaFVOaNx93bu7DM1CAeR2FtFjPoKmSlXeM6dwsMn/k6CHPYCbPkI6YPAP5PAP2mmOUZ/AkzzDa+JnbG9R1u+EZ0n9jbyU1V8meyPcneAZxWGEGc1J5ufMMqt6w0XhGfDBVc6qNfEzwDGZ8j4HXCLiYB89gVv9h+q92ZdP8ltl5Biw8Q1aDW02ISnK3PJ6BDa5nGDxDRw5eA+BoBmbYeYZdz1AtuWzZORB/J1gpPUP138g7h0574gbAsbn1DM0zSB17Ty3F5sAzitZWKsod/8PSegYHiYccNX7s2cI+8KNHfMumW56xjnqGwTPIqtBzCJoOA9s4eqQ8zzAxo9OGB7yknpHkGfGrzScfx2rulhLnjUce9C+bTatnKJ4hcQV6NeFh9fvuQX5Craw0Hnskj2fk+29ghkiiAOZcBRvPYEU8Q+Udnz29fOtHc7qw+tk/a7X3keFplGdsKj1DYQbT41mCk0aBX/zMbTkNZn//t+LfhEvxDPhjhiANocJhyDwQg+zwe60047iEoOa/fGXpuaND17+l/ZGnIfmjKvV668ih1b//XONr/wTJln2Muf/erHBkA/9eK/cvjujyC5/+ZDRxjH7v94X7D+jvj1tZrj/x2MInProaQUtR7Gz+J1oa/odpnhEnWLGekco7NR81H31o8RffD6IHiNDIv7wHpwTP2Ch6hsJzw39v61x+5R/ujP6RNAYdXW+ewS08A7q8xC815fAMFPIMNVepNio3Y/xUY4d43Qi/1FBebVI9Q4279N93AHRE4Ltvwqz+w/Tf4Bk0dmFpPSM9V6k2qiXP+f4MZ5N4sFn1DMIzZBtP5PC/D9RPzyCDpP2PVyul9AwLv01ghp7nYpWCkSz0MoI9m1LP4Im+M/hWiIEZXdyfkRE7Rtpo/1l89zn89Qxb3iUwQ9U1wQzzBUdjui6LeMZG1DMU29V997xLEnr+ophRjmeggGdovG/vyiLNM4r1jJI8Q9WNz+Co6tycegbhGdJ/311Z7sUz8v0H8nkGjV1g5HhveUaiJambxkP3c+fvCW0+eK8FM1x5BjhfXz2D8AzlVaRbPPIg3CwaqPp9/2Vghp1nwB8zkMC8ROwCM+/UFAZjDo6vp5DZkWdQ7sLJvBh5sLra+MZX4WarX/snC2Yws54Uz9BwxrGm92ekeAYI0yd9j71a/vIX4GarX/0HvrriwDNQlmcwyjNo7IJu9AxfnkHvA13+00/x1eLPbtT/9Z+bjz1sYMbm0jO45MvS8xhd6g/ev/LPXynsPq+vzn3iY93yjCI9g/IMGrsgkXc69rzXPAOg94HyE8fqd9xeNDT15U9/MokZ6D3PgIgrUvUEVTkl9QyDZzByeszf+vHC8lj6q7/gx4+hz3pGMnZqCpz/wess9IjrQ5zMMsk2CQ2UG+8APYWRm/q/YOeuwdddGz2ycf0b1bxRbz1/MtrDW/3C3xhv0FWozm6gBWgjow1Dhv+UZ+jjyYbpNsZ/tI+678YwcOOyxLeRN3xveOElwfQONjCg2rRmTzefPbr0+c81n3s2y/9EZlv9z46d/o8T4mFcJfJz/sbr4ufM/L1WihacGzspSLTRc5VsWfB9pqpXTOKB576J2TI9Xp1Hp+8Dpf4n+6WuxRIrUtUmtW/C/L7Llez7qD6SUTL8l+fs0b6Ji/+hkWUMxlyFHugZlGcobs/1TCEwn87TnJ9JegYn+iYpTp69tlpzPSMrdoEqOvHQaz2D8gyI2TF+WZ7S0APOPD2Dmb6pNkwOg/Kfcb4+egYIz6Cxk8jRHz2D1lwSM4y6PAPuz5BtGPFKtkz7rxz13zeBP2YggXmp2BF8Iv3SOkdf9AwrZgB6Xth8nzfx0zNAMANJ/1OY4bRvAh/MYGYbEzN07Lg1dmG/9Qz0imdsTj2DryXP4D3gGTR2gRh3W94Baczw1jOwkXiGyJVEv6DayMcsnkHP6axn9JJnMKv/MP3vimfQ2IVWzKzzIdsAAASHSURBVCjmGTTv1JAXYgaDmnCzMUPkEy/mGbriVZV0zTOQxzMg+8j52vIMzWqt/vNMnoFsngErz6CxC6yYkcxNVccyQ5G4RwFFmAGYPAPZmAHNM2DyDGkEDzfQ/Rn95BlqLsvADCN2dp6kY+fEEdu+hdl5twF4BkyeIc3kGZWe0UueQVMr6A3PYKj0DNO33vGMfP+B3vIMErsIOSo9A2QOTvMM0se15RnwxwwkMM9Rz8iKXXwPqRvPcJqrKj1Dxa9LngEfzGBmGxMzdOx4buxg4n38nWA67zYAz6j0jDXXM2hqSVfafxh7KwQzKj0j0ccsngHiW+94BrP6D9P/vvAMGjtjb6XSM8hstS48Y330DBVlM3biE28078DpXFXpGdyCl+gXz1BzWQZmABk8A93oGerlBEcMKz0jCzPOHj1DupKMXZA3V1V6BtTIUsygvvWOZ+T7b2AGCOb1mGfQ2IWVniErQfdxbXkG/DEDCczrUs8gsZPo0vEqsPAMp7mq0jNU/LrkGfDBDGa2MTFDx47nxi6pZxDMkLXdaROSKQlryjMqPWPD6BlZeB/wQp6RgxnqSuvEM0SuAKl6UhGq9Aw/nkFjF+p5kZMahRtmpOYqG2YIn3gxz9AVr6qka56BPJ4B2UfO15ZnaFZr9Z9n8gxk8wyU1jMoz5BetV8JZP5WeoZZcxmYAeq/gXlePEPNZRmYAWTwDGTzDKT9d9QzOOEZpOL0LzWtCc+AyTOkmTyj0jPWhmcUxy5ApWdk8gzqW+94Rr7/BmaAYN4a8Qwau1B5b+Qdd+EZvNIzfHgG/DEDCczj/dEzrLFD+xNvOl3gyTNy804DockzBBzQmqv0DOTyjL7rGdbYgYlfauonz6j0jA2vZ2TFLnDCDHWldeIZIleAVD2pCFV6Rm94hky29rVCJ8xIzVW2vBM+8WKeoSteVUnXPAN5PAOyj5yvLc/YHHqGwkICpu0zBJ48A9l5B1X8vNIzyqxNKM9ANs9A2v8u9QydK8zwKqz0jErPMGJH1lZBpWeYvvWOZ+T7b2AGCOatE88wYxe/N8zEjNRcZc87V54BbvAMVHqGzicggXl8bfUM3dLEy4AX84zcvNNAaPIMAQe05io9A7k8Y930DN2SGRwxRK94RqVnbFo9Q4wVUQ1iC7CReIbIFSBVTypClZ7RO54BAzO4AiLZrzB/rrLlnfCJF/MMXfGqSrrmGcjjGZC1xfna8gyyGrRiBja0nmHFS3Q+8cZtPAPZeQdV/LzSM/iZoGfYYtfO0VC+U4yR11yFRN5JM3lGpWesDc8owxGZLXaQa4sA6krrxDMKak7Ptaj0DDnmAMnUbmLHbbFT/ofpucqed648A9zgGaj0DD3uQALzNoieIWOnOKLwP0jPVfa800Bo8gwBB7TmKj0DuTxjw+kZZC5j5GwIKz2j9zyDrxnPgFfssvQMyjMgEKjdJqj0jDI8g1n9h+k/wwbhGUC+niFqXoZKzjtyV9aWd8InXswzdMWrKumaZ9Cak15RzFgfnkFWg1bMyOQZyOYZWHc9gyA0aOz+GwAA//+SrsFsAAAABklEQVQDAEGlvNMd06lnAAAAAElFTkSuQmCC';
+const appIconSrc = () => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(APP_ICON_SVG);
+function iconPNG(size = 1024) {
+  return new Promise(res => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = size;
+          c.getContext('2d').drawImage(img, 0, 0, size, size);
+          c.toBlob(b => res(b || null), 'image/png');
+        } catch (e) { res(null); }
+      };
+      img.onerror = () => res(null);
+      img.src = appIconSrc();
+    } catch (e) { res(null); }
+  });
+}
+function fallbackIcon() { const b = atob(APP_ICON_180.split(',')[1]), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Blob([u], { type: 'image/png' }); }
+VIEWS.sethome = () => `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Home Screen icon</h1><div class="sub">Put Bird Fitness on your iPhone with its own icon and name.</div></div><div class="stack">
+  <div class="card hs-hero"><img class="hs-icon" src="${appIconSrc()}" alt="Bird Fitness app icon" width="96" height="96"><div class="hs-name">Bird Fitness</div></div>
+  <div class="btnrow"><button class="btn2" data-a="copyAppLink">${ic("copy", 18)} Copy link</button><button class="btn" data-a="saveIcon">${ic('download', 18)} Save icon</button></div>
+  <div class="card"><div class="lbl">Set it up in Shortcuts · about 2 minutes</div><ol class="hs-steps">
+    <li>Tap <b>Save icon</b> above, then <b>Save Image</b> so it lands in Photos.</li>
+    <li>Tap <b>Copy link</b>.</li>
+    <li>Open the <b>Shortcuts</b> app → <b>+</b> → search <b>Open URLs</b> and add it. Tap <b>URL</b> and paste the link.</li>
+    <li>Tap the name at the top → <b>Rename</b> → <b>Bird Fitness</b>.</li>
+    <li>Tap the name again → <b>Add to Home Screen</b>. Tap the icon → <b>Choose Photo</b> → pick the Bird Fitness icon → <b>Add</b>.</li>
+  </ol></div>
+  <p class="fine">Why not Safari's Share → Add to Home Screen? This app lives inside claude.ai, so Safari always uses claude.ai's icon there. The shortcut opens the same app in Safari, where you're already signed in.</p>
+  <input class="search" id="appLink" type="text" readonly value="${APP_URL}" aria-label="App link">
+</div></div>`;
+ACT.copyAppLink = () => {
+  const el = $('#appLink');
+  const sel = () => { if (el) { el.focus(); el.select(); } toast('Link selected — tap Copy', 'info'); };
+  try { navigator.clipboard.writeText(APP_URL).then(() => toast('App link copied', 'check'), sel); } catch (e) { sel(); }
+};
+ACT.saveIcon = async () => {
+  let dl = null; try { dl = window.nest && window.nest.use ? await window.nest.use('downloads') : null; } catch (e) {}
+  if (!dl) { toast('Saving isn’t available here — press and hold the icon to save it', 'info'); return; }
+  const blob = (await iconPNG(1024)) || (await fallbackIcon());
+  try { await dl.save({ filename: 'bird-fitness-icon.png', data: blob }); toast('Icon ready — save it to Photos', 'download'); }
+  catch (e) { if (e && e.code === 'declined') return; toast('Couldn’t save the icon — press and hold it instead', 'info'); }
+};
+
+/* ============ TODAY ============ */
+function flowStep({ icon, time, title, syms, done, part, act, attrs, right, cls = '' }) {
+  return `<div class="flow ${done ? 'is-done' : ''} ${cls}">
+    <div class="flow-rail"><span class="flow-dot">${ic(done ? 'check' : icon, done ? 15 : 17)}</span></div>
+    <button class="flow-main" data-a="${act}" ${attrs}>${time ? `<span class="flow-time">${time}</span>` : ''}<span class="flow-t">${title}</span><span class="syms">${syms || ''}</span>${part ? `<span class="flow-part">${part}</span>` : ''}</button>
+    <div class="flow-r">${right || ''}</div></div>`;
+}
+const sym = (icon, txt) => `<span class="sym">${ic(icon, 15)}${txt}</span>`;
+const playBtnK = (d, k, label) => `<button class="playbtn" data-a="startStretchK" data-d="${d}" data-k="${k}" aria-label="Start ${label}">${ic('play', 18)}</button>`;
+function todayContent() {
+  const d = UI.date, t = today(), s = SET(), w = dayWorkout(d);
+  const miss = d === t ? missedWorkout() : null;
+  const header = `<div class="today-h"><div>${d !== t ? `<div class="eyebrow">${relDay(d)}</div>` : ''}<div class="h2">${fmtDate(d, 'long')}</div></div>${d === t && s.card && s.card.code ? `<button class="iconbtn checkin" data-a="checkIn" aria-label="Gym check-in barcode">${ic('barcode', 22)}</button>` : ''}</div>`;
+  const strip = weekStrip(mondayOf(t), d, 'pickDay');
+  let missHTML = '';
+  if (miss) {
+    const mw = workoutById(miss.w), mp = makeupPlan(miss.date);
+    const when = mp ? (mp.day === t ? 'today' : DOW_LONG[dow(mp.day)]) : '';
+    const how = !mp ? 'No open day this week without stacking the same muscles.'
+      : `Best fit: <b>${when}</b>${mp.shifts ? ` · next ${mp.shifts === 1 ? 'workout slides' : mp.shifts + ' slide'} a day` : ''}`;
+    missHTML = `<div class="card note-card"><div class="lbl">${ic('calendar', 15)} Missed ${esc(mw.short)} · ${DOW_SHORT[dow(miss.date)]}</div><p class="fine">${how}</p>
+      <div class="btnrow"><button class="btn2" data-a="${mp ? 'moveSheet' : 'skipMissed'}" data-d="${miss.date}">${mp ? 'Move…' : 'Skip it'}</button>${mp ? `<button class="btn" data-a="pushBack" data-d="${miss.date}">Fit it in${when === 'today' ? ' today' : ''}</button>` : `<button class="btn" data-a="moveSheet" data-d="${miss.date}">Move…</button>`}</div></div>`;
+  }
+  let flow = '';
+  if (w) {
+    const W = workoutById(w), st = s.stretch, T = s.gymTime, est = estMinutes(w);
+    const warmDone = !!(Store.m[monthKey(d)] && Store.m[monthKey(d)].warm[d]);
+    const e1 = stretchEntry(d, 's1'), e2 = stretchEntry(d, 's2');
+    const p1 = st.s1 > 0 ? stretchPlan(d, 's1') : null, p2 = stretchPlan(d, 's2');
+    const wu = s.warmup, wm = warmMinutes(), mach = warmMachine(w);
+    const warmRunning = d === t && Timer.on && Timer.warm;
+    const sess = sessionOn(d, w), pr = sessionProgress(w, d);
+    const wDone = !!(sess && sess.fin);
+    const hasPrep = st.s1 > 0;
+    flow = `<div class="card flowcard">
+      ${flowStep({ icon: 'flame', time: fmtClock(T), title: 'Warm-up', syms: sym('walk', mins(wu.walk)) + sym('bolt', `${esc(mach.short || mach.name)} ${mins(wu.machine)}`), done: warmDone, part: warmRunning ? `${esc(Timer.label)} …` : '', act: 'warmSheet', attrs: `data-d="${d}" data-w="${w}"`, right: warmDone ? '' : `<button class="playbtn ghost" data-a="warmSheet" data-d="${d}" data-w="${w}" aria-label="Start warm-up">${ic('play', 18)}</button>` })}
+      ${hasPrep ? flowStep({ icon: 'wave', time: fmtClock(T + wm), title: 'Prep', syms: sym('clock', mins(st.s1)) + sym('repeat', `${p1.items.length}×${p1.rounds}`), done: e1 && e1.full, part: e1 && !e1.full ? `${Math.round(e1.min)}/${st.s1}m` : '', act: 'openStretchTab', attrs: `data-d="${d}" data-k="s1"`, right: e1 && e1.full ? '' : playBtnK(d, 's1', 'movement prep') }) : ''}
+      ${flowStep({ icon: 'dumbbell', time: fmtClock(T + wm + st.s1), title: esc(W.name), syms: sym('list', pr.total) + sym('clock', '~' + mins(est)), done: wDone, part: sess && sess.start && !wDone ? `${pr.done}/${pr.total}` : '', act: 'openWorkout', attrs: `data-w="${w}" data-d="${d}"`, right: wDone ? '' : ic('chev', 18, 'muted'), cls: 'main' })}
+      ${flowStep({ icon: 'stretch', time: fmtClock(T + wm + st.s1 + est), title: 'Cool-down', syms: sym('clock', mins(st.s2)) + sym('repeat', `${p2.items.length}×${p2.rounds}`), done: e2 && e2.full, part: e2 && !e2.full ? `${Math.round(e2.min)}/${st.s2}m` : '', act: 'openStretchTab', attrs: `data-d="${d}" data-k="s2"`, right: e2 && e2.full ? '' : playBtnK(d, 's2', 'cool-down stretch') })}
+    </div>`;
+  } else {
+    const kinds = stretchKinds(d);
+    let next = null; for (let i = 1; i <= 7; i++) { const x = addDays(d, i); if (plannedWorkout(x)) { next = x; break; } }
+    flow = `<div class="card flowcard">${kinds.map(k => {
+      const e = stretchEntry(d, k.k), p = stretchPlan(d, k.k);
+      return flowStep({ icon: 'stretch', title: esc(k.title), syms: sym('clock', mins(k.min)) + sym('repeat', `${p.items.length}×${p.rounds}`), done: e && e.full, part: e && !e.full ? `${Math.round(e.min)}/${k.min}m` : '', act: 'openStretchTab', attrs: `data-d="${d}" data-k="${k.k}"`, right: e && e.full ? '' : playBtnK(d, k.k, k.title) });
+    }).join('')}</div>
+    ${next ? `<p class="fine center restnext">${ic('moon', 14)} Rest · next ${relDay(next) === 'Tomorrow' ? 'tomorrow' : DOW_SHORT[dow(next)]}: <b>${esc(workoutById(plannedWorkout(next)).short)}</b></p>` : ''}`;
+  }
+  const { rows } = dayMeals(d);
+  const ea = dayEaten(d), lf = nutrition(d).kcal - ea.kcal;
+  const meals = `<div class="sec-h"><span>Meals</span><button class="link" data-a="openMealsDay" data-d="${d}" aria-label="Full meal plan">${kcalTag(Math.abs(lf))}<span class="muted">${lf >= 0 ? 'left' : 'over'}</span>${ic('chev', 16)}</button></div>
+    <div class="card list">${dayRowsHTML(d, rows, true)}<button class="addrow" data-a="addFood" data-d="${d}">${ic('plus', 18)} Add food</button></div>${waterCard(d, true)}`;
+  const tip = d === t && !SET().hideStartTip && !Object.keys(PRG().start).length && !hist().sessions.some(sessionHasWork)
+    ? `<div class="card tipline"><button class="tipline-b" data-a="goSettings" data-p="startw">${ic('scale', 18)}<span>Starting weights</span>${ic('chev', 16)}</button><button class="iconbtn sm" data-a="hideTip" aria-label="Dismiss">${ic('close', 16)}</button></div>` : '';
+  return header + strip + (d === t ? recapCard('today') : '') + missHTML + tip + flow + meals;
+}
+ACT.pickDay = d => { UI.date = d.d; render(); };
+ACT.hideTip = () => { SET().hideStartTip = true; Store.save('settings'); render(); };
+ACT.pickDayProgram = d => { UI.date = d.d; UI.seg.workout = 'today'; render({ top: true }); };
+ACT.pushBack = d => { const w = plannedWorkout(d.d); const mp = pushBack(d.d); render(); if (mp) toast(`${workoutById(w).name} moved to ${relDay(mp.day).toLowerCase() === 'today' ? 'today' : DOW_LONG[dow(mp.day)]}`, 'calendar'); };
+ACT.skipMissed = d => { PRG().overrides[d.d] = 'rest'; cleanOverrides(); Store.save('program'); render(); toast('Skipped — back on schedule next workout', 'calendar'); };
+ACT.openStretchTab = d => { UI.sdate = d.d; goTab('stretch', { v: 'spreview', date: d.d, k: d.k }); };
+ACT.openMealsDay = d => { UI.mdate = d.d; UI.seg.meals = 'day'; goTab('meals'); if (UI.stacks.meals.length > 1) { UI.stacks.meals = [UI.stacks.meals[0]]; render({ top: true }); } };
+function warmSheetHTML(date, wid) {
+  const wu = SET().warmup, mach = warmMachine(wid), W = workoutById(wid);
+  const done = !!(Store.m[monthKey(date)] && Store.m[monthKey(date)].warm[date]);
+  return `${sheetHead(`Warm-up · ${warmMinutes()} min`, SET().stretch.s1 > 0 ? 'Get warm first. Movement prep comes next.' : 'Get warm first. Your workout comes next.')}
+    <div class="card flat wlist2">
+      <div class="wstep"><span class="flow-dot">1</span><div><b>Walk · ${wu.walk} min</b><span>Easy to brisk pace on the treadmill or track</span></div></div>
+      <div class="wstep"><span class="flow-dot">2</span><div><b>${esc(mach.name)} · ${wu.machine} min</b><span>${esc(mach.why)} — picked for ${esc(W ? W.name : 'today')}</span></div><button class="link" data-a="warmPick" data-d="${date}" data-w="${wid}">Change</button></div>
+    </div>
+    <p class="fine">The timer runs the walk, then switches to the ${esc(mach.name.toLowerCase())} and checks off your warm-up when it ends.</p>
+    <div class="btnrow"><button class="btn2" data-a="warmDone" data-d="${date}">${done ? 'Mark not done' : 'Mark done'}</button><button class="btn" data-a="warmStart" data-d="${date}" data-w="${wid}">${ic('play', 16)} Start ${warmMinutes()} min</button></div>`;
+}
+ACT.warmSheet = d => openSheet(() => warmSheetHTML(d.d, d.w));
+ACT.warmPick = d => {
+  const cur = warmMachine(d.w).id, W = workoutById(d.w);
+  openSheet(() => `${sheetHead('Warm-up machine', `For every ${esc(W ? W.name : '')} day`)}<div class="menu">${Object.values(WARM_MACHINES).map(m => `<button class="menu-i ${m.id === cur ? 'sel' : ''}" data-a="warmPickSet" data-d="${d.d || ''}" data-w="${d.w}" data-v="${m.id}"><span>${esc(m.name)}<small class="muted">${esc(m.why)}</small></span>${m.id === cur ? ic('check', 20) : ''}</button>`).join('')}</div>`);
+};
+ACT.warmPickSet = d => {
+  const wu = SET().warmup; wu.pick = wu.pick || {}; wu.pick[d.w] = d.v; Store.save('settings');
+  toast(`${workoutById(d.w).short} days: ${WARM_MACHINES[d.v].name}`, 'check');
+  if (d.d) openSheet(() => warmSheetHTML(d.d, d.w)); else closeSheet();
+  render();
+};
+ACT.warmStart = d => {
+  closeSheet(); const wu = SET().warmup, mach = warmMachine(d.w), date = d.d;
+  const finish = () => { const m = Store.month(monthKey(date), true); m.warm[date] = true; Store.save('m:' + monthKey(date)); Timer.warm = false; render(); toast(SET().stretch.s1 > 0 ? 'Warm-up done — movement prep is next' : 'Warm-up done — time to lift', 'check'); };
+  const machinePart = () => { if (wu.machine > 0) { Timer.start(wu.machine * 60, mach.short || mach.name); Timer.warm = true; say(`Walk done. ${mach.name} for ${wu.machine} minutes.`); Timer.onDone = finish; render(); } else finish(); };
+  if (wu.walk > 0) { Timer.start(wu.walk * 60, 'Walk'); Timer.warm = true; Timer.onDone = machinePart; } else machinePart();
+  render();
+};
+ACT.warmDone = d => { const m = Store.month(monthKey(d.d), true); m.warm[d.d] = !m.warm[d.d]; Store.save('m:' + monthKey(d.d)); closeSheet(); render(); };
+
+/* ============ GYM CHECK-IN CARD ============
+   Code 128 barcode, the same symbology as the gym's own app. Digits use
+   code set C (two digits per symbol), anything else code set B.        */
+const C128 = ('212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 ' +
+  '221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 ' +
+  '231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 ' +
+  '314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 ' +
+  '111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 ' +
+  '114131 311141 411131 211412 211214 211232').split(' ');
+function code128(txt) {
+  txt = String(txt || '');
+  if (!txt) return null;
+  const vals = [];
+  if (/^\d+$/.test(txt) && txt.length >= 2) {
+    vals.push(105); // start C
+    const even = txt.length - (txt.length % 2);
+    for (let i = 0; i < even; i += 2) vals.push(+txt.substr(i, 2));
+    if (txt.length % 2) vals.push(100, txt.charCodeAt(txt.length - 1) - 32); // switch to B for the odd last digit
+  } else {
+    vals.push(104); // start B
+    for (const ch of txt) { const c = ch.charCodeAt(0); if (c < 32 || c > 126) return null; vals.push(c - 32); }
+  }
+  let sum = vals[0];
+  for (let i = 1; i < vals.length; i++) sum += vals[i] * i;
+  vals.push(sum % 103);
+  return vals.map(v => C128[v]).join('') + '2331112';
+}
+function barcodeSVG(txt, maxW = 340, h = 112) {
+  const pat = code128(txt); if (!pat) return '';
+  const Q = 10; // quiet zone, in modules
+  let mods = 0; for (const c of pat) mods += +c;
+  const W = mods + Q * 2;
+  const m = Math.max(1, Math.floor(maxW / W)); // whole pixels per module keeps every bar the same width
+  let x = Q, bars = '';
+  for (let i = 0; i < pat.length; i++) { const w = +pat[i]; if (i % 2 === 0) bars += `M${x} 0h${w}v1h-${w}z`; x += w; }
+  return `<svg class="bc" width="${W * m}" height="${h}" viewBox="0 0 ${W} 1" preserveAspectRatio="none" shape-rendering="crispEdges" role="img" aria-label="Barcode ${esc(txt)}"><rect width="${W}" height="1" fill="#fff"/><path d="${bars}" fill="#000"/></svg>`;
+}
+const CARD = () => SET().card;
+function checkInHTML() {
+  const c = CARD(), vw = Math.min(window.innerWidth || 390, 520);
+  return `${sheetHead('Check in', esc(c.gym || 'Gym'))}
+    <div class="bc-card">${c.name ? `<div class="bc-name">${esc(c.name)}</div>` : ''}${barcodeSVG(c.code, vw - 48)}<div class="bc-num">${esc(c.code)}</div></div>
+    <p class="fine center">Hold it under the scanner. If it's slow to read, turn your screen brightness up.</p>
+    <div class="center"><button class="link" data-a="goSettings" data-p="card">Edit card</button></div>`;
+}
+let wakeLock = null;
+ACT.checkIn = () => {
+  if (!CARD().code) { goTab('settings', { v: 'setcard' }); return; }
+  openSheet(checkInHTML);
+  try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {}); } catch (e) {}
+};
+function releaseWake() { try { if (wakeLock) wakeLock.release(); } catch (e) {} wakeLock = null; }
+
+VIEWS.setcard = () => {
+  const c = CARD();
+  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Gym check-in</h1><div class="sub">Your membership barcode, ready to scan at the front desk.</div></div><div class="stack">
+    <div class="card list">
+      ${srow('Barcode number', c.code ? esc(c.code) : 'Not set', 'editCard', 'data-f="code"')}
+      ${srow('Name on card', c.name ? esc(c.name) : 'None', 'editCard', 'data-f="name"')}
+      ${srow('Gym', c.gym ? esc(c.gym) : 'None', 'editCard', 'data-f="gym"')}
+    </div>
+    ${c.code ? `<div class="bc-card">${barcodeSVG(c.code, Math.min(window.innerWidth || 390, 520) - 48, 90)}<div class="bc-num">${esc(c.code)}</div></div>
+    <p class="fine center">Code 128 — the same kind of barcode as your gym's app. Open it any time from the Check in button on Today.</p>` : ''}
+  </div></div>`;
+};
+const CARD_FIELDS = { code: ['Barcode number', 'The number printed under your barcode'], name: ['Name on card', 'Shown above the barcode'], gym: ['Gym', 'Shown at the top of the card'] };
+ACT.editCard = d => {
+  const [title, sub] = CARD_FIELDS[d.f];
+  UI.cardField = d.f;
+  openSheet(() => `${sheetHead(title, sub)}<input class="search" id="cardIn" type="text" ${d.f === 'code' ? 'inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false"' : ''} value="${esc(CARD()[d.f] || '')}" aria-label="${esc(title)}"><button class="btn mt" data-a="saveCard">Save</button>`);
+  setTimeout(() => { const el = $('#cardIn'); if (el) { el.focus(); el.select(); } }, 250);
+};
+ACT.saveCard = () => {
+  const f = UI.cardField, v = String($('#cardIn').value || '').trim();
+  if (f === 'code' && v && !code128(v)) { toast('Use letters, numbers and symbols only', 'info'); return; }
+  CARD()[f] = v; Store.save('settings'); closeSheet(); render();
+};
+
+/* ============ GLOBAL ACTIONS & BOOT ============ */
+ACT.back = () => pop();
+ACT.home = () => { UI.stacks[UI.tab] = [UI.stacks[UI.tab][0]]; render({ top: true }); };
+ACT.tab = d => { closeSheet(); goTab(d.t); };
+ACT.seg = d => {
+  if (d.s === 'units') { SET().units = d.v; Store.save('settings'); render(); return; }
+  if (d.s === 'snacks') { SET().meals.snacks = +d.v; Store.save('settings'); render(); return; }
+  if (d.s === 'rotmode') { SET().rotation.mode = d.v; Store.save('settings'); render(); return; }
+  if (d.s === 'slibT') { topView().t = d.v; render(); return; }
+  UI.seg[d.s] = d.v; render({ top: true });
+};
+ACT.sheetClose = () => closeSheet();
+ACT.timerAdd = d => Timer.add(+d.s);
+ACT.timerStop = () => Timer.stop();
+
+function boot() {
+  Store.loadLocal();
+  migrateSettings(); migrateMeals();
+  cleanOverrides();
+  UI.today = today();
+  Store.onRemote = () => {
+    migrateSettings(); migrateMeals();
+    const a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) { UI.dirtyRemote = true; return; }
+    if (!Player.on && !DRAG) { render(); if (SHEET_FN) refreshSheet(); }
+  };
+  Store.onError = code => { if (code === 'quota_exceeded') toast('Storage is full — export a backup, then reset old data', 'info'); };
+
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-a]'); if (!el) return;
+    const fn = ACT[el.dataset.a]; if (!fn) return;
+    if (el.tagName === 'LABEL') return;
+    e.preventDefault();
+    try { fn(Object.assign({}, el.dataset), el, e); } catch (err) { console.error(err); toast('Something went wrong — try again', 'info'); }
+  });
+  document.addEventListener('input', e => { const el = e.target.closest('[data-in]'); if (el && INP[el.dataset.in]) INP[el.dataset.in](el, e); });
+  document.addEventListener('change', e => { const el = e.target.closest('[data-ch]'); if (el && CHG[el.dataset.ch]) CHG[el.dataset.ch](el, e); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches('input.num')) { e.preventDefault(); e.target.blur(); }
+    if (e.key === 'Escape') { if (!$('#sheet').hidden) closeSheet(); }
+  });
+  document.addEventListener('focusin', e => { if (e.target.matches('input.num')) setTimeout(() => { try { e.target.select(); } catch (x) {} }, 30); });
+  document.addEventListener('focusout', () => {
+    if (!UI.dirtyRemote) return;
+    setTimeout(() => { const a = document.activeElement; if (!a || (a.tagName !== 'INPUT' && a.tagName !== 'TEXTAREA')) { UI.dirtyRemote = false; render(); } }, 80);
+  });
+  document.addEventListener('pointerdown', dragStart, { passive: false });
+  document.addEventListener('pointermove', e => { if (DRAG) dragMove(e); else if (e.pointerType === 'mouse') { if (e.target.closest && e.target.closest('.chart')) chartHover(e); } }, { passive: false });
+  document.addEventListener('pointerup', e => { if (DRAG) dragEnd(e); else if (e.target.closest && e.target.closest('.chart') && e.pointerType !== 'mouse') chartHover(e); });
+  document.addEventListener('pointercancel', () => dragEnd());
+  document.addEventListener('pointerout', e => { if (e.pointerType === 'mouse' && e.target.closest && e.target.closest('.chart') && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.chart'))) chartLeave(e); });
+  document.addEventListener('pointerdown', () => audio(), { once: true });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (today() !== UI.today) { UI.today = today(); UI.date = UI.today; UI.mdate = UI.today; UI.sdate = null; } Timer.draw(); if (!Player.on) render(); } });
+  setInterval(() => { const rd = recapDue(); if (rd !== UI.recapDue) { UI.recapDue = rd; if (!Player.on) render(); } if (today() !== UI.today) { UI.today = today(); UI.date = UI.today; UI.mdate = UI.today; UI.sdate = null; if (!Player.on) render(); } }, 60000);
+
+  render({ top: true });
+  Store.connect().then(ok => { migrateSettings(); migrateMeals(); if (ok && !Player.on) { cleanOverrides(); render(); } });
+}
+(function start() {
+  let started = false;
+  const go = data => {
+    if (started) return; started = true;
+    try { if (data && data.stacks && data.tab) { UI.tab = data.tab; UI.stacks = data.stacks; UI.seg = Object.assign(UI.seg, data.seg || {}); } } catch (e) {}
+    boot();
+  };
+  try {
+    const hot = window.nest && window.nest.hot;
+    if (hot && hot.snapshot) hot.snapshot(() => ({ tab: UI.tab, stacks: UI.stacks, seg: UI.seg }));
+    if (hot && hot.ready) { hot.ready(go); setTimeout(() => go({}), 1500); } else go((hot && hot.data) || {});
+  } catch (e) { go({}); }
+})();
+

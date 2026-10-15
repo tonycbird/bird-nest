@@ -7,8 +7,10 @@ import "./styles/app.css";
 import "./styles/head.css";
 import App from "./App";
 import { installRiverBridge } from "./head/river-bridge";
+import { installBody } from "./body/install";
 
 installRiverBridge();
+installBody();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

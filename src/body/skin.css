@@ -1,0 +1,44 @@
+/* Bird Nest skin for the Fitness screens: Nest's paper and ink, teal for Body, Nest's fonts.
+   Only tokens and a few layout fixes change; the old app's own rules stay as they were. */
+:root{
+  --bg:#F7F3EA; --card:#FFFFFF; --ink:#1E2420; --ink2:#565B52; --ink3:#878C82; --line:#E6E0D2; --pill:#EFE9DB; --pill-ink:#565B52;
+  --coral:#1F7A8C; --coral-press:#18687A; --coral-soft:#DDEDEF; --coral-2:#8DC1CB;
+  --blue:#46524A; --blue-soft:#EAE5D8; --blue-2:#B9B4A6;
+  --green:#2E8B3E; --green-soft:#E1F0E1; --amber:#C9741A; --amber-soft:#F7EAD8; --danger:#C2412F; --danger-soft:#F6E2DD;
+  --c1:#1F7A8C; --c2:#C9741A;
+  --mus:#D3CDBE; --mus-2:#DFD9CB; --hi-1:#2A93A8; --hi-2:#1F7A8C;
+  --shadow:0 1px 2px rgba(30,36,32,.06),0 1px 1px rgba(30,36,32,.03);
+  --shadow-2:0 8px 28px rgba(30,36,32,.18);
+  --tab-bg:rgba(247,243,234,.92); --overlay:rgba(20,24,20,.42);
+  --num:"Archivo Variable",-apple-system,system-ui,sans-serif;
+  --ui:"Archivo Variable",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12160F; --card:#1B2118; --ink:#F2EEE2; --ink2:#C4C6B8; --ink3:#8F9488; --line:#2A3226; --pill:#242B20; --pill-ink:#C4C6B8;
+  --coral:#4FB3C6; --coral-press:#6CC3D3; --coral-soft:#16303A; --coral-2:#2D6A78;
+  --blue:#C4C6B8; --blue-soft:#242B20; --blue-2:#4A5444;
+  --green:#4CC35E; --green-soft:#16281A; --amber:#E3A33E; --amber-soft:#2D2413; --danger:#F06A55; --danger-soft:#361C18;
+  --c1:#4FB3C6; --c2:#E3A33E;
+  --mus:#3B4436; --mus-2:#333B2F; --hi-1:#5FC2D4; --hi-2:#4FB3C6;
+  --shadow:0 0 0 1px rgba(242,238,226,.04); --shadow-2:0 10px 30px rgba(0,0,0,.55);
+  --tab-bg:rgba(18,22,15,.92); --overlay:rgba(0,0,0,.6);
+}}
+/* Big numbers: tabular, a touch heavier. */
+body{font-feature-settings:"tnum" 1}
+.h1,.ltitle,.h2{font-family:"Fraunces Variable",Georgia,serif;letter-spacing:-.01em}
+/* White text on teal reads better in dark mode with dark ink. */
+@media (prefers-color-scheme:dark){.btn,.btn-sm:not(.ghost):not(.alt){color:#0E1A1C}}
+
+/* Nest shows the four sections as chips above this frame, so the old tab bar hides
+   and everything that sat above it drops to the bottom. */
+#tabbar{display:none!important}
+#app{padding-bottom:28px}
+body:has(.timer:not([hidden])) #app{padding-bottom:96px}
+.actionbar{bottom:0;padding-bottom:12px}
+#view:has(.actionbar){padding-bottom:84px}
+.timer{bottom:14px}
+body:has(.actionbar) .timer{bottom:84px}
+.nav{top:0}
+.pad.top{padding-top:4px}
+.nest-groc{margin-bottom:12px}
+.nest-groc small{margin-top:2px}

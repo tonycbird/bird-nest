@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
-import { counts, download, exportAll, markBackedUp, restoreAll, validate, type Backup } from "../lib/backup";
+import { counts, download, exportAll, markBackedUp, restoreAll, saveJSON, validate, type Backup } from "../lib/backup";
 import { restoreBlock, trash } from "../lib/river";
 import { DEFAULT_TZ } from "../lib/dayKey";
 import { keyLabel } from "../lib/time";
 import { CLOUD, supabase } from "../lib/supabase";
 import { useToast } from "../lib/toast";
 import { go, goTab } from "../head/useHead";
+import { fitApi, fitCounts, importFitness, readFitnessBackup, resetFitCache, type FitnessBackup } from "../body/host";
 
 function ago(iso: string | undefined): string {
   if (!iso) return "never";
@@ -27,6 +28,9 @@ export default function Settings(props: { email: string; online: boolean }) {
   const bin = useLiveQuery(() => trash(), [], []);
   const [pending, setPending] = useState<Backup | null>(null);
   const [showTrash, setShowTrash] = useState(false);
+  const fitFile = useRef<HTMLInputElement>(null);
+  const [fitPending, setFitPending] = useState<FitnessBackup | null>(null);
+  const fit = useLiveQuery(() => fitCounts(), [], { docs: 0, months: 0 });
   const stale = !last || Date.now() - Date.parse(last) > 7 * 864e5;
 
   async function backup() {
@@ -45,7 +49,21 @@ export default function Settings(props: { email: string; online: boolean }) {
     if (!pending) return;
     const safety = await restoreAll(pending);
     setPending(null);
-    toast("⬆ Restored", async () => { await restoreAll(safety); });
+    await resetFitCache();
+    toast("⬆ Restored", async () => { await restoreAll(safety); await resetFitCache(); });
+  }
+  async function pickFit(f: File | undefined) {
+    if (!f) return;
+    try { setFitPending(readFitnessBackup(JSON.parse(await f.text()))); }
+    catch (e) { toast("✕ " + (e as Error).message); }
+    if (fitFile.current) fitFile.current.value = "";
+  }
+  async function importFit() {
+    if (!fitPending) return;
+    const safety = await exportAll();
+    const r = await importFitness(fitPending);
+    setFitPending(null);
+    toast(`🏋 Imported · ${r.sessions} workouts`, async () => { await restoreAll(safety); await resetFitCache(); });
   }
   async function signOut() {
     await supabase.auth.signOut();
@@ -82,6 +100,26 @@ export default function Settings(props: { email: string; online: boolean }) {
 
       <div className="lbl">🧠 Head</div>
       <button className="btn" style={{ width: "100%" }} onClick={() => { go("settings"); goTab("head"); }}>⚙ Head settings · ⬆ Clearhead import</button>
+
+      <div className="lbl">🏋 Body</div>
+      <div className="card">
+        <div className="kv"><span>📒 Fitness data</span><span className="muted">{fit.docs ? `${fit.months} months of logs` : "Not set up yet"}</span></div>
+      </div>
+      <div className="stack" style={{ marginTop: 10 }}>
+        <button className="btn" onClick={() => fitFile.current?.click()}>⬆ Import Bird Fitness backup</button>
+        <input ref={fitFile} type="file" accept="application/json,.json" hidden onChange={(e) => void pickFit(e.target.files?.[0])} />
+        {fit.docs > 0 && <button className="btn" onClick={() => { const b = fitApi()?.exportAll(); if (b) saveJSON(b, `bird-fitness-backup-${new Date().toISOString().slice(0, 10)}.json`); }}>⬇ Fitness-only backup</button>}
+      </div>
+      {fitPending && (
+        <div className="card" style={{ marginTop: 10 }}>
+          <p><strong>Replace Body data with this backup?</strong></p>
+          <p className="quiet" style={{ marginTop: 4 }}>From {String((fitPending as { exportedAt?: string }).exportedAt || "").slice(0, 10) || "an older export"} · {Object.values(fitPending.logs || {}).reduce((n, m) => n + Object.keys((m as { sessions?: object }).sessions || {}).length, 0)} workouts · {Object.keys(fitPending.logs || {}).length} months</p>
+          <div className="sheet-actions">
+            <button className="btn" onClick={() => setFitPending(null)}>Cancel</button>
+            <button className="btn primary" onClick={importFit}>⬆ Import</button>
+          </div>
+        </div>
+      )}
 
       <div className="lbl">🗑 River trash · {bin.length}</div>
       <button className="btn" style={{ width: "100%" }} onClick={() => setShowTrash(!showTrash)}>{showTrash ? "Hide" : "Show"}</button>

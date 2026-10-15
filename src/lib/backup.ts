@@ -36,8 +36,10 @@ export async function restoreAll(b: Backup, db: NestDB = defaultDb): Promise<Bac
   const safety = await exportAll(db);
   await db.transaction("rw", TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {
+      // A table the backup doesn't have (an older backup, before Body) is left as it is.
+      if (!b.tables[t]) continue;
       await db.table(t).clear();
-      const rows = b.tables[t] ?? [];
+      const rows = b.tables[t];
       if (rows.length) await db.table(t).bulkPut(rows);
     }
   });
