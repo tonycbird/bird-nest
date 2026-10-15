@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type ProposalStatus } from "../lib/db";
 import { decide } from "../lib/proposals";
+import { useToast } from "../lib/toast";
 
 const ICON: Record<string, string> = {
   hello: "👋", day_plan: "☀", task: "☐", calendar_book: "📅", workout_swap: "🔁", makeup: "🏋",
@@ -15,19 +15,17 @@ function title(p: { kind: string; payload: Record<string, unknown> }): string {
 
 export default function Approvals() {
   const items = useLiveQuery(() => db.proposals.where("status").equals("pending").reverse().sortBy("created_at"), [], []);
-  const [toast, setToast] = useState<{ text: string; undo: () => Promise<void> } | null>(null);
+  const toast = useToast();
 
   async function act(id: string, status: ProposalStatus) {
-    const undo = await decide(id, status);
-    setToast({ text: status === "approved" ? "✓ Approved" : "✕ Skipped", undo });
-    window.setTimeout(() => setToast((t) => (t && t.undo === undo ? null : t)), 10_000);
+    toast(status === "approved" ? "✓ Approved" : "✕ Skipped", await decide(id, status));
   }
 
   return (
     <>
       <header className="top"><div><div className="date">From Claude</div><h1 className="sentence">✓ Approve</h1></div></header>
       {items.length === 0 ? (
-        <div className="empty"><div className="big">✓</div><h2>All clear</h2><p>Nothing waiting.</p></div>
+        <div className="empty"><div className="big">✓</div><h2>All clear</h2><p className="detail">Claude's suggestions land here from Phase 4.</p></div>
       ) : (
         <div className="stack">
           {items.map((p) => (
@@ -43,12 +41,6 @@ export default function Approvals() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-      {toast && (
-        <div className="toast" role="status">
-          {toast.text}
-          <button onClick={async () => { await toast.undo(); setToast(null); }}>Undo</button>
         </div>
       )}
     </>

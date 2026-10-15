@@ -1,11 +1,12 @@
-import { db, type Proposal, type ProposalStatus } from "./db";
-import { supabase } from "./supabase";
+import { db, type ProposalStatus } from "./db";
+import { CLOUD, supabase } from "./supabase";
+import type { Proposal } from "./db";
 
 const COLS = "id,kind,payload,reason,status,needs_google,created_at,updated_at";
 
 /** Pull pending proposals from Supabase into the local cache. Safe to call often. */
 export async function refreshProposals(): Promise<void> {
-  if (!navigator.onLine) return;
+  if (!CLOUD || !navigator.onLine) return;
   const { data, error } = await supabase
     .from("proposals").select(COLS)
     .is("deleted_at", null)
@@ -39,7 +40,7 @@ export async function decide(id: string, status: ProposalStatus): Promise<() => 
 
 let flushing = false;
 export async function flushOutbox(): Promise<void> {
-  if (flushing || !navigator.onLine) return;
+  if (!CLOUD || flushing || !navigator.onLine) return;
   flushing = true;
   try {
     const ops = await db.outbox.orderBy("queued_at").toArray();

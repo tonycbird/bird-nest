@@ -7,3 +7,6 @@ dev-dist
 migration/raw
 *.local
 .DS_Store
+
+# files Claude sends to the chat
+Claude outputs/
