@@ -57,13 +57,14 @@ export interface FitApi {
   openStretch(date: string, k: string): void;
   openToday(date?: string): void;
   checkIn(): void;
+  refresh(): void;
   markWarm(date: string): void;
   timerAdd(s: number): void;
   timerStop(): void;
   exportAll(): unknown;
 }
 
-export const fitState = createStore({ ready: false, ver: 0, tab: "workout", depth: 1, timer: null as FitTimer | null });
+export const fitState = createStore({ ready: false, ver: 0, tab: "workout", depth: 1, timer: null as FitTimer | null, error: "" });
 type FitStateT = ReturnType<typeof fitState.get>;
 const patch = (p: Partial<FitStateT>) => fitState.set((s) => ({ ...s, ...p }));
 let frameWin: (Window & { __fit?: FitApi }) | null = null;
@@ -140,7 +141,8 @@ export function installFitHost() {
     db: fitDb,
     downloads,
     addGroceries,
-    ready: () => patch({ ready: true, ver: fitState.get().ver + 1 }),
+    ready: () => patch({ ready: true, error: "", ver: fitState.get().ver + 1 }),
+    error: (msg: string) => { if (!fitState.get().ready) patch({ error: String(msg).slice(0, 200) }); },
     changed: () => {
       window.clearTimeout(changedT);
       changedT = window.setTimeout(() => { patch({ ver: fitState.get().ver + 1 }); listeners.forEach((f) => f()); }, 400);

@@ -86,6 +86,7 @@
     openStretch: function (date, k) { closeSheet(); ACT.openStretchTab({ d: date, k: k }); },
     openToday: function (date) { closeSheet(); UI.date = date || today(); UI.seg.workout = 'today'; UI.stacks.workout = [{ v: 'wroot' }]; UI.tab = 'workout'; render({ top: true }); },
     checkIn: function () { ACT.checkIn(); },
+    refresh: function () { try { if (!Player.on) render(); Timer.draw(); } catch (e) {} },
     markWarm: function (date) { var m = Store.month(monthKey(date), true); if (!m.warm[date]) { m.warm[date] = true; Store.save('m:' + monthKey(date)); if (!Player.on) render(); } },
     timerAdd: function (s) { Timer.add(s); },
     timerStop: function () { Timer.stop(); },

@@ -142,8 +142,11 @@ html.quiet .detail{display:none !important;}
 /* ---------- Body (Phase 3) ---------- */
 .body-head{display:flex; align-items:center; gap:6px;}
 .body-head .hnav{margin:4px -4px 6px;}
-.bodyframe{position:fixed; left:0; right:0; width:100%; border:0; z-index:3; background:var(--bg); visibility:hidden; pointer-events:none;}
-.bodyframe.on{visibility:visible; pointer-events:auto;}
+/* Off the Body tab the frame is display:none. (iPhone Safari still painted a visibility:hidden frame
+   as a white sheet over the whole app.) Its scripts keep running, so the rest timer keeps going. */
+.bodyframe{display:none; position:fixed; left:0; right:0; width:100%; border:0; z-index:3; background:var(--bg); color-scheme:light dark;}
+.bodyframe.on{display:block;}
+.body-err{margin-top:16px; text-align:center;}
 .timer-pill{position:fixed; z-index:6; left:50%; transform:translateX(-50%); bottom:calc(76px + env(safe-area-inset-bottom,0px));
   border:0; border-radius:999px; padding:9px 16px; background:var(--body); color:#fff; font:600 14px var(--sans); box-shadow:var(--shadow); white-space:nowrap;}
 .timer-pill b{font-variant-numeric:tabular-nums; font-size:16px;}

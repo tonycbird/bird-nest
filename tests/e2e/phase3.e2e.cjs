@@ -91,6 +91,7 @@ const PROBE = `(() => {
   // Today: the Body tray offers the gym day; 🌊 Add puts three blocks on the River.
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(800);
   assert(await p.locator('.body-tray').count() === 1, 'Body tray shows on Today');
+  assert(await p.evaluate(() => getComputedStyle(document.querySelector('iframe.bodyframe')).display) === 'none', 'off the Body tab the frame is not displayed at all (iPhone white-screen fix)');
   const trayText = await p.locator('.body-tray .sec-head').innerText();
   await p.click('.body-tray >> text=🌊 Add'); await p.waitForTimeout(800);
   const titles = await p.locator('.rb .rb-t b').allInnerTexts();

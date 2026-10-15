@@ -17,6 +17,11 @@ try { host = window.parent !== window ? ((window.parent as unknown as { __nestFi
   use: async (name: string) => (host ? (name === "db" ? host.db : name === "downloads" ? host.downloads : null) : null),
 };
 
+// A startup error is shown in Nest's Body tab (with ↻ Reload) instead of a blank page.
+const report = (msg: string) => { try { (window.parent as unknown as { __nestFit?: { error?: (m: string) => void } }).__nestFit?.error?.(msg); } catch { /* no parent */ } };
+window.addEventListener("error", (e) => report(e.message || "Script error"));
+window.addEventListener("unhandledrejection", (e) => report(String((e as PromiseRejectionEvent).reason)));
+
 const s = document.createElement("script");
 s.textContent = FITNESS + "\n;\n" + ADAPTER + "\n//# sourceURL=bird-fitness.js";
 document.body.appendChild(s);

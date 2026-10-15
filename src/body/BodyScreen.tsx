@@ -26,7 +26,11 @@ export default function BodyScreen() {
     if (head.current) ro.observe(head.current);
     return () => { window.removeEventListener("resize", measure); ro.disconnect(); };
   }, []);
+  // If the Fitness screens don't come up, say so instead of showing a blank page.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setSlow(true), 8000); return () => window.clearTimeout(t); }, []);
   return (
+    <>
     <div className="body-head" ref={head}>
       <div className="hnav" role="tablist" aria-label="Body sections">
         {SECTIONS.map(([k, ic, label]) => (
@@ -37,6 +41,14 @@ export default function BodyScreen() {
       </div>
       <button className="iconbtn" aria-label="Gym check-in barcode" onClick={() => fitApi()?.checkIn()}>🎫</button>
     </div>
+    {(st.error || (slow && !st.ready)) && (
+      <div className="card body-err">
+        <p><strong>Body didn't load.</strong></p>
+        {st.error && <p className="quiet" style={{ marginTop: 4 }}>{st.error}</p>}
+        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => location.reload()}>↻ Reload</button>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -51,6 +63,8 @@ export function BodyFrame() {
   // Load it a moment after start so the River paints first.
   useEffect(() => { if (active) setMounted(true); else { const t = window.setTimeout(() => setMounted(true), 1200); return () => window.clearTimeout(t); } }, [active]);
   useEffect(() => () => setFrame(null), []);
+  // Coming back to Body: redraw, since the screens can't measure themselves while hidden.
+  useEffect(() => { if (active) fitApi()?.refresh(); }, [active]);
   if (!mounted) return null;
   return (
     <iframe
@@ -58,7 +72,7 @@ export function BodyFrame() {
       title="Body"
       src="/body.html"
       className={"bodyframe" + (active ? " on" : "")}
-      style={{ top: slot.top, height: `calc(100% - ${slot.top + slot.bottom}px)` }}
+      style={active ? { top: slot.top, height: `calc(100% - ${slot.top + slot.bottom}px)` } : undefined}
       onLoad={() => setFrame(ref.current?.contentWindow ?? null)}
     />
   );
