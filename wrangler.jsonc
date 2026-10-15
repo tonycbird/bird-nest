@@ -1,0 +1,11 @@
+// Cloudflare deploy settings. Bird Nest is a static app: the build makes dist/, Cloudflare serves it.
+// The name must match the project name in the Cloudflare dashboard.
+{
+  "name": "bird-nest",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    // Any unknown path opens the app (it's a single-page app).
+    "not_found_handling": "single-page-application"
+  }
+}
