@@ -1,0 +1,5 @@
+# Only the settings Bird Nest relies on. The project itself is made in the Supabase dashboard.
+[functions.claude-gateway]
+# Scheduled Claude tasks call this with x-nest-token, not a user login, so Supabase's JWT check must be off.
+# The function checks the token itself.
+verify_jwt = false
