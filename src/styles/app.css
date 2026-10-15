@@ -10,9 +10,9 @@ button{font:inherit; color:inherit;}
 .app{min-height:100vh; min-height:100dvh; display:flex; flex-direction:column;
   padding-top:env(safe-area-inset-top,0px);}
 .main{flex:1; width:100%; max-width:560px; margin:0 auto;
-  padding:16px max(16px, env(safe-area-inset-left,0px)) calc(96px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-right,0px));}
+  padding:6px max(16px, env(safe-area-inset-left,0px)) calc(96px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-right,0px));}
 
-.top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin:8px 0 20px;}
+.top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin:0 0 18px;}
 .date{font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);}
 .sentence{font-family:var(--display); font-size:28px; line-height:1.12; margin-top:6px; letter-spacing:-.02em;}
 .gear{border:0; background:var(--surface); width:40px; height:40px; border-radius:50%; box-shadow:var(--shadow); font-size:18px; flex:none;}
