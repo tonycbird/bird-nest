@@ -28,3 +28,4 @@
 | 2026-10-15 | Logging in Body ticks the River, not the other way (except Warm-up) | A set needs reps and weight; a River tick can't make one up. |
 | 2026-10-15 | One grocery list, in Head; Fitness sends to it | Head's list has aisles, stores and the 🌊 shopping block. Spices skipped (pantry). |
 | 2026-10-15 | Restoring an older backup leaves tables it doesn't have alone | A Phase 2 backup must not wipe Body data. |
+| 2026-10-17 | Updates install on their own (autoUpdate), registered at startup; a blank start repairs stale files once, then shows a rescue screen | iPhone got stuck on a bad cached copy and couldn't tap "Update". Reset app files fixed it; now the app does that itself. |

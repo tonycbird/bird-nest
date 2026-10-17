@@ -23,6 +23,8 @@
         function add(m) { if (errs.length < 6) errs.push(String(m).slice(0, 400)); }
         addEventListener("error", function (e) { add((e.message || "Error") + (e.filename ? " @ " + e.filename.split("/").pop() + ":" + e.lineno : "")); });
         addEventListener("unhandledrejection", function (e) { var r = e.reason; add("Promise: " + ((r && (r.stack || r.message)) || r)); });
+        // A script or style file that fails to load doesn't raise a normal error; catch it here.
+        addEventListener("error", function (e) { var t = e.target; if (t && t !== window && (t.src || t.href)) add("Didn't load: " + (t.src || t.href).split("/").pop()); }, true);
         window.__nestErrors = errs;
         function reset() {
           var sw = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve();
@@ -45,7 +47,11 @@
         };
         setTimeout(function () {
           var r = document.getElementById("root");
-          if (!r || !r.textContent || !r.textContent.trim()) window.__nestRescue("The screen stayed empty.");
+          if (r && r.textContent && r.textContent.trim()) return;
+          // Usually a stale copy of the app's files. Fix it once on its own; if that didn't help, show this screen.
+          var last = 0; try { last = +localStorage.getItem("nest:auto-reset") || 0; } catch (x) {}
+          if (Date.now() - last > 10 * 60 * 1000) { try { localStorage.setItem("nest:auto-reset", String(Date.now())); } catch (x) {} reset(); return; }
+          window.__nestRescue("The screen stayed empty.");
         }, 7000);
       })();
     </script>

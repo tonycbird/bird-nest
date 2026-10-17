@@ -12,7 +12,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "prompt", // show "New version ↻" instead of silently serving old code
+      registerType: "autoUpdate", // a new build takes over on its own (a stuck screen can't tap "Update")
       includeAssets: ["icons/*.png", "icons/*.svg"],
       manifest: {
         name: "Bird Nest",
