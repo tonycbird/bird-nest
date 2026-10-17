@@ -15,6 +15,40 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Rescue screen: if the app hasn't drawn anything after a few seconds, show what went wrong
+         and two ways out. "Reset app files" clears cached code only; your data stays on the phone. -->
+    <script>
+      (function () {
+        var errs = [];
+        function add(m) { if (errs.length < 6) errs.push(String(m).slice(0, 400)); }
+        addEventListener("error", function (e) { add((e.message || "Error") + (e.filename ? " @ " + e.filename.split("/").pop() + ":" + e.lineno : "")); });
+        addEventListener("unhandledrejection", function (e) { var r = e.reason; add("Promise: " + ((r && (r.stack || r.message)) || r)); });
+        window.__nestErrors = errs;
+        function reset() {
+          var sw = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve();
+          sw.then(function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : 0; })
+            .then(function () { location.reload(); }, function () { location.reload(); });
+        }
+        window.__nestRescue = function (why) {
+          if (document.getElementById("rescue")) return;
+          var d = document.createElement("div");
+          d.id = "rescue";
+          d.style.cssText = "position:fixed;inset:0;z-index:99;overflow:auto;padding:calc(24px + env(safe-area-inset-top)) 20px 24px;background:#F7F3EA;color:#1E2420;font:15px/1.45 -apple-system,system-ui,sans-serif";
+          var list = errs.length ? errs.map(function (x) { return "<li style='margin:6px 0;word-break:break-word'>" + x.replace(/</g, "&lt;") + "</li>"; }).join("") : "<li>No error message was caught.</li>";
+          d.innerHTML = "<h2 style='margin:0 0 6px'>Nest didn't start</h2><p style='margin:0 0 10px'>" + (why || "") + " Take a screenshot of this for Claude.</p><ol style='padding-left:20px;font:12px/1.4 ui-monospace,Menlo,monospace'>" + list + "</ol>" +
+            "<p style='font-size:12px;color:#565B52'>" + navigator.userAgent + "</p>" +
+            "<button id='rs1' style='display:block;width:100%;margin:14px 0 8px;padding:14px;border:0;border-radius:12px;background:#1E2420;color:#fff;font-size:16px'>↻ Reload</button>" +
+            "<button id='rs2' style='display:block;width:100%;padding:14px;border:1px solid #1E2420;border-radius:12px;background:none;color:#1E2420;font-size:16px'>Reset app files (keeps your data)</button>";
+          document.body.appendChild(d);
+          document.getElementById("rs1").onclick = function () { location.reload(); };
+          document.getElementById("rs2").onclick = reset;
+        };
+        setTimeout(function () {
+          var r = document.getElementById("root");
+          if (!r || !r.textContent || !r.textContent.trim()) window.__nestRescue("The screen stayed empty.");
+        }, 7000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -52,6 +52,10 @@ export default function BodyScreen() {
   );
 }
 
+const LOADING = "nest:body-loading";
+const lastLoadFailed = () => { try { return !!localStorage.getItem(LOADING); } catch { return false; } };
+const markLoading = () => { try { localStorage.setItem(LOADING, String(Date.now())); } catch { /* storage blocked */ } };
+
 /** Always mounted, so a running rest timer keeps going while you look at the River. Shown only on Body. */
 export function BodyFrame() {
   const tab = appNav.use().tab;
@@ -60,8 +64,14 @@ export function BodyFrame() {
   const [, force] = useState(0);
   const ref = useRef<HTMLIFrameElement>(null);
   useEffect(() => { const f = () => force((n) => n + 1); slotSubs.add(f); return () => { slotSubs.delete(f); }; }, []);
-  // Load it a moment after start so the River paints first.
-  useEffect(() => { if (active) setMounted(true); else { const t = window.setTimeout(() => setMounted(true), 1200); return () => window.clearTimeout(t); } }, [active]);
+  // Load it a moment after start so the River paints first. If the last load never finished
+  // (the app closed or crashed while Body was starting), wait until Body is tapped instead.
+  useEffect(() => {
+    if (active) { markLoading(); setMounted(true); return; }
+    if (lastLoadFailed()) return;
+    const t = window.setTimeout(() => { markLoading(); setMounted(true); }, 1500);
+    return () => window.clearTimeout(t);
+  }, [active]);
   useEffect(() => () => setFrame(null), []);
   // Coming back to Body: redraw, since the screens can't measure themselves while hidden.
   useEffect(() => { if (active) fitApi()?.refresh(); }, [active]);
