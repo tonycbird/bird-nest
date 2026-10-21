@@ -9,6 +9,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "jsxImportSource": "nest-jsx",
+    "paths": { "nest-jsx/*": ["./src/jsx/*"] },
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,

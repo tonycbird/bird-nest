@@ -7,11 +7,15 @@ import { CLOUD } from "../lib/supabase";
 import { useToast } from "../lib/toast";
 import { goTab } from "../head/useHead";
 import { keyLabel, shortTime } from "../lib/time";
+import { Icon, type IconName } from "../ui/Icon";
+import { colorFor } from "../ui/colors";
+import { I } from "../ui/Icon";
 
-const ICON: Record<string, string> = {
-  hello: "👋", day_plan: "☀", task: "☐", calendar_book: "📅", workout_swap: "🔁", makeup: "🏋",
-  grocery: "🛒", ramble_split: "🗣", recap: "🌙", rollover: "↪", weekly_review: "🗓",
+const ICON: Record<string, IconName> = {
+  hello: "claude", day_plan: "today", task: "select", calendar_book: "calendar", workout_swap: "swap", makeup: "lift",
+  grocery: "groceries", ramble_split: "talk", recap: "sleep", rollover: "arrow", weekly_review: "calendar",
 };
+const look = (kind: string) => { const n = ICON[kind] ?? "claude"; return { n, k: kind === "day_plan" ? "var(--accent)" : colorFor(n, "head") }; };
 const DONE_MSG: Record<string, string> = {
   day_plan: "☀ River replaced", task: "☐ Task added", calendar_book: "📅 Booking within the hour", grocery: "🛒 Added to groceries",
   rollover: "↪ Moved to tomorrow", recap: "🌙 Saved", makeup: "🏋 Makeup set", workout_swap: "🔁 Swapped",
@@ -75,30 +79,30 @@ export default function Approvals() {
 
   return (
     <>
-      <header className="top"><div><div className="date">From Claude</div><h1 className="sentence">✓ Approve</h1></div></header>
+      <header className="top"><div><div className="date">Suggestions</div><h1 className="sentence">Claude</h1></div></header>
       {CLOUD && !c.signedIn && (
         <div className="card" style={{ marginBottom: 12 }}>
-          <p><strong>☁ Claude isn't connected</strong></p>
-          <button className="btn primary" style={{ marginTop: 8 }} onClick={() => goTab("settings")}>⚙ Connect</button>
+          <p><strong><I n="sync" /> Claude isn't connected</strong></p>
+          <button className="btn primary" style={{ marginTop: 8 }} onClick={() => goTab("settings")}><I n="settings" /> Connect</button>
         </div>
       )}
       {items.length === 0 ? (
-        <div className="empty"><div className="big">✓</div><h2>All clear</h2>
-          {c.signedIn && <button className="btn sm" onClick={() => void syncNow()}>↻ Check now</button>}
+        <div className="empty"><div className="big"><Icon n="claude" size={36} /></div><h2>All clear</h2>
+          {c.signedIn && <button className="btn sm" onClick={() => void syncNow()}><I n="refresh" /> Check now</button>}
         </div>
       ) : (
         <div className="stack">
           {items.map((p) => (
             <div key={p.id} className="card prop" onClick={() => setOpen(open === p.id ? null : p.id)}>
-              <span style={{ fontSize: 22 }}>{ICON[p.kind] ?? "•"}</span>
+              <span className="p-ic" style={{ ["--k" as string]: look(p.kind).k } as React.CSSProperties}><Icon n={look(p.kind).n} size={21} /></span>
               <div style={{ minWidth: 0 }}>
                 <div className="what">{title(p)}</div>
                 {p.reason && <div className="why">{p.reason}</div>}
                 {open === p.id && <Preview p={p} />}
               </div>
               <div className="acts" onClick={(e) => e.stopPropagation()}>
-                <button className="iconbtn" aria-label="Skip" onClick={() => act(p, false)}>✕</button>
-                <button className="iconbtn yes" aria-label="Approve" onClick={() => act(p, true)}>✓</button>
+                <button className="iconbtn" aria-label="Skip" onClick={() => act(p, false)}><I n="close" /></button>
+                <button className="iconbtn yes" aria-label="Approve" onClick={() => act(p, true)}><I n="tick" /></button>
               </div>
             </div>
           ))}
@@ -106,20 +110,20 @@ export default function Approvals() {
       )}
       {waiting.length > 0 && (
         <>
-          <div className="lbl">📅 Waiting for Claude · {waiting.length}</div>
-          <div className="card">{waiting.map((p) => <div key={p.id} className="kv"><span>{ICON[p.kind] ?? "•"} {title(p)}</span><span className="muted">next run</span></div>)}</div>
+          <div className="lbl"><I n="calendar" /> Waiting for Claude · {waiting.length}</div>
+          <div className="card">{waiting.map((p) => <div key={p.id} className="kv"><span className="row" style={{ gap: 8 }}><Icon n={look(p.kind).n} size={18} />{title(p)}</span><span className="muted">next run</span></div>)}</div>
         </>
       )}
       {mail.length > 0 && (
         <>
-          <div className="lbl">📧 Mail Claude flagged · {mail.length}</div>
+          <div className="lbl"><I n="mail" /> Mail Claude flagged · {mail.length}</div>
           <div className="card">
             {mail.map((m) => (
               <div key={m.id} className="kv">
                 <a href={m.link} target="_blank" rel="noreferrer" style={{ minWidth: 0, color: "inherit" }}>
                   <b>{m.ask || m.subject}</b><div className="quiet detail">{m.sender} · {m.subject}</div>
                 </a>
-                <button className="iconbtn" aria-label="Dismiss" onClick={() => void dismissMail(m.id)}>✕</button>
+                <button className="iconbtn" aria-label="Dismiss" onClick={() => void dismissMail(m.id)}><I n="close" /></button>
               </div>
             ))}
           </div>

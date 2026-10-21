@@ -52,7 +52,7 @@ const PROBE = `(() => {
 
   // Head first run, so there is a grocery list to merge into.
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);
-  await p.click('text=▣ Start fresh'); await p.waitForTimeout(400);
+  await p.click('button >> text=Start fresh'); await p.waitForTimeout(400);
 
   // Body tab: the Fitness screens load in Nest, with Nest's chips on top.
   await p.click('.tabs >> text=Body'); await p.waitForTimeout(1500);
@@ -90,23 +90,24 @@ const PROBE = `(() => {
 
   // Today: the Body tray offers the gym day; 🌊 Add puts three blocks on the River.
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(800);
-  assert(await p.locator('.body-tray').count() === 1, 'Body tray shows on Today');
+  assert(await p.locator('.quick [aria-label^="Put "]').count() === 1, 'Body plan shows as a circle on Today');
   assert(await p.evaluate(() => getComputedStyle(document.querySelector('iframe.bodyframe')).display) === 'none', 'off the Body tab the frame is not displayed at all (iPhone white-screen fix)');
-  const trayText = await p.locator('.body-tray .sec-head').innerText();
-  await p.click('.body-tray >> text=🌊 Add'); await p.waitForTimeout(800);
-  const titles = await p.locator('.rb .rb-t b').allInnerTexts();
+  const trayText = await p.locator('.quick [aria-label^="Put "]').getAttribute('aria-label');
+  await p.click('.quick [aria-label^="Put "]'); await p.waitForTimeout(800);
+  const titles = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
   assert(titles.includes('Warm-up') && titles.includes('Cool-down') && titles.length === 3, 'River has Warm-up, workout, Cool-down: ' + titles.join(' · ') + ' (' + trayText.replace(/\n/g, ' ') + ')');
-  assert(await p.locator('.body-tray').count() === 0, 'tray hides once the plan is on the River');
+  assert(await p.locator('.quick [aria-label^="Put "]').count() === 0, 'the circle goes once the plan is on the River');
   const main = titles.find((t) => t !== 'Warm-up' && t !== 'Cool-down');
-  await p.locator('.rb-head', { hasText: main }).click(); await p.waitForTimeout(300);
-  const steps = await p.locator('.rb.open .sp').count();
+  await p.locator('.tr', { hasText: main }).locator('.bc-main').click(); await p.waitForTimeout(300);
+  await p.locator('.tr.open [aria-label^="Show all"]').click(); await p.waitForTimeout(200);
+  const steps = await p.locator('.tr.open .steps li').count();
   assert(steps >= 3 && steps <= 7, `workout block has ${steps} lift steps (max 7)`);
-  const v1 = await p.locator('.rb.open .sp .v').first().innerText();
+  const v1 = await p.locator('.tr.open .steps .v').first().innerText();
   assert(/\d+ × \d/.test(v1), 'first lift step shows the scheme and target: ' + v1);
   await shot(p, '05-river-workout');
 
   // 🏋 Log opens the logger; logging every set of the first lift ticks step 1 on the River.
-  await p.click('.rb.open >> text=🏋 Log'); await p.waitForTimeout(700);
+  await p.click('.tr.open [aria-label="Open in Body"]'); await p.waitForTimeout(700);
   assert(await f.locator('[data-a="openEx"]').count() > 0, '🏋 Log opens the workout in Body');
   await shot(p, '06-body-workout-detail');
   await f.locator('[data-a="openEx"]').first().click(); await p.waitForTimeout(400);
@@ -126,7 +127,7 @@ const PROBE = `(() => {
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(600);
   assert(await p.locator('.timer-pill').count() === 1, 'rest timer pill shows on Today');
   const pill1 = await p.locator('.timer-pill').innerText();
-  const firstStep = await p.locator('.rb', { hasText: main }).locator('.rb-n').innerText();
+  const firstStep = await p.locator('.tr', { hasText: main }).locator('.bc-main small').innerText();
   assert(/^1\//.test(firstStep), `logging the first lift ticked step 1 on the River (${firstStep})`);
   await shot(p, '08-river-after-log');
   await p.clock.runFor(59 * 1000); await p.waitForTimeout(400);
@@ -134,8 +135,8 @@ const PROBE = `(() => {
   assert(/done/.test(pill2), `timer finished on true time (${pill1.replace(/\n/g, ' ')} → ${pill2.replace(/\n/g, ' ')})`);
 
   // Warm-up ticked on the River → checked off in Body.
-  if (!(await p.locator('.rb.open', { hasText: 'Warm-up' }).count())) { await p.locator('.rb-head', { hasText: 'Warm-up' }).click(); await p.waitForTimeout(200); }
-  for (let i = 0; i < 3; i++) { await p.locator('.rb.open .sp:not(.ok)').first().click(); await p.waitForTimeout(250); }
+  if (!(await p.locator('.tr.open', { hasText: 'Warm-up' }).count())) { await p.locator('.tr', { hasText: 'Warm-up' }).locator('.bc-main').click(); await p.waitForTimeout(200); }
+  for (let i = 0; i < 3; i++) { const c = p.locator('.tr.open', { hasText: 'Warm-up' }).locator('.bc-cur'); if (await c.count()) { await c.click(); await p.waitForTimeout(250); } }
   await p.waitForTimeout(400);
   const warmed = await p.frames().find((x) => x.url().includes('/body')).evaluate(() => !!Store.m['2026-10'].warm['2026-10-15']);
   assert(warmed, 'finishing Warm-up on the River checks it off in Body');
@@ -150,7 +151,7 @@ const PROBE = `(() => {
   // Bird Settings: Body counts and the Fitness import entry.
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(300);
   await p.click('[aria-label="Settings"]').catch(() => {}); await p.waitForTimeout(400);
-  if (await p.locator('text=⬆ Import Bird Fitness backup').count()) { assert(true, 'Settings shows the Fitness import'); await shot(p, '09-settings'); }
+  if (await p.locator('text=Import Bird Fitness backup').count()) { assert(true, 'Settings shows the Fitness import'); await shot(p, '09-settings'); }
 
   // Parity with the old app on the same input.
   if (process.env.LEGACY) {
@@ -176,7 +177,7 @@ const PROBE = `(() => {
     await p.click('.tabs >> text=Today'); await p.click('[aria-label="Settings"]').catch(() => {}); await p.waitForTimeout(300);
     await p.locator('input[type=file]').nth(1).setInputFiles(tmp); await p.waitForTimeout(400);
     assert(await p.locator('text=Replace Body data with this backup?').count() === 1, 'Fitness backup is read and confirmed first');
-    await p.click('.sheet-actions >> text=⬆ Import'); await p.waitForTimeout(2500);
+    await p.click('.sheet-actions >> text=Import'); await p.waitForTimeout(2500);
     const fr3 = p.frames().find((x) => x.url().includes('/body'));
     await fr3.waitForFunction(() => window.Store === undefined ? false : true, null, { timeout: 4000 }).catch(() => {});
     const gym = await fr3.evaluate(() => Store.d.settings.card.gym);

@@ -1,7 +1,6 @@
 /* Body page (loaded in a frame inside Nest). Runs the old Bird Fitness script as-is, as a classic
    script, so its behavior matches the old app exactly. Storage and file saving come from Nest. */
-import "@fontsource-variable/archivo";
-import "@fontsource-variable/fraunces";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./fitness.legacy.css";
 import "./skin.css";
 import FITNESS from "./fitness.legacy.js?raw";

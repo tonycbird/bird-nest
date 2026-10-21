@@ -6,6 +6,7 @@ import { goTab, go, openOverlay, openTask, useHeadData, useHeadSettings } from "
 import { Check } from "./bits";
 import * as A from "./actions";
 import { putTaskOnRiver, putTasksOnRiver } from "../river-bridge";
+import { I } from "../../ui/Icon";
 
 /* Under the River: today's Head tasks that aren't on it yet. Tap 🌊 to give one a block. */
 export function HeadTray({ day }: { day: string }) {
@@ -21,20 +22,20 @@ export function HeadTray({ day }: { day: string }) {
   return (
     <section className="tray">
       <div className="sec-head">
-        <span>🧠</span><span className="grow">Fits today{loose.length ? ` · ${loose.length}` : ""}</span>
-        {!planned && <button className="btn sm" onClick={() => openOverlay("plan")}>🌅 Plan</button>}
-        {loose.length > 1 && <button className="btn sm" onClick={async () => toast("🌊 On the River", await putTasksOnRiver(loose.map((t) => t.id), day))}>🌊 All</button>}
+        <span><I n="head" /></span><span className="grow">Fits today{loose.length ? ` · ${loose.length}` : ""}</span>
+        {!planned && <button className="btn sm" onClick={() => openOverlay("plan")}><I n="morning" /> Plan</button>}
+        {loose.length > 1 && <button className="btn sm" onClick={async () => toast("🌊 On the River", await putTasksOnRiver(loose.map((t) => t.id), day))}><I n="river" /> All</button>}
       </div>
       {loose.map((t) => (
         <div key={t.id} className="task tray-row" role="button" tabIndex={0} onClick={() => openTask(t.id)}>
           <Check on={false} important={t.important} onToggle={() => A.complete(t.id)} />
-          <div className="t-body"><div className="t-title">{t.title}</div>{(t.est || t.time) && <div className="t-meta">{t.time && <span>⏰ {C.fmtTime(t.time)}</span>}{t.est && <span>⏱ {C.fmtMinutes(t.est)}</span>}</div>}</div>
-          <button className="iconbtn" aria-label={"Put on River: " + t.title} onClick={async (e) => { e.stopPropagation(); toast("🌊 On the River", await putTaskOnRiver(t.id, day)); }}>🌊</button>
+          <div className="t-body"><div className="t-title">{t.title}</div>{(t.est || t.time) && <div className="t-meta">{t.time && <span><I n="later" /> {C.fmtTime(t.time)}</span>}{t.est && <span><I n="timer" /> {C.fmtMinutes(t.est)}</span>}</div>}</div>
+          <button className="iconbtn" aria-label={"Put on River: " + t.title} onClick={async (e) => { e.stopPropagation(); toast("🌊 On the River", await putTaskOnRiver(t.id, day)); }}><I n="river" /></button>
         </div>
       ))}
       <div className="chips" style={{ marginTop: 8 }}>
-        {overdue.length > 0 && <button className="chip" onClick={() => { go("today"); goTab("head"); }}>⚠ {overdue.length} from earlier</button>}
-        {inbox > 0 && <button className="chip" onClick={() => openOverlay("process")}>📥 {inbox} to sort</button>}
+        {overdue.length > 0 && <button className="chip" onClick={() => { go("today"); goTab("head"); }}><I n="warn" /> {overdue.length} from earlier</button>}
+        {inbox > 0 && <button className="chip" onClick={() => openOverlay("process")}><I n="inbox" /> {inbox} to sort</button>}
       </div>
     </section>
   );

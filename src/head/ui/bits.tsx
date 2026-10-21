@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import * as C from "../core/clearhead.js";
 import type { Area, HeadData, Project, Task } from "../types";
 import { multi, openTask, toggleMulti } from "../useHead";
+import { I } from "../../ui/Icon";
 
 /* Clearhead used Lucide icon names. Bird Nest shows them as emoji (no icon font to load offline). */
 const EMOJI: Record<string, string> = {
@@ -111,7 +112,7 @@ export function TaskRow(props: {
         ? <Check square on={picked} onToggle={() => toggleMulti(t.id)} label={picked ? "Unselect" : "Select"} />
         : <Check on={done} important={t.important} onToggle={() => props.onToggle(t)} />}
       <div className="t-body">
-        <div className="t-title">{t.important && !done && <span className="imp-flag" aria-label="Important">⚑ </span>}{t.title}</div>
+        <div className="t-title">{t.important && !done && <span className="imp-flag" aria-label="Important"><I n="flag" /> </span>}{t.title}</div>
         {meta.length > 0 && <div className="t-meta">{meta.map((m, i) => <span key={i}>{m}</span>)}</div>}
       </div>
       {props.right}

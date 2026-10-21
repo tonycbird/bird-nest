@@ -6,7 +6,8 @@ import { addDays } from "./time";
 
 export type Undo = () => Promise<void>;
 
-export const KIND_ICON: Record<Kind, string> = { body: "🏋", head: "🧠", life: "🏠", money: "💵" };
+/* Icons are Nest icon names (src/ui/icons.ts). Older blocks may still hold an emoji; the UI maps those. */
+export const KIND_ICON: Record<Kind, string> = { body: "lift", head: "head", life: "home", money: "coin" };
 export const MAX_STEPS = 7;
 
 export interface StepInput { label: string; value?: string | null; done?: boolean; }
@@ -253,24 +254,24 @@ export function defaultSentence(blocks: RiverBlock[]): string {
 /* ---------- sample day (from the concept page) ---------- */
 
 export const SAMPLE: Omit<BlockInput, "day">[] = [
-  { start: "05:00", end: "05:30", kind: "body", icon: "🧘", title: "Warm up + stretch", steps: [
+  { start: "05:00", end: "05:30", kind: "body", icon: "stretch", title: "Warm up + stretch", steps: [
     { label: "Water, lights on", value: "2 min" }, { label: "Easy bike", value: "5 min" },
     { label: "Hip flexors, each side", value: "2×1 min" }, { label: "Hamstring fold", value: "2×1 min" },
     { label: "Band pull-aparts", value: "2×15" }] },
-  { start: "05:30", end: "06:30", kind: "body", icon: "🏋", title: "Legs", steps: [
+  { start: "05:30", end: "06:30", kind: "body", icon: "lift", title: "Legs", steps: [
     { label: "Back squat", value: "4×5 · 245" }, { label: "Romanian deadlift", value: "3×8 · 185" },
     { label: "Leg press", value: "3×10" }, { label: "Walking lunge", value: "3×12" }, { label: "Calf raise", value: "4×15" }] },
-  { start: "06:30", end: "06:45", kind: "body", icon: "🧘", title: "Cool-down stretch", steps: [
+  { start: "06:30", end: "06:45", kind: "body", icon: "stretch", title: "Cool-down stretch", steps: [
     { label: "Quad stretch, each side", value: "1 min" }, { label: "Pigeon pose, each side", value: "2 min" },
     { label: "Child's pose", value: "2 min" }] },
-  { start: "07:15", end: "07:40", kind: "head", icon: "🚗", title: "Commute", steps: [
+  { start: "07:15", end: "07:40", kind: "head", icon: "drive", title: "Commute", steps: [
     { label: "Play theology ch. 4 audio", value: "20 min" }, { label: "Voice-note one takeaway", value: "1 min" }] },
-  { start: "17:30", end: "18:15", kind: "life", icon: "🛒", title: "Winco run", steps: [
+  { start: "17:30", end: "18:15", kind: "life", icon: "groceries", title: "Winco run", steps: [
     { label: "Chicken thighs, 5 lb", value: null }, { label: "Eggs, 5 dozen", value: null }, { label: "Rice, 10 lb", value: null },
     { label: "Greek yogurt", value: null }, { label: "Broccoli + bananas", value: null }, { label: "Oats + milk", value: null }] },
-  { start: "20:00", end: "20:45", kind: "head", icon: "📖", title: "Study", steps: [
+  { start: "20:00", end: "20:45", kind: "head", icon: "study", title: "Study", steps: [
     { label: "Read pp. 61–78", value: "25 min" }, { label: "Write 3 notes", value: "10 min" }, { label: "Flashcards", value: "10 min" }] },
-  { start: "21:30", end: "21:40", kind: "head", icon: "🛏", title: "Wind down", steps: [
+  { start: "21:30", end: "21:40", kind: "head", icon: "sleep", title: "Wind down", steps: [
     { label: "Pack gym bag", value: "5 min" }, { label: "Phone on charger", value: "1 min" }, { label: "Tomorrow's top 3", value: "3 min" }] },
 ];
 

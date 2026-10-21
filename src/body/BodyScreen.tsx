@@ -3,8 +3,9 @@ import { appNav, goTab } from "../head/useHead";
 import { toast } from "../lib/toast";
 import { fitApi, fitState, setFrame, type FitPlan } from "./host";
 import { missingFromRiver, putPlanOnRiver } from "./river-body";
+import { I, Icon, type IconName } from "../ui/Icon";
 
-const SECTIONS: [string, string, string][] = [["workout", "🏋", "Workout"], ["stretch", "🧘", "Stretch"], ["meals", "🍽", "Meals"], ["settings", "⚙︎", "Setup"]];
+const SECTIONS: [string, IconName, string][] = [["workout", "lift", "Workout"], ["stretch", "stretch", "Stretch"], ["meals", "meal", "Meals"], ["settings", "settings", "Setup"]];
 
 /* Where the frame should sit: under the Body chips, above Nest's tab bar. */
 const slot = { top: 0, bottom: 0 };
@@ -35,17 +36,17 @@ export default function BodyScreen() {
       <div className="hnav" role="tablist" aria-label="Body sections">
         {SECTIONS.map(([k, ic, label]) => (
           <button key={k} role="tab" aria-selected={st.tab === k} className={"hn" + (st.tab === k ? " on" : "")} onClick={() => fitApi()?.goTab(k)}>
-            <span className="hn-ic">{ic}</span><span className="hn-l">{label}</span>
+            <span className="hn-ic"><Icon n={ic} size={22} tone={st.tab === k} /></span><span className="hn-l">{label}</span>
           </button>
         ))}
       </div>
-      <button className="iconbtn" aria-label="Gym check-in barcode" onClick={() => fitApi()?.checkIn()}>🎫</button>
+      <button className="iconbtn" aria-label="Gym check-in barcode" onClick={() => fitApi()?.checkIn()}><I n="barcode" /></button>
     </div>
     {(st.error || (slow && !st.ready)) && (
       <div className="card body-err">
         <p><strong>Body didn't load.</strong></p>
         {st.error && <p className="quiet" style={{ marginTop: 4 }}>{st.error}</p>}
-        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => location.reload()}>↻ Reload</button>
+        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => location.reload()}><I n="refresh" /> Reload</button>
       </div>
     )}
     </>
@@ -101,7 +102,7 @@ export function TimerPill() {
   const done = !timer.on || left <= 0;
   return (
     <button className={"timer-pill" + (done ? " done" : "")} onClick={() => goTab("body")}>
-      ⏱ {done ? `${timer.label} done — go` : <><b>{fmt(left)}</b> {timer.label}</>}
+      <I n="timer" /> {done ? `${timer.label} done — go` : <><b>{fmt(left)}</b> {timer.label}</>}
     </button>
   );
 }
@@ -126,10 +127,10 @@ export function BodyTray({ day }: { day: string }) {
   return (
     <section className="tray body-tray">
       <div className="sec-head">
-        <span>🏋</span>
+        <span><I n="lift" /></span>
         <span className="grow">{plan.workout ? `${plan.workout} day` : "Rest day · stretch"}{main ? ` · ${main.steps.length} lifts` : ""}</span>
-        <button className="btn sm" onClick={() => { goTab("body"); if (main?.wid) fitApi()?.openWorkout(day, main.wid); else fitApi()?.openToday(day); }}>🏋 Open</button>
-        <button className="btn sm" onClick={async () => { const u = await putPlanOnRiver(plan); setMissing(0); toast("🌊 On the River", u); }}>🌊 Add</button>
+        <button className="btn sm" onClick={() => { goTab("body"); if (main?.wid) fitApi()?.openWorkout(day, main.wid); else fitApi()?.openToday(day); }}><I n="lift" /> Open</button>
+        <button className="btn sm" onClick={async () => { const u = await putPlanOnRiver(plan); setMissing(0); toast("🌊 On the River", u); }}><I n="river" /> Add</button>
       </div>
       <div className="detail tray-note">{plan.blocks.map((b) => `${b.icon} ${b.title}`).join(" · ")}</div>
     </section>

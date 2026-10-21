@@ -1,201 +1,173 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type CalEvent } from "../lib/db";
 import {
-  completeBlock, copyDay, defaultSentence, loadDay, loadSample, moveBlock, nextLine, nowBlock, nowStep,
+  completeBlock, copyDay, loadDay, loadSample, moveBlock, nowBlock, nowStep,
   setSentence, skipBlock, softDelete, toggleStep, type RiverBlock,
 } from "../lib/river";
-import { addDays, keyLabel, shortTime, today } from "../lib/time";
+import { addDays, minutes, nowHHMM, shortTime, today } from "../lib/time";
 import { useToast } from "../lib/toast";
 import BlockSheet from "./BlockSheet";
 import StepPlayer from "./StepPlayer";
-import { HeadTray } from "../head/ui/tray";
-import { BodyTray } from "../body/BodyScreen";
+import QuickRow from "./QuickRow";
 import { fitApi } from "../body/host";
-import { goTab, openTask } from "../head/useHead";
+import { goTab, openTask, useHeadSettings } from "../head/useHead";
+import { I, Icon } from "../ui/Icon";
+import { blockLook, colorFor } from "../ui/colors";
 
-interface Props { pending: number; online: boolean; details: boolean; onToggleDetails: () => void; onSettings: () => void; onApprovals: () => void; }
+interface Props { pending: number; online: boolean; onSettings: () => void; onApprovals: () => void; }
+
+const k = (color: string) => ({ ["--k" as string]: color }) as CSSProperties;
+
+/** "35m", "1h", "1h 20m" */
+export function dur(m: number): string {
+  if (m < 60) return `${Math.max(1, Math.round(m))}m`;
+  const h = Math.floor(m / 60), r = Math.round(m % 60);
+  return r ? `${h}h ${r}m` : `${h}h`;
+}
+const endMin = (start: string, end?: string | null) => (end ? Math.max(minutes(end), minutes(start)) : minutes(start) + 30);
+const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+function dateParts(key: string) {
+  const [y, mo, d] = key.split("-").map(Number);
+  const t = new Date(Date.UTC(y, mo - 1, d, 12));
+  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: "UTC", ...o }).format(t);
+  return { weekday: f({ weekday: "long" }), md: f({ month: "short", day: "numeric" }), letter: f({ weekday: "narrow" }), num: d, dow: t.getUTCDay() };
+}
+
+/** Re-draw every 30 seconds so "now" and "left" stay true. */
+function useClock() {
+  const [, tick] = useState(0);
+  useEffect(() => { const iv = window.setInterval(() => tick((n) => n + 1), 30_000); return () => window.clearInterval(iv); }, []);
+  return minutes(nowHHMM());
+}
 
 export default function Today(props: Props) {
   const toast = useToast();
   const [day, setDay] = useState(today());
   const isToday = day === today();
+  const nowMin = useClock();
   const blocks = useLiveQuery(() => loadDay(day), [day], [] as RiverBlock[]);
   const dayRow = useLiveQuery(() => db.days.get(day), [day]);
-  // Google Calendar events Claude copied in: thin, locked rows on the River.
+  // Google Calendar events Claude copied in: dashed, locked rows on the timeline.
   const cal = useLiveQuery(() => db.calendar.where("day").equals(day).toArray(), [day], [] as CalEvent[]);
-  const timedCal = cal.filter((e) => !e.all_day && e.start).sort((a, b) => a.start!.localeCompare(b.start!));
+  const timedCal = useMemo(() => cal.filter((e) => !e.all_day && e.start).sort((a, b) => a.start!.localeCompare(b.start!)), [cal]);
   const allDay = cal.filter((e) => e.all_day || !e.start);
-  const merged: ({ b: RiverBlock; e?: undefined; start: string } | { e: CalEvent; b?: undefined; start: string })[] =
-    [...blocks.map((b) => ({ b, e: undefined, start: b.start })), ...timedCal.map((e) => ({ e, b: undefined, start: e.start! }))].sort((x, y) => x.start.localeCompare(y.start) || (x.e ? -1 : 1));
   const [openId, setOpenId] = useState<string | "auto">("auto");
   const [menu, setMenu] = useState<RiverBlock | null>(null);
-  const [sheet, setSheet] = useState<{ block?: RiverBlock } | null>(null);
+  const [sheet, setSheet] = useState<{ block?: RiverBlock; start?: string } | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
-  // Back to "auto" (follow the now block) when the day changes.
   useEffect(() => { setOpenId("auto"); }, [day]);
 
   const now = nowBlock(blocks);
-  const open = openId === "auto" ? now?.id ?? null : openId;
-  const sentence = dayRow?.sentence || defaultSentence(blocks);
-  const next = nextLine(blocks);
+  const open = openId === "auto" ? (isToday ? now?.id ?? null : null) : openId;
   const playingBlock = useMemo(() => blocks.find((b) => b.id === playing) ?? null, [blocks, playing]);
 
-  async function tick(stepId: string) {
-    const { undo, blockDone } = await toggleStep(stepId);
-    if (blockDone) { setOpenId("auto"); toast("✓ Block done", undo); }
-  }
+  // Blocks and calendar events in time order, with the free gaps between them.
+  type Row = { t: "b"; b: RiverBlock } | { t: "e"; e: CalEvent } | { t: "gap"; from: string; mins: number };
+  const rows: Row[] = useMemo(() => {
+    const items = [
+      ...blocks.map((b) => ({ start: b.start, end: endMin(b.start, b.end), row: { t: "b", b } as Row })),
+      ...timedCal.map((e) => ({ start: e.start!, end: endMin(e.start!, e.end), row: { t: "e", e } as Row })),
+    ].sort((x, y) => x.start.localeCompare(y.start));
+    const out: Row[] = [];
+    let last = -1;
+    for (const it of items) {
+      const s = minutes(it.start);
+      if (last >= 0 && s - last >= 45) out.push({ t: "gap", from: hhmm(last), mins: s - last });
+      out.push(it.row);
+      last = Math.max(last, it.end);
+    }
+    return out;
+  }, [blocks, timedCal]);
+
+  const parts = dateParts(day);
 
   return (
     <>
-      <header className="top">
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="date daynav">
-            <button aria-label="Previous day" onClick={() => setDay(addDays(day, -1))}>‹</button>
-            <span>{keyLabel(day)}</span>
-            <button aria-label="Next day" onClick={() => setDay(addDays(day, 1))}>›</button>
-            {!isToday && <button className="todaypill" onClick={() => setDay(today())}>Today</button>}
-            {!props.online && <span className="offline detail"> · offline</span>}
-          </div>
-          {editing ? (
-            <input className="sentence-input" autoFocus defaultValue={dayRow?.sentence ?? ""} placeholder={defaultSentence(blocks)}
-              onBlur={(e) => { void setSentence(day, e.target.value); setEditing(false); }}
-              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-          ) : (
-            <button className="sentence-btn" onClick={() => setEditing(true)}><h1 className="sentence">{sentence}</h1></button>
-          )}
-        </div>
+      <header className="t-head">
+        <button className="t-date" onClick={() => setDay(today())} aria-label="Back to today">{parts.weekday} <span>{parts.md}</span></button>
         <div className="top-actions">
-          <button className={"info" + (props.details ? " on" : "")} aria-label="Show details" onClick={props.onToggleDetails}>ⓘ</button>
-          <button className="gear" aria-label="Settings" onClick={props.onSettings}>⚙</button>
+          {!isToday && <button className="t-back" onClick={() => setDay(today())}>Today</button>}
+          {!props.online && <span className="offline detail">offline</span>}
+          <button className="gear" aria-label="Settings" onClick={props.onSettings}><Icon n="settings" size={21} tone={false} /></button>
         </div>
       </header>
+      {editing ? (
+        <input className="t-sentence-input" autoFocus defaultValue={dayRow?.sentence ?? ""} placeholder="One line for the day"
+          onBlur={(e) => { void setSentence(day, e.target.value); setEditing(false); }}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+      ) : dayRow?.sentence ? (
+        <button className="t-sentence" onClick={() => setEditing(true)}>{dayRow.sentence}</button>
+      ) : null}
 
-      {next && (
-        <div className="nextline">
-          {now && <span className={"dot " + now.kind} />}
-          <span>{next}</span>
+      <Week day={day} onPick={setDay} />
+
+      {isToday && <QuickRow day={day} pending={props.pending} onApprovals={props.onApprovals} />}
+
+      {allDay.length > 0 && <div className="allday">{allDay.map((e) => <span key={e.id}><I n="calendar" />{e.title}</span>)}</div>}
+
+      {rows.length > 0 && (
+        <div className="tl">
+          {rows.map((r, i) => {
+            if (r.t === "gap") return (
+              <div key={"g" + i} className="tl-gap">
+                <button onClick={() => setSheet({ start: r.from })}><I n="plus" tone={false} />{dur(r.mins)} free</button>
+              </div>
+            );
+            if (r.t === "e") return <CalRow key={r.e.id} e={r.e} />;
+            return (
+              <BlockRow key={r.b.id} b={r.b} isNow={now?.id === r.b.id} isToday={isToday} nowMin={nowMin} open={open === r.b.id}
+                onToggle={() => setOpenId(open === r.b.id ? "" : r.b.id)} onMenu={() => setMenu(r.b)} onPlay={() => setPlaying(r.b.id)} />
+            );
+          })}
         </div>
-      )}
-
-      {props.pending > 0 && isToday && (
-        <button className="card row" style={{ width: "100%", textAlign: "left", marginBottom: 14 }} onClick={props.onApprovals}>
-          <span style={{ fontSize: 20 }}>✓</span><span><strong>{props.pending}</strong> waiting for you</span>
-          <span style={{ marginLeft: "auto" }} className="quiet">›</span>
-        </button>
-      )}
-
-      {allDay.length > 0 && (
-        <div className="chips" style={{ marginBottom: 10 }}>{allDay.map((e) => <span key={e.id} className="chip cal-chip">📅 {e.title}</span>)}</div>
       )}
 
       {blocks.length === 0 ? (
-        <>
-        {timedCal.length > 0 && (
-          <div className="rv" style={{ marginBottom: 12 }}>{timedCal.map((e) => <CalRow key={e.id} e={e} />)}</div>
-        )}
-        <div className="empty">
-          <div className="big">🪺</div>
-          <h2>Nothing planned</h2>
-          <p className="detail">Add a block, or start from a sample.</p>
+        <div className="empty" style={rows.length ? { paddingTop: 28 } : undefined}>
+          {rows.length === 0 && <><div className="big"><Icon n="nest" size={38} /></div><h2>Nothing planned</h2><p className="detail">Add a block, or start from a sample.</p></>}
           <div className="stack" style={{ marginTop: 18, maxWidth: 280, marginInline: "auto" }}>
-            <button className="btn primary" onClick={() => setSheet({})}>＋ Block</button>
-            <button className="btn" onClick={async () => toast("📋 Copied", await copyDay(addDays(day, -1), day))}>📋 Copy yesterday</button>
-            <button className="btn" onClick={async () => toast("☀ Sample day", await loadSample(day))}>☀ Sample day</button>
+            <button className="btn primary" onClick={() => setSheet({})}><I n="plus" tone={false} /> Block</button>
+            <button className="btn" onClick={async () => toast("📋 Copied", await copyDay(addDays(day, -1), day))}><I n="copy" /> Copy yesterday</button>
+            <button className="btn" onClick={async () => toast("☀ Sample day", await loadSample(day))}><I n="today" /> Sample day</button>
           </div>
         </div>
-        </>
       ) : (
-        <>
-          <div className="rv">
-            {merged.map((r) => {
-              if (r.e) return <CalRow key={r.e.id} e={r.e} />;
-              const b = r.b;
-              const isOpen = open === b.id;
-              const cur = nowStep(b);
-              const cls = ["rb", b.kind, b.status === "done" ? "done" : "", b.status === "skipped" ? "skipped" : "", now?.id === b.id ? "now" : "", isOpen ? "open" : ""].join(" ");
-              return (
-                <div key={b.id} className={cls}>
-                  <span className="rb-time">{shortTime(b.start)}{Number(b.start.slice(0, 2)) >= 12 && <span className="ap">p</span>}</span>
-                  <span className="rb-ic" aria-hidden="true">{b.status === "done" ? "✓" : b.icon}</span>
-                  <div className="row" style={{ gap: 0 }}>
-                    <button className="rb-head" aria-expanded={isOpen} onClick={() => setOpenId(isOpen ? "" : b.id)}>
-                      <span className="rb-t">
-                        <b>{b.title}</b>
-                        <small className="detail">{shortTime(b.start)}{b.end ? `–${shortTime(b.end)}` : ""} · {b.steps.length} steps{b.source_type === "task" ? " · 🧠" : b.source_type === "workout" ? " · 🏋" : ""}</small>
-                      </span>
-                      <span className="rb-n">{b.status === "done" ? "✓" : b.status === "skipped" ? "⤼" : b.steps.length ? `${b.doneCount}/${b.steps.length}` : ""}</span>
-                    </button>
-                    <button className="rb-more" aria-label={`More for ${b.title}`} onClick={() => setMenu(b)}>⋯</button>
-                  </div>
-                  {isOpen && (
-                    <>
-                      {b.steps.length > 0 && (
-                        <ol className="steps-l">
-                          {b.steps.map((s) => (
-                            <li key={s.id}>
-                              <button className={"sp" + (s.done_at ? " ok" : cur?.id === s.id ? " cur" : "")} onClick={() => tick(s.id)}>
-                                <span className="c">{s.done_at ? "✓" : s.n}</span>
-                                <span className="w">{s.label}</span>
-                                <span className="v">{s.value ?? ""}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ol>
-                      )}
-                      {b.status !== "done" && (
-                        <div className="rb-foot">
-                          {b.steps.length > 0
-                            ? <button className="btn sm" onClick={() => setPlaying(b.id)}>▶ Step by step</button>
-                            : <button className="btn sm good" onClick={async () => toast("✓ Done", await completeBlock(b.id))}>✓ Done</button>}
-                          {b.source_type === "task" && b.source_id && <button className="btn sm" onClick={() => openTask(b.source_id!)}>🧠 Task</button>}
-                          {b.source_type === "workout" && <button className="btn sm" onClick={() => openBody(b.source_id)}>🏋 {b.source_id?.endsWith("|main") ? "Log" : "Open"}</button>}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="add-row">
-            <button className="btn sm" onClick={() => setSheet({})}>＋ Block</button>
-            {isToday && <button className="btn sm" onClick={async () => toast("📋 Copied to tomorrow", await copyDay(day, addDays(day, 1)))}>📋 Copy to tomorrow</button>}
-          </div>
-        </>
+        <div className="tl-foot">
+          <button onClick={() => setSheet({})}><I n="plus" tone={false} />Block</button>
+          {isToday && <button onClick={async () => toast("📋 Copied to tomorrow", await copyDay(day, addDays(day, 1)))}><I n="copy" />Copy to tomorrow</button>}
+        </div>
       )}
 
       {dayRow?.recap && dayRow.recap.length > 0 && (
         <div className="card recap">
-          <div className="lbl" style={{ marginTop: 0 }}>🌙 Recap</div>
+          <div className="lbl" style={{ marginTop: 0 }}><I n="sleep" /> Recap</div>
           {dayRow.recap.map((l, i) => <p key={i}>{l}</p>)}
         </div>
       )}
 
-      <BodyTray day={day} />
-      <HeadTray day={day} />
-
       {menu && (
         <div className="scrim" onClick={() => setMenu(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <h2>{menu.icon} {menu.title}</h2>
+            <h2><span className="ring on" style={k(blockLook(menu).color)}><Icon n={blockLook(menu).icon} size={17} /></span>{menu.title}</h2>
             <div className="menu">
-              <button onClick={() => { setSheet({ block: menu }); setMenu(null); }}>✏ Edit</button>
-              {menu.steps.length > 0 && menu.status !== "done" && <button onClick={() => { setPlaying(menu.id); setMenu(null); }}>▶ Step by step</button>}
-              {menu.status !== "done" && <button onClick={async () => { const u = await completeBlock(menu.id); setMenu(null); toast("✓ Done", u); }}>✓ Mark done</button>}
-              {menu.source_type === "task" && menu.source_id && <button onClick={() => { openTask(menu.source_id!); setMenu(null); }}>🧠 Open task</button>}
-              {menu.source_type === "workout" && <button onClick={() => { openBody(menu.source_id); setMenu(null); }}>🏋 Open in Body</button>}
-              <button onClick={async () => { const u = await moveBlock(menu.id); setMenu(null); toast("↪ Moved to tomorrow", u); }}>↪ Tomorrow</button>
-              <button onClick={async () => { const u = await skipBlock(menu.id); setMenu(null); toast(menu.status === "skipped" ? "↺ Back on" : "⤼ Skipped", u); }}>{menu.status === "skipped" ? "↺ Un-skip" : "⤼ Skip today"}</button>
-              <button className="danger" onClick={async () => { const u = await softDelete(menu.id); setMenu(null); toast("🗑 In Trash", u); }}>🗑 Delete</button>
+              <button onClick={() => { setSheet({ block: menu }); setMenu(null); }}><I n="edit" /> Edit</button>
+              {menu.steps.length > 0 && menu.status !== "done" && <button onClick={() => { setPlaying(menu.id); setMenu(null); }}><I n="play" /> Step by step</button>}
+              {menu.status !== "done" && <button onClick={async () => { const u = await completeBlock(menu.id); setMenu(null); toast("✓ Done", u); }}><I n="check" /> Mark done</button>}
+              {menu.source_type === "task" && menu.source_id && <button onClick={() => { openTask(menu.source_id!); setMenu(null); }}><I n="head" /> Open task</button>}
+              {menu.source_type === "workout" && <button onClick={() => { openBody(menu.source_id); setMenu(null); }}><I n="lift" /> Open in Body</button>}
+              <button onClick={async () => { const u = await moveBlock(menu.id); setMenu(null); toast("↪ Moved to tomorrow", u); }}><I n="arrow" /> Tomorrow</button>
+              <button onClick={async () => { const u = await skipBlock(menu.id); setMenu(null); toast(menu.status === "skipped" ? "↺ Back on" : "⤼ Skipped", u); }}><I n={menu.status === "skipped" ? "undo" : "skip"} /> {menu.status === "skipped" ? "Un-skip" : "Skip today"}</button>
+              <button className="danger" onClick={async () => { const u = await softDelete(menu.id); setMenu(null); toast("🗑 In Trash", u); }}><I n="trash" /> Delete</button>
             </div>
           </div>
         </div>
       )}
 
-      {sheet && <BlockSheet day={day} block={sheet.block} onClose={() => setSheet(null)} />}
+      {sheet && <BlockSheet day={day} block={sheet.block} start={sheet.start} onClose={() => setSheet(null)} />}
       {playingBlock && (
         <StepPlayer block={playingBlock} nextBlock={blocks.find((x) => x.status === "open" && x.id !== playingBlock.id) ?? null}
           onClose={() => setPlaying(null)} onNext={(id) => setPlaying(id)} />
@@ -204,7 +176,144 @@ export default function Today(props: Props) {
   );
 }
 
-/** A Body block on the River opens the matching Fitness screen: the logger for the workout, the stretch session otherwise. */
+/* ---------- the week strip ---------- */
+
+function Week({ day, onPick }: { day: string; onPick: (d: string) => void }) {
+  const s = useHeadSettings();
+  const ws = s.weekStart === 0 ? 0 : 1;
+  const dow = dateParts(day).dow;
+  const first = addDays(day, -((dow - ws + 7) % 7));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(first, i));
+  const t = today();
+  const bars = useLiveQuery(async () => {
+    const rows = await db.blocks.where("day").between(days[0], days[6], true, true).toArray();
+    const by: Record<string, string[]> = {};
+    for (const b of rows.filter((x) => !x.deleted_at).sort((a, b2) => a.start.localeCompare(b2.start))) {
+      by[b.day] ??= [];
+      if (by[b.day].length < 3) by[b.day].push(blockLook(b).color);
+    }
+    return by;
+  }, [days[0]], {} as Record<string, string[]>);
+  const x0 = useRef<number | null>(null);
+  return (
+    <div className="week" role="group" aria-label="This week"
+      onTouchStart={(e) => { x0.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => {
+        const dx = e.changedTouches[0].clientX - (x0.current ?? e.changedTouches[0].clientX);
+        x0.current = null;
+        if (Math.abs(dx) > 60) onPick(addDays(day, dx < 0 ? 7 : -7));
+      }}>
+      {days.map((d) => {
+        const p = dateParts(d);
+        const cls = ["wd", d === day ? "on" : "", d === t ? "today" : "", d < t ? "past" : ""].join(" ");
+        return (
+          <button key={d} className={cls} aria-pressed={d === day} aria-label={`${p.weekday} ${p.md}`} onClick={() => onPick(d)}>
+            <span className="l">{p.letter}</span><span className="n">{p.num}</span>
+            <span className="bars">{(bars[d] ?? []).map((c, i) => <i key={i} style={k(c)} />)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- one block ---------- */
+
+function BlockRow(props: { b: RiverBlock; isNow: boolean; isToday: boolean; nowMin: number; open: boolean; onToggle: () => void; onMenu: () => void; onPlay: () => void }) {
+  const { b, isNow, isToday, nowMin, open } = props;
+  const toast = useToast();
+  const [all, setAll] = useState(false);
+  const look = blockLook(b);
+  const s = minutes(b.start), e = endMin(b.start, b.end);
+  const n = b.steps.length;
+  const cur = nowStep(b);
+  const live = isNow && isToday;
+  const inside = live && !!b.end && nowMin >= s && nowMin < e;
+  const frac = inside ? (nowMin - s) / (e - s) : n ? b.doneCount / n : 0;
+  const done = b.status === "done", skipped = b.status === "skipped";
+  const cls = ["tr", done ? "done" : "", skipped ? "skipped" : "", live && !done ? "now" : "", open ? "open" : ""].join(" ");
+
+  let kick = "";
+  if (live) {
+    if (nowMin < s) kick = s - nowMin <= 120 ? `Next · in ${dur(s - nowMin)}` : "Next";
+    else if (b.end && e - nowMin > 0) kick = `Now · ${dur(e - nowMin)} left`;
+    else kick = "Now";
+  }
+  const sub = done ? "" : skipped ? "Skipped" : [b.doneCount > 0 && n ? `${b.doneCount}/${n}` : "", b.end ? dur(e - s) : n ? `${n} steps` : ""].filter(Boolean).join(" · ");
+
+  async function finish() { toast("✓ Done", await completeBlock(b.id)); }
+  async function tick(id: string) { const r = await toggleStep(id); if (r.blockDone) toast("✓ Block done", r.undo); }
+
+  const ring = done
+    ? <span className="ring on" aria-label="Done"><Icon n="tick" size={16} tone={false} /></span>
+    : <button className="ring" aria-label={`Mark ${b.title} done`} onClick={finish} />;
+
+  return (
+    <div className={cls} style={k(look.color)}>
+      <div className="tr-time">
+        {shortTime(b.start)}
+        {open && b.end && <span className="end">{shortTime(b.end)}</span>}
+        {inside && open && <span className="nowt" style={{ top: `${Math.min(88, Math.max(18, frac * 100))}%` }}>{shortTime(nowHHMM())}</span>}
+      </div>
+      <div className="tp">
+        {live && !done && frac > 0 && <div className="fill" style={{ height: `${Math.max(8, frac * 100)}%` }} />}
+        <Icon n={look.icon} size={19} />
+      </div>
+      {!open ? (
+        <div className="bc">
+          <div className="bc-row">
+            <button className="bc-main" aria-expanded={false} onClick={props.onToggle}>
+              <b>{b.title}</b>{sub && <small>{sub}</small>}
+            </button>
+            {ring}
+          </div>
+        </div>
+      ) : (
+        <div className="bc bc-open">
+          <div className="bc-top">
+            <button className="bc-main" aria-expanded onClick={props.onToggle}>
+              {kick ? <span className="bc-kick">{kick}</span> : <small>{shortTime(b.start)}{b.end ? `–${shortTime(b.end)}` : ""}</small>}
+              <b>{b.title}</b>
+            </button>
+            {ring}
+          </div>
+
+          {n > 0 && (all || done) ? (
+            <ol className="steps">
+              {b.steps.map((st) => (
+                <li key={st.id}>
+                  <button className={(st.done_at ? "ok" : "") + (cur?.id === st.id ? " is-cur" : "")} onClick={() => tick(st.id)}>
+                    <span className={"sc" + (st.done_at ? " ok" : cur?.id === st.id ? " cur-dot" : "")}>{st.done_at && <Icon n="tick" size={11} tone={false} />}</span>
+                    <span className="w">{st.label}</span><span className="v">{st.value ?? ""}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          ) : cur ? (
+            <button className="bc-cur" onClick={() => tick(cur.id)} aria-label={`Done: ${cur.label}`}>
+              <span className="sc cur-dot" /><span className="w">{cur.label}</span><span className="v">{cur.value ?? ""}</span>
+            </button>
+          ) : null}
+
+          {!done && (
+            <div className="bc-acts">
+              {n > 0
+                ? <button className="go" onClick={props.onPlay}><Icon n="play" size={14} />{b.doneCount ? "Keep going" : b.kind === "body" ? "Start set" : "Start"}</button>
+                : <button className="go" onClick={finish}><Icon n="tick" size={16} tone={false} />Done</button>}
+              {n > 1 && <button className={"sec" + (all ? " up" : "")} aria-label={all ? "Hide steps" : `Show all ${n} steps`} onClick={() => setAll(!all)}>{Math.min(b.doneCount + 1, n)}/{n}<Icon n="chevD" size={16} tone={false} /></button>}
+              {b.source_type === "workout" && <button className="sec" aria-label="Open in Body" onClick={() => openBody(b.source_id)}><Icon n="lift" size={18} /></button>}
+              {b.source_type === "task" && b.source_id && <button className="sec" aria-label="Open task" onClick={() => openTask(b.source_id!)}><Icon n="head" size={18} /></button>}
+              <button className="sec" aria-label={`More for ${b.title}`} onClick={props.onMenu}><Icon n="more" size={18} tone={false} /></button>
+            </div>
+          )}
+          {done && <div className="bc-acts"><button className="sec" aria-label={`More for ${b.title}`} onClick={props.onMenu}><Icon n="more" size={18} tone={false} /></button></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A Body block opens the matching Fitness screen: the logger for the workout, the stretch session otherwise. */
 function openBody(sourceId?: string | null) {
   goTab("body");
   const api = fitApi();
@@ -218,13 +327,19 @@ function openBody(sourceId?: string | null) {
   else api.openStretch(date, key);
 }
 
-/** A calendar event on the River: thin and locked. Change it in Google Calendar. */
+/** A calendar event: dashed and locked. Change it in Google Calendar. */
 function CalRow({ e }: { e: CalEvent }) {
+  const s = minutes(e.start!), en = e.end ? minutes(e.end) : null;
   return (
-    <div className="rb cal" aria-label={`Calendar: ${e.title}`}>
-      <span className="rb-time">{shortTime(e.start)}{e.start && Number(e.start.slice(0, 2)) >= 12 && <span className="ap">p</span>}</span>
-      <span className="rb-ic" aria-hidden="true">📅</span>
-      <div className="cal-t"><b>{e.title}</b>{e.end && <small className="quiet"> · until {shortTime(e.end)}</small>}</div>
+    <div className="tr cal" aria-label={`Calendar: ${e.title}`} style={k(colorFor("calendar"))}>
+      <div className="tr-time">{shortTime(e.start)}</div>
+      <div className="tp cal"><Icon n="calendar" size={19} /></div>
+      <div className="bc cal">
+        <div className="bc-row">
+          <div className="bc-main"><b>{e.title}</b>{en && en > s ? <small>{dur(en - s)}</small> : null}</div>
+          <span className="lock" role="img" aria-label="From Google Calendar"><Icon n="lock" size={16} /></span>
+        </div>
+      </div>
     </div>
   );
 }

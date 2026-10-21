@@ -20,6 +20,7 @@ Actions:
 
 Proposal payloads the app understands:
 - `day_plan`: `{"sentence","blocks":[{"start":"HH:MM","end":"HH:MM","kind":"body|head|life","icon","title","steps":[{"label","value"}],"source_type":"task|workout","source_id"}]}`. For a workout part use `source_type:"workout"` and `source_id:"YYYY-MM-DD|warm|main|cool"`. For a task use its id.
+  `icon` is a Nest icon name: lift, warmup, stretch, timer, meal, sleep, morning, study, church, head, doc, job, briefcase, laptop, mail, call, person, home, groceries, drive, place, bill, coin, heart. (An old emoji still works; the app swaps it.)
 - `task`: `{"title","notes","when","due","est","area","link"}`.
 - `calendar_book`: `{"title","day","start","end","notes"}` (needs Google; the applier does it).
 - `rollover`: `{"to":"YYYY-MM-DD","move":[task ids],"someday":[task ids]}`.

@@ -12,6 +12,7 @@ import { DatePicker, MovePicker, WaitingPicker, type MoveResult, type WhenResult
 import { putTasksOnRiver, blockForTask } from "../river-bridge";
 import { db } from "../../lib/db";
 import { useLiveQuery } from "dexie-react-hooks";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's guided flows (src/flows/flows.js): Process Inbox, Plan My Day, Weekly Review, Shutdown,
    Day planner, Focus, What now, Templates. Each is a full-screen, one-thing-at-a-time screen. */
@@ -20,12 +21,12 @@ export function FlowShell(props: { title: string; step?: number; steps?: number;
   return (
     <div className="flow" role="dialog" aria-modal="true" aria-label={props.title}>
       <div className="flow-top">
-        {props.onBack ? <button className="iconbtn" aria-label="Back" onClick={props.onBack}>‹</button> : <span style={{ width: 40 }} />}
+        {props.onBack ? <button className="iconbtn" aria-label="Back" onClick={props.onBack}><I n="chevL" /></button> : <span style={{ width: 40 }} />}
         <div className="ft-title">
           {props.title}
           {(props.steps ?? 0) > 1 && <div className="fdots" aria-label={`Step ${(props.step ?? 0) + 1} of ${props.steps}`}>{Array.from({ length: props.steps! }, (_, i) => <i key={i} className={i === props.step ? "on" : i < (props.step ?? 0) ? "done" : ""} />)}</div>}
         </div>
-        <button className="iconbtn" aria-label="Close" onClick={props.onClose || closeOverlay}>✕</button>
+        <button className="iconbtn" aria-label="Close" onClick={props.onClose || closeOverlay}><I n="close" /></button>
       </div>
       <div className="flow-body"><div className="flow-inner">{props.children}</div></div>
       {props.foot && <div className="flow-foot"><div className="flow-inner row">{props.foot}</div></div>}
@@ -46,7 +47,7 @@ export function ProcessInbox(props: { ids?: string[]; onFinish?: () => void; tit
   const start = useRef<{ x: number; y: number; on: boolean } | null>(null);
   const title = props.title ?? "✦ Process Inbox";
   const finish = () => (props.onFinish ? props.onFinish() : closeOverlay());
-  if (!ids) return <FlowShell title={title} onClose={finish}><p className="quiet">…</p></FlowShell>;
+  if (!ids) return <FlowShell title={title} onClose={finish}><p className="quiet"><I n="more" /></p></FlowShell>;
   const remaining = ids.filter((id) => { const t = data.tasks.get(id); return t && C.isOpen(t) && C.isInbox(t); });
   let idx = i;
   while (idx < ids.length && !remaining.includes(ids[idx])) idx++;
@@ -56,7 +57,7 @@ export function ProcessInbox(props: { ids?: string[]; onFinish?: () => void; tit
   if (!t) {
     return (
       <FlowShell title={title} onClose={finish}>
-        <Empty icon="📥" title="Inbox zero" sub="Everything has a home."><button className="btn primary" style={{ marginTop: 14 }} onClick={finish}>✓ Done</button></Empty>
+        <Empty icon="📥" title="Inbox zero" sub="Everything has a home."><button className="btn primary" style={{ marginTop: 14 }} onClick={finish}><I n="tick" /> Done</button></Empty>
       </FlowShell>
     );
   }
@@ -107,16 +108,16 @@ export function ProcessInbox(props: { ids?: string[]; onFinish?: () => void; tit
         <div className="quiet" style={{ marginTop: 6 }}>Captured {C.timeAgo(t.createdAt)}{t.when ? " · " + C.relLabel(t.when) : ""}{(t.photos || []).length ? ` · 📷 ${t.photos.length}` : ""}</div>
       </div>
       <div className="proc-actions">
-        <button className="btn wide good" onClick={doIt}>✓ Do it now · under 2 min</button>
-        <button className="btn" onClick={schedule}>📅 Schedule</button>
-        <button className="btn" onClick={() => assign({ title: "Assign to project", projectsOnly: true, allowInbox: false })}>📁 Project</button>
-        <button className="btn" onClick={() => assign({ title: "Assign to area", areasOnly: true, allowInbox: false })}>▣ Area</button>
-        <button className="btn" onClick={someday}>💤 Someday</button>
-        <button className="btn" onClick={waiting}>⏳ Waiting</button>
-        <button className="btn" style={{ color: "var(--warn)" }} onClick={del}>🗑 Delete</button>
+        <button className="btn wide good" onClick={doIt}><I n="tick" /> Do it now · under 2 min</button>
+        <button className="btn" onClick={schedule}><I n="calendar" /> Schedule</button>
+        <button className="btn" onClick={() => assign({ title: "Assign to project", projectsOnly: true, allowInbox: false })}><I n="project" /> Project</button>
+        <button className="btn" onClick={() => assign({ title: "Assign to area", areasOnly: true, allowInbox: false })}><I n="project" /> Area</button>
+        <button className="btn" onClick={someday}><I n="sleep" /> Someday</button>
+        <button className="btn" onClick={waiting}><I n="waiting" /> Waiting</button>
+        <button className="btn" style={{ color: "var(--warn)" }} onClick={del}><I n="trash" /> Delete</button>
       </div>
-      <div className="row" style={{ justifyContent: "center", marginTop: 10 }}><button className="linkbtn" onClick={next}>⤼ Skip</button></div>
-      <div className="swipe-hint detail"><span>← schedule</span><span>do it →</span></div>
+      <div className="row" style={{ justifyContent: "center", marginTop: 10 }}><button className="linkbtn" onClick={next}><I n="skip" /> Skip</button></div>
+      <div className="swipe-hint detail"><span>← schedule</span><span>do it <I n="arrow" /></span></div>
     </FlowShell>
   );
 }
@@ -135,7 +136,7 @@ export function PlanMyDay() {
   const [timeText, setTimeText] = useState("");
   const [minutes, setMinutes] = useState<number | null>(null);
   const [toRiver, setToRiver] = useState(true);
-  if (!overIds || !suggestions) return <FlowShell title="🌅 Plan my day"><p className="quiet">…</p></FlowShell>;
+  if (!overIds || !suggestions) return <FlowShell title="🌅 Plan my day"><p className="quiet"><I n="more" /></p></FlowShell>;
   const st = step ?? (overIds.length ? 0 : 1);
   const over = overIds.map((id) => data.tasks.get(id)).filter((x): x is Task => !!x && C.isOpen(x) && ((!!x.when && x.when < t) || (!!x.due && x.due < t)) && x.when !== t);
   const cur = over[0];
@@ -162,10 +163,10 @@ export function PlanMyDay() {
         <h2>Catch up</h2><p className="lede">{over.length} from earlier. Today, later, or let go.</p>
         <div className="proc-card"><div className="pc-title static">{cur.title}</div><div className="quiet">{late}</div></div>
         <div className="proc-actions">
-          <button className="btn" onClick={() => H.updateTask(cur.id, { when: t })}>⭐ Today</button>
-          <button className="btn" onClick={() => A.schedule(cur.id)}>📅 Later</button>
-          <button className="btn" onClick={() => H.updateTask(cur.id, { someday: true, when: null })}>💤 Someday</button>
-          <button className="btn" style={{ color: "var(--warn)" }} onClick={async () => toast("🗑 Dropped", await H.deleteTask(cur.id))}>🗑 Drop</button>
+          <button className="btn" onClick={() => H.updateTask(cur.id, { when: t })}><I n="star" /> Today</button>
+          <button className="btn" onClick={() => A.schedule(cur.id)}><I n="calendar" /> Later</button>
+          <button className="btn" onClick={() => H.updateTask(cur.id, { someday: true, when: null })}><I n="sleep" /> Someday</button>
+          <button className="btn" style={{ color: "var(--warn)" }} onClick={async () => toast("🗑 Dropped", await H.deleteTask(cur.id))}><I n="trash" /> Drop</button>
         </div>
         <div className="row" style={{ justifyContent: "center", marginTop: 12 }}><button className="linkbtn" onClick={() => setStep(1)}>Skip the rest</button></div>
       </FlowShell>
@@ -184,7 +185,7 @@ export function PlanMyDay() {
             <button key={x.id} className="task pick" onClick={() => toggle(x.id)}>
               <Check square on={picked.has(x.id)} onToggle={() => toggle(x.id)} label="Add to today" />
               <div className="t-body"><div className="t-title">{x.title}</div>
-                <div className="t-meta">{why.map((w) => <span key={w}>{w}</span>)}{(h.project || h.area) && <span>{(h.project || h.area)!.name}</span>}{x.est ? <span>⏱ {C.fmtMinutes(x.est)}</span> : null}</div></div>
+                <div className="t-meta">{why.map((w) => <span key={w}>{w}</span>)}{(h.project || h.area) && <span>{(h.project || h.area)!.name}</span>}{x.est ? <span><I n="timer" /> {C.fmtMinutes(x.est)}</span> : null}</div></div>
             </button>
           );
         })}
@@ -198,7 +199,7 @@ export function PlanMyDay() {
     const assumed = est + unest * 15;
     const overBy = minutes ? assumed - minutes : 0;
     return (
-      <FlowShell title="🌅 Plan my day" step={2} steps={STEPS} onBack={() => setStep(1)} foot={<><Grow /><button className="btn primary" onClick={() => setStep(3)}>Next ›</button></>}>
+      <FlowShell title="🌅 Plan my day" step={2} steps={STEPS} onBack={() => setStep(1)} foot={<><Grow /><button className="btn primary" onClick={() => setStep(3)}>Next <I n="chevR" /></button></>}>
         <h2>How much time, really?</h2><p className="lede detail">After work, the commute and the baby. Rough is fine.</p>
         <div className="chips">{([[60, "1h"], [120, "2h"], [180, "3h"], [240, "½ day"], [480, "Full day"]] as const).map(([v, l]) => <button key={v} className={"chip" + (minutes === v ? " on" : "")} onClick={() => { setMinutes(v); setTimeText(""); }}>{l}</button>)}</div>
         <input className="field sm" style={{ marginTop: 10 }} placeholder="Or type: 2 hours after work" value={timeText} onChange={(e) => { setTimeText(e.target.value); setMinutes(C.parseDuration(e.target.value)); }} />
@@ -214,7 +215,7 @@ export function PlanMyDay() {
         {minutes && overBy > 0 && todays.map((x) => (
           <div key={x.id} className="row" style={{ minHeight: 44, borderBottom: "1px solid var(--line)" }}>
             <span className="grow">{x.title}</span><span className="quiet">{x.est ? C.fmtMinutes(x.est) : "—"}</span>
-            <button className="btn sm" onClick={() => H.updateTask(x.id, { when: C.addDays(t, 1) })}>→ Tmrw</button>
+            <button className="btn sm" onClick={() => H.updateTask(x.id, { when: C.addDays(t, 1) })}><I n="arrow" /> Tmrw</button>
           </div>
         ))}
       </FlowShell>
@@ -223,7 +224,7 @@ export function PlanMyDay() {
   const todays = C.selectToday(data).main;
   return (
     <FlowShell title="🌅 Plan my day" step={3} steps={STEPS} onBack={() => setStep(2)}
-      foot={<><label className="row" style={{ gap: 6 }}><input type="checkbox" checked={toRiver} onChange={(e) => setToRiver(e.target.checked)} />🌊 River</label><Grow /><button className="btn primary" onClick={finish}>▶ Start my day</button></>}>
+      foot={<><label className="row" style={{ gap: 6 }}><input type="checkbox" checked={toRiver} onChange={(e) => setToRiver(e.target.checked)} /><I n="river" /> River</label><Grow /><button className="btn primary" onClick={finish}><I n="play" /> Start my day</button></>}>
       <h2>Here's today</h2><p className="lede">{todays.length ? `${todays.length} thing${todays.length === 1 ? "" : "s"}. One at a time.` : "A light day. Enjoy it."}</p>
       {todays.map((x) => <TaskRow key={x.id} task={x} data={data} onToggle={() => A.complete(x.id)} showWhen={false} />)}
       {toRiver && todays.length > 0 && <p className="quiet" style={{ marginTop: 10 }}>Each becomes a River block with steps, from the next free time.</p>}
@@ -243,7 +244,7 @@ export function WeeklyReview() {
   const STEPS = ["Inbox", "Projects", "Waiting", "Upcoming", "Someday", "Brain dump", "Summary"];
   const go2 = (n: number) => { setStep(n); document.querySelector(".flow-body")?.scrollTo(0, 0); };
   const shell = (title: string, lede: string | null, body: ReactNode, foot?: ReactNode) => (
-    <FlowShell title={"🗓 Review · " + STEPS[step]} step={step} steps={STEPS.length} onBack={step ? () => go2(step - 1) : null} foot={foot ?? <><Grow /><button className="btn primary" onClick={() => go2(step + 1)}>Next ›</button></>}>
+    <FlowShell title={"🗓 Review · " + STEPS[step]} step={step} steps={STEPS.length} onBack={step ? () => go2(step - 1) : null} foot={foot ?? <><Grow /><button className="btn primary" onClick={() => go2(step + 1)}>Next <I n="chevR" /></button></>}>
       <h2>{title}</h2>{lede && <p className="lede">{lede}</p>}{body}
     </FlowShell>
   );
@@ -252,7 +253,7 @@ export function WeeklyReview() {
     const inbox = C.selectInbox(data);
     if (processing) return <ProcessInbox title="🗓 Review · Inbox" onFinish={() => setProcessing(false)} />;
     return shell("Clear your Inbox", inbox.length ? `${inbox.length} need a home.` : "Inbox zero.",
-      <>{inbox.length > 0 && <><button className="btn primary" style={{ width: "100%" }} onClick={() => setProcessing(true)}>✦ Process {inbox.length}</button><div style={{ marginTop: 10 }}>{inbox.slice(0, 6).map(row)}</div></>}</>,
+      <>{inbox.length > 0 && <><button className="btn primary" style={{ width: "100%" }} onClick={() => setProcessing(true)}><I n="sort" /> Process {inbox.length}</button><div style={{ marginTop: 10 }}>{inbox.slice(0, 6).map(row)}</div></>}</>,
       <><Grow /><button className="btn primary" onClick={() => go2(1)}>{inbox.length ? "Skip ›" : "Next ›"}</button></>);
   }
   if (step === 1) {
@@ -267,11 +268,11 @@ export function WeeklyReview() {
       <div className="card">
         <div className="row"><Ring pct={st.pct} size={26} /><b className="grow" style={{ fontSize: 18 }}>{p.name}</b><button className="btn sm" onClick={() => { closeOverlay(); go("project", p.id); }}>Open</button></div>
         {p.outcome && <div className="quiet" style={{ marginTop: 6 }}>Done = {p.outcome}</div>}
-        {p.deadline && <div style={{ marginTop: 6, fontSize: 14 }}>⚑ {C.longLabel(p.deadline)}</div>}
-        <div style={{ marginTop: 10 }}>{next ? <><div className="lbl" style={{ margin: "0 0 4px" }}>▶ Next</div>{row(next)}</> : <div className="stalled">⏸ No next step</div>}</div>
+        {p.deadline && <div style={{ marginTop: 6, fontSize: 14 }}><I n="flag" /> {C.longLabel(p.deadline)}</div>}
+        <div style={{ marginTop: 10 }}>{next ? <><div className="lbl" style={{ margin: "0 0 4px" }}><I n="play" /> Next</div>{row(next)}</> : <div className="stalled"><I n="pause" /> No next step</div>}</div>
         <div className="row" style={{ marginTop: 8 }}>
           <input className="field sm" placeholder={next ? "Add another step" : "The very next step?"} value={nextDraft} onChange={(e) => setNextDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void addNext()} />
-          <button className="btn sm" disabled={!nextDraft.trim()} onClick={addNext}>＋</button>
+          <button className="btn sm" disabled={!nextDraft.trim()} onClick={addNext}><I n="plus" /></button>
         </div>
         <div className="lbl">Status</div>
         <div className="chips">{([["active", "Active"], ["hold", "Hold"], ["someday", "Someday"], ["done", "Done"]] as const).map(([id, n]) => (
@@ -285,7 +286,7 @@ export function WeeklyReview() {
     return shell("Waiting", ws.length ? "Nudge anything gone quiet." : "Not waiting on anyone.",
       <>{ws.map((x) => {
         const stale = (x.waiting!.followUp && x.waiting!.followUp <= t) || (x.waiting!.since && C.diffDays(x.waiting!.since, t) >= 7);
-        return <div key={x.id} className="row" style={{ alignItems: "flex-start", borderBottom: "1px solid var(--line)" }}><div className="grow">{row(x)}</div><button className={"btn sm" + (stale ? " primary" : "")} style={{ marginTop: 8 }} onClick={() => A.followUp(x)}>➤</button></div>;
+        return <div key={x.id} className="row" style={{ alignItems: "flex-start", borderBottom: "1px solid var(--line)" }}><div className="grow">{row(x)}</div><button className={"btn sm" + (stale ? " primary" : "")} style={{ marginTop: 8 }} onClick={() => A.followUp(x)}><I n="arrow" /></button></div>;
       })}</>);
   }
   if (step === 3) {
@@ -301,14 +302,14 @@ export function WeeklyReview() {
     const { tasks, projects } = C.selectSomeday(data);
     return shell("Someday", tasks.length + projects.length ? "Ready to be real? Promote it, or leave it." : "Nothing parked.",
       <>
-        {projects.map((p) => <div key={p.id} className="row" style={{ borderBottom: "1px solid var(--line)", minHeight: 48 }}><span className="grow">📁 {p.name}</span><button className="btn sm" onClick={async () => { await H.updateProject(p.id, { status: "active" }); toast("▶ Active"); }}>▶</button></div>)}
+        {projects.map((p) => <div key={p.id} className="row" style={{ borderBottom: "1px solid var(--line)", minHeight: 48 }}><span className="grow"><I n="project" /> {p.name}</span><button className="btn sm" onClick={async () => { await H.updateProject(p.id, { status: "active" }); toast("▶ Active"); }}><I n="play" /></button></div>)}
         {tasks.map((x) => <div key={x.id} className="row" style={{ borderBottom: "1px solid var(--line)" }}><div className="grow">{row(x)}</div>
-          <button className="btn sm" onClick={async () => { await H.updateTask(x.id, { someday: false }); toast("🗂 To Anytime"); }}>⬆</button>
-          <button className="btn sm" onClick={() => A.schedule(x.id)}>📅</button></div>)}
+          <button className="btn sm" onClick={async () => { await H.updateTask(x.id, { someday: false }); toast("🗂 To Anytime"); }}><I n="upload" /></button>
+          <button className="btn sm" onClick={() => A.schedule(x.id)}><I n="calendar" /></button></div>)}
       </>);
   }
   if (step === 5) {
-    return shell("Still on your mind?", "Out of your head. Each line → Inbox.", <BrainDump standalone onDone={() => go2(6)} />, <><Grow /><button className="btn" onClick={() => go2(6)}>Nothing more ›</button></>);
+    return shell("Still on your mind?", "Out of your head. Each line → Inbox.", <BrainDump standalone onDone={() => go2(6)} />, <><Grow /><button className="btn" onClick={() => go2(6)}>Nothing more <I n="chevR" /></button></>);
   }
   const from = C.parseYmd(C.addDays(t, -6)).setHours(0, 0, 0, 0);
   const done = C.completedBetween(data, from, Date.now() + 1).filter((x) => !x.grocery);
@@ -319,10 +320,10 @@ export function WeeklyReview() {
   return shell("Your week", "A short look back.",
     <>
       <div className="card"><div className="bignum">{done.length}</div><div className="quiet">finished in 7 days</div></div>
-      {projectsDone.length > 0 && <div className="card" style={{ marginTop: 10 }}><b>Projects done</b>{projectsDone.map((p) => <div key={p.id} style={{ marginTop: 4 }}>✓ {p.name}</div>)}</div>}
+      {projectsDone.length > 0 && <div className="card" style={{ marginTop: 10 }}><b>Projects done</b>{projectsDone.map((p) => <div key={p.id} style={{ marginTop: 4 }}><I n="tick" /> {p.name}</div>)}</div>}
       {byArea.size > 0 && <div className="sgrid">{[...byArea.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => <div className="card" key={k}><div className="bignum sm">{n}</div><div className="quiet">{k}</div></div>)}</div>}
     </>,
-    <><Grow /><button className="btn primary" onClick={async () => { await H.saveSettings({ lastReview: t }); closeOverlay(); toast("🗓 Review done. System current."); }}>✓ Finish</button></>);
+    <><Grow /><button className="btn primary" onClick={async () => { await H.saveSettings({ lastReview: t }); closeOverlay(); toast("🗓 Review done. System current."); }}><I n="tick" /> Finish</button></>);
 }
 
 /* ---------- Shutdown ---------- */
@@ -342,7 +343,7 @@ export function Shutdown() {
       setDest(Object.fromEntries(x.map((id) => [id, nextDay])));
     }
   }, [ready, ids, data, nextDay]);
-  if (!ids) return <FlowShell title="⏻ Shutdown"><p className="quiet">…</p></FlowShell>;
+  if (!ids) return <FlowShell title="⏻ Shutdown"><p className="quiet"><I n="more" /></p></FlowShell>;
   const items = ids.map((id) => data.tasks.get(id)).filter((x): x is Task => !!x && C.isOpen(x));
   const dayName = (d: string) => C.longLabel(d).split(",")[0];
   if (step === 0) {
@@ -356,26 +357,26 @@ export function Shutdown() {
         {items.map((x) => (
           <div key={x.id} className="row" style={{ minHeight: 52, borderBottom: "1px solid var(--line)" }}>
             <span className="grow">{x.title}</span>
-            <button className="btn sm" onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: dest[x.id], mode: "when" }); if (r !== undefined) setDest({ ...dest, [x.id]: r.when || null }); }}>📅 {dest[x.id] ? C.relLabel(dest[x.id]) : "No date"}</button>
+            <button className="btn sm" onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: dest[x.id], mode: "when" }); if (r !== undefined) setDest({ ...dest, [x.id]: r.when || null }); }}><I n="calendar" /> {dest[x.id] ? C.relLabel(dest[x.id]) : "No date"}</button>
             <button className="btn sm" onClick={() => setDest({ ...dest, [x.id]: t })}>Keep</button>
           </div>
         ))}
       </FlowShell>
     );
   }
-  if (step === 1) return <FlowShell title="⏻ Shutdown" step={1} steps={4} onBack={() => setStep(0)} foot={<><Grow /><button className="btn" onClick={() => setStep(2)}>Nothing else ›</button></>}><h2>Empty your head</h2><p className="lede">Write it down so you can be home.</p><BrainDump standalone onDone={() => setStep(2)} /></FlowShell>;
-  if (step === 2) return <FlowShell title="⏻ Shutdown" step={2} steps={4} onBack={() => setStep(1)} foot={<><Grow /><button className="btn primary" onClick={() => setStep(3)}>Looks good ›</button></>}><DayPlanner date={tomorrow} /></FlowShell>;
+  if (step === 1) return <FlowShell title="⏻ Shutdown" step={1} steps={4} onBack={() => setStep(0)} foot={<><Grow /><button className="btn" onClick={() => setStep(2)}>Nothing else <I n="chevR" /></button></>}><h2>Empty your head</h2><p className="lede">Write it down so you can be home.</p><BrainDump standalone onDone={() => setStep(2)} /></FlowShell>;
+  if (step === 2) return <FlowShell title="⏻ Shutdown" step={2} steps={4} onBack={() => setStep(1)} foot={<><Grow /><button className="btn primary" onClick={() => setStep(3)}>Looks good <I n="chevR" /></button></>}><DayPlanner date={tomorrow} /></FlowShell>;
   return (
     <FlowShell title="⏻ Shutdown" step={3} steps={4} onBack={() => setStep(2)}>
       <Empty icon="🏡" title="You're done for the day" sub="Everything is written down. Go be home.">
-        {s.dndReminder && <div className="card" style={{ textAlign: "left", marginTop: 14 }}><b>🔕 Do Not Disturb</b><div className="quiet" style={{ marginTop: 4 }}>Swipe down from the top-right → Focus → Do Not Disturb.</div></div>}
+        {s.dndReminder && <div className="card" style={{ textAlign: "left", marginTop: 14 }}><b><I n="quiet" /> Do Not Disturb</b><div className="quiet" style={{ marginTop: 4 }}>Swipe down from the top-right <I n="arrow" /> Focus <I n="arrow" /> Do Not Disturb.</div></div>}
         <button className="btn primary" style={{ marginTop: 14 }} onClick={async () => {
           await H.saveSettings({ lastShutdown: t });
           const wind = (await db.blocks.where("day").equals(t).toArray()).find((b) => !b.deleted_at && b.status === "open" && /wind down|shutdown/i.test(b.title));
           closeOverlay();
           goTab("today");
           if (wind) toast("🌙 Wind down is next on the River");
-        }}>⏻ Shut down</button>
+        }}><I n="shutdown" /> Shut down</button>
       </Empty>
     </FlowShell>
   );
@@ -409,25 +410,25 @@ export function DayPlanner({ date }: { date: string }) {
       {tasks.map((x) => (
         <div key={x.id} className={"dp-row" + (x.first === date ? " starred" : "")}>
           <button className="iconbtn" aria-pressed={x.first === date} aria-label={(x.first === date ? "Don't start with " : "Start with ") + x.title} onClick={() => toggleStart(x)}>{x.first === date ? "⭐" : "☆"}</button>
-          <span className="grow">{x.title}{(x.tod || x.time) && <span className="quiet"> · {x.time ? C.fmtTime(x.time) : x.tod}</span>}{onRiver.has(x.id) && <span className="quiet"> · 🌊</span>}</span>
-          <button className="btn sm" aria-label={"Move " + x.title} onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: date, mode: "when" }); if (r !== undefined && r.when !== date) { await H.updateTask(x.id, { when: r.when || null, first: null, someday: !!r.someday }); toast(r.when ? `📅 ${C.relLabel(r.when)}` : "✕ No date"); } }}>📅</button>
+          <span className="grow">{x.title}{(x.tod || x.time) && <span className="quiet"> · {x.time ? C.fmtTime(x.time) : x.tod}</span>}{onRiver.has(x.id) && <span className="quiet"> · <I n="river" /></span>}</span>
+          <button className="btn sm" aria-label={"Move " + x.title} onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: date, mode: "when" }); if (r !== undefined && r.when !== date) { await H.updateTask(x.id, { when: r.when || null, first: null, someday: !!r.someday }); toast(r.when ? `📅 ${C.relLabel(r.when)}` : "✕ No date"); } }}><I n="calendar" /></button>
         </div>
       ))}
-      {repeats.map((x) => <div key={"r" + x.id} className="dp-row faint"><span className="iconbtn ghost">↻</span><span className="grow">{x.title}</span></div>)}
+      {repeats.map((x) => <div key={"r" + x.id} className="dp-row faint"><span className="iconbtn ghost"><I n="refresh" /></span><span className="grow">{x.title}</span></div>)}
       <div className="row" style={{ marginTop: 12 }}>
         <input className="field sm" placeholder={`Add for ${rel === "Tomorrow" || rel === "Today" ? rel.toLowerCase() : dayName}…`} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} />
-        <button className="btn sm primary" disabled={!text.trim()} onClick={add}>＋</button>
+        <button className="btn sm primary" disabled={!text.trim()} onClick={add}><I n="plus" /></button>
       </div>
       {tasks.length > 0 && (
         <button className="btn sm" style={{ marginTop: 10 }} onClick={async () => {
           const ordered = [...starts, ...tasks.filter((x) => x.first !== date)].filter((x) => !onRiver.has(x.id));
           toast("🌊 On the River", await putTasksOnRiver(ordered.map((x) => x.id), date));
-        }}>🌊 Put on {rel === "Today" ? "today's" : rel === "Tomorrow" ? "tomorrow's" : dayName + "'s"} River</button>
+        }}><I n="river" /> Put on {rel === "Today" ? "today's" : rel === "Tomorrow" ? "tomorrow's" : dayName + "'s"} River</button>
       )}
       {sugg.length > 0 && (
         <div style={{ marginTop: 16 }}>
           <div className="lbl">Could also fit</div>
-          {sugg.map((x) => <div key={x.id} className="dp-row"><span className="grow">{x.title}</span><button className="btn sm" onClick={async () => { await H.updateTask(x.id, { when: date, someday: false }); setAdded([...added, x.id]); }}>＋</button></div>)}
+          {sugg.map((x) => <div key={x.id} className="dp-row"><span className="grow">{x.title}</span><button className="btn sm" onClick={async () => { await H.updateTask(x.id, { when: date, someday: false }); setAdded([...added, x.id]); }}><I n="plus" /></button></div>)}
         </div>
       )}
     </div>
@@ -436,7 +437,7 @@ export function DayPlanner({ date }: { date: string }) {
 
 export function PlanDay({ date }: { date?: string }) {
   const d = date || C.addDays(C.today(), 1);
-  return <FlowShell title={"📅 " + C.relLabel(d)} foot={<><Grow /><button className="btn primary" onClick={closeOverlay}>✓ Done</button></>}><DayPlanner date={d} /></FlowShell>;
+  return <FlowShell title={"📅 " + C.relLabel(d)} foot={<><Grow /><button className="btn primary" onClick={closeOverlay}><I n="tick" /> Done</button></>}><DayPlanner date={d} /></FlowShell>;
 }
 
 /* ---------- Focus (timer counts from an end time, so a locked phone doesn't lose time) ---------- */
@@ -523,7 +524,7 @@ export function Focus({ taskId }: { taskId: string }) {
           </div>
         )}
         {task.notes && <div className="card notes-md" style={{ marginTop: 10, textAlign: "left" }} onClick={(e) => { const b = (e.target as HTMLElement).closest("[data-line]") as HTMLElement | null; if (b) void H.updateTask(task.id, { notes: C.toggleNoteLine(task.notes, Number(b.dataset.line)) }); }} dangerouslySetInnerHTML={{ __html: C.renderNotes(task.notes) }} />}
-        <button className="btn" style={{ marginTop: 18 }} onClick={async () => { await saveTime(); await A.complete(task.id); closeOverlay(); }}>✓ Complete task</button>
+        <button className="btn" style={{ marginTop: 18 }} onClick={async () => { await saveTime(); await A.complete(task.id); closeOverlay(); }}><I n="tick" /> Complete task</button>
       </div>
     </FlowShell>
   );
@@ -573,7 +574,7 @@ export function Templates(props: { areaId?: string | null; templateId?: string }
         <div className="qd">
           {all.map((x) => (
             <button key={x.id} onClick={() => { setTplId(x.id); setName(x.client ? "" : x.name); setAreaId(guessArea(x.areaHint)); }}>
-              <span>{ic(x.icon)}</span><span className="grow" style={{ textAlign: "left" }}><b>{x.name}</b><div className="quiet">{x.description || ""} {x.sections.reduce((n, s) => n + s.tasks.length, 0)} steps</div></span><span className="side">›</span>
+              <span>{ic(x.icon)}</span><span className="grow" style={{ textAlign: "left" }}><b>{x.name}</b><div className="quiet">{x.description || ""} {x.sections.reduce((n, s) => n + s.tasks.length, 0)} steps</div></span><span className="side"><I n="chevR" /></span>
             </button>
           ))}
         </div>
@@ -587,14 +588,14 @@ export function Templates(props: { areaId?: string | null; templateId?: string }
     toast(`📁 ${name.trim() || tpl.name}`);
   };
   return (
-    <FlowShell title={"📋 " + tpl.name} onBack={props.templateId ? null : () => setTplId(null)} foot={<><Grow /><button className="btn primary" onClick={create}>📁 Create</button></>}>
+    <FlowShell title={"📋 " + tpl.name} onBack={props.templateId ? null : () => setTplId(null)} foot={<><Grow /><button className="btn primary" onClick={create}><I n="project" /> Create</button></>}>
       <h2>{tpl.client ? "New job" : "Set it up"}</h2>
       <div className="stack">
         <input className="field sm" autoFocus value={name} placeholder={tpl.client ? "Smith bathroom remodel" : tpl.name} onChange={(e) => setName(e.target.value)} />
         <select className="field sm" value={areaId ?? ""} onChange={(e) => setAreaId(e.target.value || null)}>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
         {tpl.client && (
           <div className="card stack">
-            <div className="lbl" style={{ margin: 0 }}>👤 Client</div>
+            <div className="lbl" style={{ margin: 0 }}><I n="person" /> Client</div>
             <input className="field sm" placeholder="Name" value={client.name || ""} onChange={(e) => setClient({ ...client, name: e.target.value })} />
             <input className="field sm" placeholder="Address" value={client.address || ""} onChange={(e) => setClient({ ...client, address: e.target.value })} />
             <input className="field sm" type="tel" placeholder="Phone" value={client.phone || ""} onChange={(e) => setClient({ ...client, phone: e.target.value })} />
@@ -646,8 +647,8 @@ export function QuietScreen({ q, onOpen }: { q: { kind: "offday" | "night" | "ev
         {repeats.map((x) => <Row key={"r" + x.id} x={x} faint />)}
       </div>
       <div className="row" style={{ marginTop: 14, gap: 8, flexWrap: "wrap" }}>
-        <button className="btn sm" onClick={() => openOverlay("planday", { date: q.date })}>✏ Adjust</button>
-        <button className="btn sm" onClick={() => openOverlay("quickadd")}>＋ Write it down</button>
+        <button className="btn sm" onClick={() => openOverlay("planday", { date: q.date })}><I n="edit" /> Adjust</button>
+        <button className="btn sm" onClick={() => openOverlay("quickadd")}><I n="plus" /> Write it down</button>
       </div>
       <button className="linkbtn" style={{ marginTop: 18 }} onClick={onOpen}>Open Head anyway</button>
     </div>

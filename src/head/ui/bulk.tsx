@@ -3,6 +3,7 @@ import { db } from "../../lib/db";
 import { toast } from "../../lib/toast";
 import { clearMulti, multi } from "../useHead";
 import * as A from "./actions";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's bulk bar: act on every selected task at once. */
 export function BulkBar() {
@@ -24,14 +25,14 @@ export function BulkBar() {
   return (
     <div className="bulkbar" role="toolbar" aria-label="Selected tasks">
       <span className="b-count">{ids.length}</span>
-      <button className="iconbtn" disabled={dis} aria-label="Done" onClick={run(() => A.completeMany(ids))}>✓</button>
-      <button className="iconbtn" disabled={dis} aria-label="When" onClick={run(() => A.schedule(ids))}>📅</button>
-      <button className="iconbtn" disabled={dis} aria-label="Move" onClick={run(() => A.move(ids))}>↪</button>
+      <button className="iconbtn" disabled={dis} aria-label="Done" onClick={run(() => A.completeMany(ids))}><I n="tick" /></button>
+      <button className="iconbtn" disabled={dis} aria-label="When" onClick={run(() => A.schedule(ids))}><I n="calendar" /></button>
+      <button className="iconbtn" disabled={dis} aria-label="Move" onClick={run(() => A.move(ids))}><I n="arrow" /></button>
       <button className="iconbtn" disabled={dis} aria-label="Tag" onClick={run(() => A.setContexts(ids))}>@</button>
-      <button className="iconbtn" disabled={dis} aria-label="Flag" onClick={run(() => A.toggleImportant(ids))}>⚑</button>
+      <button className="iconbtn" disabled={dis} aria-label="Flag" onClick={run(() => A.toggleImportant(ids))}><I n="flag" /></button>
       <button className="iconbtn" disabled={dis} aria-label="To the top" onClick={run(top)}>⤒</button>
-      <button className="iconbtn" disabled={dis} aria-label="Delete" onClick={run(() => A.remove(ids))}>🗑</button>
-      <button className="iconbtn" aria-label="Cancel" onClick={clearMulti}>✕</button>
+      <button className="iconbtn" disabled={dis} aria-label="Delete" onClick={run(() => A.remove(ids))}><I n="trash" /></button>
+      <button className="iconbtn" aria-label="Cancel" onClick={clearMulti}><I n="close" /></button>
     </div>
   );
 }

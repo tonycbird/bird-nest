@@ -1,33 +1,38 @@
-/* Bird Nest skin for the Fitness screens: Nest's paper and ink, teal for Body, Nest's fonts.
-   Only tokens and a few layout fixes change; the old app's own rules stay as they were. */
-:root{
-  --bg:#F7F3EA; --card:#FFFFFF; --ink:#1E2420; --ink2:#565B52; --ink3:#878C82; --line:#E6E0D2; --pill:#EFE9DB; --pill-ink:#565B52;
-  --coral:#1F7A8C; --coral-press:#18687A; --coral-soft:#DDEDEF; --coral-2:#8DC1CB;
-  --blue:#46524A; --blue-soft:#EAE5D8; --blue-2:#B9B4A6;
-  --green:#2E8B3E; --green-soft:#E1F0E1; --amber:#C9741A; --amber-soft:#F7EAD8; --danger:#C2412F; --danger-soft:#F6E2DD;
-  --c1:#1F7A8C; --c2:#C9741A;
-  --mus:#D3CDBE; --mus-2:#DFD9CB; --hi-1:#2A93A8; --hi-2:#1F7A8C;
-  --shadow:0 1px 2px rgba(30,36,32,.06),0 1px 1px rgba(30,36,32,.03);
-  --shadow-2:0 8px 28px rgba(30,36,32,.18);
-  --tab-bg:rgba(247,243,234,.92); --overlay:rgba(20,24,20,.42);
-  --num:"Archivo Variable",-apple-system,system-ui,sans-serif;
-  --ui:"Archivo Variable",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+/* Bird Nest skin for the Fitness screens: Mist by day, Dusk at night (the app sets data-theme on this frame),
+   Nest's font, teal for actions, sky blue for picks. Only tokens and a few shapes change; the old app's rules stay. */
+:root:root{
+  --bg:#F4F5F8; --card:#FFFFFF; --ink:#171A23; --ink2:#646B7D; --ink3:#969CAB; --line:#E8EBF1; --pill:#ECEEF3; --pill-ink:#646B7D;
+  --coral:#16A394; --coral-press:#11897C; --coral-soft:#DFF4F1; --coral-2:#8FD5CC;
+  --blue:#3D7FEA; --blue-soft:#E6EFFD; --blue-2:#A9C6F7;
+  --green:#2FAE6E; --green-soft:#E1F4EA; --amber:#E19A1B; --amber-soft:#FCF1DC; --danger:#E0683D; --danger-soft:#FCE8E0;
+  --c1:#16A394; --c2:#4C8DF6;
+  --mus:#D3D8E2; --mus-2:#E1E5EC; --hi-1:#22B8A5; --hi-2:#16A394;
+  --shadow:0 1px 2px rgba(22,27,45,.04),0 6px 18px rgba(22,27,45,.05);
+  --shadow-2:0 14px 32px rgba(22,27,45,.12);
+  --tab-bg:rgba(255,255,255,.9); --overlay:rgba(18,22,34,.30);
+  --num:"Plus Jakarta Sans Variable",-apple-system,system-ui,sans-serif;
+  --ui:"Plus Jakarta Sans Variable",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --on-fill:#FFFFFF;
+  color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#12160F; --card:#1B2118; --ink:#F2EEE2; --ink2:#C4C6B8; --ink3:#8F9488; --line:#2A3226; --pill:#242B20; --pill-ink:#C4C6B8;
-  --coral:#4FB3C6; --coral-press:#6CC3D3; --coral-soft:#16303A; --coral-2:#2D6A78;
-  --blue:#C4C6B8; --blue-soft:#242B20; --blue-2:#4A5444;
-  --green:#4CC35E; --green-soft:#16281A; --amber:#E3A33E; --amber-soft:#2D2413; --danger:#F06A55; --danger-soft:#361C18;
-  --c1:#4FB3C6; --c2:#E3A33E;
-  --mus:#3B4436; --mus-2:#333B2F; --hi-1:#5FC2D4; --hi-2:#4FB3C6;
-  --shadow:0 0 0 1px rgba(242,238,226,.04); --shadow-2:0 10px 30px rgba(0,0,0,.55);
-  --tab-bg:rgba(18,22,15,.92); --overlay:rgba(0,0,0,.6);
-}}
-/* Big numbers: tabular, a touch heavier. */
-body{font-feature-settings:"tnum" 1}
-.h1,.ltitle,.h2{font-family:"Fraunces Variable",Georgia,serif;letter-spacing:-.01em}
-/* White text on teal reads better in dark mode with dark ink. */
-@media (prefers-color-scheme:dark){.btn,.btn-sm:not(.ghost):not(.alt){color:#0E1A1C}}
+:root:root[data-theme="dark"]{
+  --bg:#1B1E26; --card:#242833; --ink:#F3F5F9; --ink2:#A3AABB; --ink3:#7D8598; --line:#323846; --pill:#2C313D; --pill-ink:#A3AABB;
+  --coral:#6FD6C1; --coral-press:#86E0CE; --coral-soft:#21403C; --coral-2:#3E7D72;
+  --blue:#7FB2F5; --blue-soft:#243450; --blue-2:#3E5F8E;
+  --green:#86CF8E; --green-soft:#22382A; --amber:#F3CB6B; --amber-soft:#3A3220; --danger:#F2A07B; --danger-soft:#3D2A24;
+  --c1:#6FD6C1; --c2:#7FB2F5;
+  --mus:#3A4152; --mus-2:#333947; --hi-1:#6FD6C1; --hi-2:#56C2AC;
+  --shadow:0 0 0 1px rgba(255,255,255,.02); --shadow-2:0 10px 30px rgba(0,0,0,.4);
+  --tab-bg:rgba(36,40,51,.92); --overlay:rgba(6,8,12,.55);
+  --on-fill:#0F2420;
+  color-scheme:dark;
+}
+body{font-feature-settings:"tnum" 1; transition:background-color .4s ease, color .4s ease}
+/* Filled buttons: rounder, and dark text on the light teal at night. */
+.btn,.btn2{border-radius:100px}
+.btn-sm{border-radius:100px}
+.btn,.btn-sm:not(.ghost):not(.alt),.chip.on,.wday.on,.optbtn.on{color:var(--on-fill)}
+.card{border-radius:20px}
 
 /* Nest shows the four sections as chips above this frame, so the old tab bar hides
    and everything that sat above it drops to the bottom. */
@@ -42,3 +47,4 @@ body:has(.actionbar) .timer{bottom:84px}
 .pad.top{padding-top:4px}
 .nest-groc{margin-bottom:12px}
 .nest-groc small{margin-top:2px}
+.wday.on .wd-d,.wday.on .wd-n,.wday.on .wd-w{color:var(--on-fill)}

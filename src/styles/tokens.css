@@ -1,21 +1,46 @@
-/* Bird Nest tokens — copied from the concept page :root. Only these colors carry meaning:
-   money (brass), body (teal), head (violet). Everything else is ink and paper. */
+/* Bird Nest tokens. Two looks that follow the sun: Mist (light, airy) by day, Dusk (soft slate) at night.
+   One color per life area, used everywhere: pills, circles, week bars, checks. */
 :root{
-  --bg:#F7F3EA; --surface:#FFFFFF; --tint:#EFE9DB; --line:rgba(30,36,32,.13);
-  --ink:#1E2420; --ink-2:#565B52; --ink-3:#878C82;
-  --money:#A6741F; --body:#1F7A8C; --head:#6B4FA0; --good:#2E8B3E; --warn:#C9741A;
-  --display:"Fraunces Variable", Georgia, serif;
-  --sans:"Archivo Variable", -apple-system, "Segoe UI", sans-serif;
-  --shadow:0 1px 2px rgba(30,36,32,.06), 0 14px 34px -14px rgba(30,36,32,.28);
-  --r:16px;
+  --sans:"Plus Jakarta Sans Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --display:var(--sans);
+  --r:18px;
+
+  /* Mist */
+  --bg:#F4F5F8; --surface:#FFFFFF; --surface-2:#F1F3F7; --tint:#ECEEF3; --line:rgba(22,27,45,.08); --rail:#D3D8E2;
+  --ink:#171A23; --ink-2:#646B7D; --ink-3:#969CAB; --ink-4:#B4B9C4;
+  --accent:#16A394; --on-accent:#FFFFFF;
+  --c-body:#22B8A5; --c-stretch:#4C8DF6; --c-warm:#F2795F; --c-head:#8366F2; --c-money:#F2AE2E;
+  --c-people:#3FB572; --c-home:#EC5F93; --c-rest:#5B67E8; --c-cal:#A3A9B6;
+  --glyph:#FFFFFF;
+  --good:var(--accent); --warn:#E0683D;
+  --body:var(--c-body); --head:var(--c-head); --money:var(--c-money);
+  --shadow:0 1px 2px rgba(22,27,45,.04), 0 6px 18px rgba(22,27,45,.05);
+  --shadow-lift:0 2px 4px rgba(22,27,45,.04), 0 14px 32px rgba(22,27,45,.09);
+  --scrim:rgba(18,22,34,.30);
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#12160F; --surface:#1B2118; --tint:#242B20; --line:rgba(242,238,226,.12);
-  --ink:#F2EEE2; --ink-2:#C4C6B8; --ink-3:#8F9488;
-  --money:#D4A24A; --body:#4FB3C6; --head:#A78BE0; --good:#4CC35E; --warn:#E3A33E;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 34px -14px rgba(0,0,0,.7); color-scheme:dark; } }
+
+/* Dusk */
 :root[data-theme="dark"]{
-  --bg:#12160F; --surface:#1B2118; --tint:#242B20; --line:rgba(242,238,226,.12);
-  --ink:#F2EEE2; --ink-2:#C4C6B8; --ink-3:#8F9488;
-  --money:#D4A24A; --body:#4FB3C6; --head:#A78BE0; --good:#4CC35E; --warn:#E3A33E;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 34px -14px rgba(0,0,0,.7); color-scheme:dark; }
+  --bg:#1B1E26; --surface:#242833; --surface-2:#2F3441; --tint:#2C313D; --line:rgba(255,255,255,.07); --rail:#3A4152;
+  --ink:#F3F5F9; --ink-2:#A3AABB; --ink-3:#7D8598; --ink-4:#626A7C;
+  --accent:#6FD6C1; --on-accent:#0F2420;
+  --c-body:#6FD6C1; --c-stretch:#7FB2F5; --c-warm:#F5A38C; --c-head:#A99BF5; --c-money:#F3CB6B;
+  --c-people:#86CF8E; --c-home:#F290B2; --c-rest:#8C95F7; --c-cal:#8A92A6;
+  --glyph:#1B1E26;
+  --warn:#F2A07B;
+  --shadow:0 0 0 1px rgba(255,255,255,.02);
+  --shadow-lift:0 10px 30px rgba(0,0,0,.28);
+  --scrim:rgba(6,8,12,.55);
+  color-scheme:dark;
+}
+/* Before the script runs (or if it can't), follow the phone. */
+@media (prefers-color-scheme: dark){ :root:not([data-theme]){
+  --bg:#1B1E26; --surface:#242833; --surface-2:#2F3441; --tint:#2C313D; --line:rgba(255,255,255,.07); --rail:#3A4152;
+  --ink:#F3F5F9; --ink-2:#A3AABB; --ink-3:#7D8598; --ink-4:#626A7C;
+  --accent:#6FD6C1; --on-accent:#0F2420;
+  --c-body:#6FD6C1; --c-stretch:#7FB2F5; --c-warm:#F5A38C; --c-head:#A99BF5; --c-money:#F3CB6B;
+  --c-people:#86CF8E; --c-home:#F290B2; --c-rest:#8C95F7; --c-cal:#8A92A6;
+  --glyph:#1B1E26; --warn:#F2A07B;
+  --shadow:0 0 0 1px rgba(255,255,255,.02); --shadow-lift:0 10px 30px rgba(0,0,0,.28); --scrim:rgba(6,8,12,.55);
+  color-scheme:dark; } }

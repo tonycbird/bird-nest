@@ -36,3 +36,9 @@
 | 2026-10-17 | The door key lives in the scheduled tasks; its hash in Supabase (`supabase/local/`, gitignored) | No secrets in git or the client. Rotate: new key, new hash row, update the four tasks. |
 | 2026-10-17 | Public Supabase URL + publishable key in `.env.production` (in git) | They're public by design (they ship in the app). Cloudflare builds need them; RLS does the protecting. |
 | 2026-10-21 | Sign-in is email + password, not a 6-digit code | Free Supabase won't let the email templates change without custom SMTP, and its default email only has a link (which opens Safari, not the app). "Confirm email" off; sign-ups off after Anthony's account. |
+| 2026-10-21 | Design: Structured-style pill timeline + Moleskine-style cards (design G) | Anthony uses Structured and Moleskine Tasks; picked G on the design canvas. |
+| 2026-10-21 | Colors follow the sun: Mist (light) by day, Dusk (dark) at night | Anthony likes airy apps; dark keeps 4:45 AM easy on the eyes. Computed on the phone, no network. |
+| 2026-10-21 | One color per life area (replaces "only brass, teal, violet") | Colors now mean the area at a glance: pills, circles, week bars all match. |
+| 2026-10-21 | Nest draws its own icons; emoji are swapped at render time | Anthony asked for no emoji icons. A JSX runtime swap catches old saved data and Claude's plans too. |
+| 2026-10-21 | Less is more: show the minimum, expand on tap | Anthony's standing design rule. Steps hide behind "2/5 ⌄"; details behind Settings → Show details. |
+| 2026-10-21 | Font: Plus Jakarta Sans (one family) | Clean, round, reads well at small sizes. Bundled for offline. |

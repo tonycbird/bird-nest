@@ -7,8 +7,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Nest" />
-    <meta name="theme-color" content="#F7F3EA" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#12160F" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1B1E26" media="(prefers-color-scheme: dark)" />
+    <!-- Light by day, dark at night: start in the look the app last used, so there's no flash. -->
+    <script>try{var m=localStorage.getItem("nest:theme-mode")||localStorage.getItem("nest:theme-now");if(m==="light"||m==="dark")document.documentElement.dataset.theme=m;}catch(e){}</script>
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Bird Nest</title>
@@ -35,12 +37,12 @@
           if (document.getElementById("rescue")) return;
           var d = document.createElement("div");
           d.id = "rescue";
-          d.style.cssText = "position:fixed;inset:0;z-index:99;overflow:auto;padding:calc(24px + env(safe-area-inset-top)) 20px 24px;background:#F7F3EA;color:#1E2420;font:15px/1.45 -apple-system,system-ui,sans-serif";
+          d.style.cssText = "position:fixed;inset:0;z-index:99;overflow:auto;padding:calc(24px + env(safe-area-inset-top)) 20px 24px;background:#F4F5F8;color:#171A23;font:15px/1.45 -apple-system,system-ui,sans-serif";
           var list = errs.length ? errs.map(function (x) { return "<li style='margin:6px 0;word-break:break-word'>" + x.replace(/</g, "&lt;") + "</li>"; }).join("") : "<li>No error message was caught.</li>";
           d.innerHTML = "<h2 style='margin:0 0 6px'>Nest didn't start</h2><p style='margin:0 0 10px'>" + (why || "") + " Take a screenshot of this for Claude.</p><ol style='padding-left:20px;font:12px/1.4 ui-monospace,Menlo,monospace'>" + list + "</ol>" +
-            "<p style='font-size:12px;color:#565B52'>" + navigator.userAgent + "</p>" +
-            "<button id='rs1' style='display:block;width:100%;margin:14px 0 8px;padding:14px;border:0;border-radius:12px;background:#1E2420;color:#fff;font-size:16px'>↻ Reload</button>" +
-            "<button id='rs2' style='display:block;width:100%;padding:14px;border:1px solid #1E2420;border-radius:12px;background:none;color:#1E2420;font-size:16px'>Reset app files (keeps your data)</button>";
+            "<p style='font-size:12px;color:#646B7D'>" + navigator.userAgent + "</p>" +
+            "<button id='rs1' style='display:block;width:100%;margin:14px 0 8px;padding:14px;border:0;border-radius:100px;background:#16A394;color:#fff;font-size:16px;font-weight:700'>Reload</button>" +
+            "<button id='rs2' style='display:block;width:100%;padding:14px;border:0;border-radius:100px;background:#ECEEF3;color:#171A23;font-size:16px;font-weight:700'>Reset app files (keeps your data)</button>";
           document.body.appendChild(d);
           document.getElementById("rs1").onclick = function () { location.reload(); };
           document.getElementById("rs2").onclick = reset;

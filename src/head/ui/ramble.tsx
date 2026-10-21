@@ -8,6 +8,7 @@ import { Check, ic, Ring, Seg } from "./bits";
 import { FlowShell } from "./flows";
 import { openSheet } from "./sheets";
 import { DatePicker, type WhenResult } from "./pickers";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's Ramble (src/flows/ramble.js): talk about ONE thing, get to-dos, materials and notes.
    Sorting runs on the phone (splitRamble). Claude's smarter sort returns in Phase 4 via the scheduled tasks. */
@@ -44,7 +45,7 @@ function Pick({ onPick }: { onPick: (f: Focus) => void }) {
       <input className="field" autoFocus placeholder="Backyard redo, Smith bath, midterm…" value={q} onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && q.trim()) { const p = projects.find((x) => x.name.toLowerCase() === ql); onPick(p ? { kind: "project", id: p.id } : { kind: "new", name: q.trim() }); } }} />
       <div className="qd" style={{ marginTop: 10 }}>
-        {q.trim() && !exact && <button onClick={() => onPick({ kind: "new", name: q.trim() })}><span>＋</span><span className="grow" style={{ textAlign: "left" }}>New: <b>{q.trim()}</b></span><span className="side" /></button>}
+        {q.trim() && !exact && <button onClick={() => onPick({ kind: "new", name: q.trim() })}><span><I n="plus" /></span><span className="grow" style={{ textAlign: "left" }}>New: <b>{q.trim()}</b></span><span className="side" /></button>}
         {projects.slice(0, ql ? 8 : 6).map((p) => <button key={p.id} onClick={() => onPick({ kind: "project", id: p.id })}><span><Ring pct={C.projectStats(data, p).pct} size={20} /></span>{p.name}<span className="side">{p.areaId ? data.areas.get(p.areaId)?.name : ""}</span></button>)}
         {tasks.map((t) => <button key={t.id} onClick={() => onPick({ kind: "task", id: t.id })}><span>○</span>{t.title}<span className="side">{(C.homeOf(t, data).project || C.homeOf(t, data).area)?.name || "Inbox"}</span></button>)}
       </div>
@@ -97,13 +98,13 @@ function TodoRow({ t, onChange, estimates }: { t: Todo; onChange: (t: Todo) => v
       <div className="grow" style={t.keep ? undefined : { opacity: 0.45 }}>
         <textarea className="ramble-title" rows={1} value={t.title} aria-label="To-do" onChange={(e) => set({ title: e.target.value })} />
         <div className="chips" style={{ gap: 5 }}>
-          {t.when && <span className="chip tok when"><button onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: t.when, mode: "when" }); if (r !== undefined) set({ when: r.when }); }}>📅 {C.relLabel(t.when)}</button><button aria-label="Remove date" onClick={() => set({ when: null })}>✕</button></span>}
-          {t.due && <span className="chip tok due">⚑ {C.relLabel(t.due)}<button aria-label="Remove deadline" onClick={() => set({ due: null })}>✕</button></span>}
-          {t.waitingOn && <span className="chip tok">⏳ {t.waitingOn}<button aria-label="Remove" onClick={() => set({ waitingOn: null })}>✕</button></span>}
-          {t.est && estimates && <span className="chip tok">⏱ {C.fmtMinutes(t.est)}<button aria-label="Remove" onClick={() => set({ est: null })}>✕</button></span>}
-          {t.contexts.map((c) => <span key={c} className="chip tok context">{c}<button aria-label={"Remove " + c} onClick={() => set({ contexts: t.contexts.filter((x) => x !== c) })}>✕</button></span>)}
-          {t.phase && <span className="chip tok">≡ {t.phase}<button aria-label="Remove" onClick={() => set({ phase: null })}>✕</button></span>}
-          {!t.when && !t.due && t.keep && <button className="linkbtn sm" onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: null, mode: "when" }); if (r !== undefined) set({ when: r.when }); }}>＋ date</button>}
+          {t.when && <span className="chip tok when"><button onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: t.when, mode: "when" }); if (r !== undefined) set({ when: r.when }); }}><I n="calendar" /> {C.relLabel(t.when)}</button><button aria-label="Remove date" onClick={() => set({ when: null })}><I n="close" /></button></span>}
+          {t.due && <span className="chip tok due"><I n="flag" /> {C.relLabel(t.due)}<button aria-label="Remove deadline" onClick={() => set({ due: null })}><I n="close" /></button></span>}
+          {t.waitingOn && <span className="chip tok"><I n="waiting" /> {t.waitingOn}<button aria-label="Remove" onClick={() => set({ waitingOn: null })}><I n="close" /></button></span>}
+          {t.est && estimates && <span className="chip tok"><I n="timer" /> {C.fmtMinutes(t.est)}<button aria-label="Remove" onClick={() => set({ est: null })}><I n="close" /></button></span>}
+          {t.contexts.map((c) => <span key={c} className="chip tok context">{c}<button aria-label={"Remove " + c} onClick={() => set({ contexts: t.contexts.filter((x) => x !== c) })}><I n="close" /></button></span>)}
+          {t.phase && <span className="chip tok">≡ {t.phase}<button aria-label="Remove" onClick={() => set({ phase: null })}><I n="close" /></button></span>}
+          {!t.when && !t.due && t.keep && <button className="linkbtn sm" onClick={async () => { const r = await openSheet<WhenResult>(DatePicker, { value: null, mode: "when" }); if (r !== undefined) set({ when: r.when }); }}><I n="plus" /> date</button>}
         </div>
         {t.note && <div className="quiet">{t.note}</div>}
       </div>
@@ -254,14 +255,14 @@ export function Ramble(props: { focus?: Focus }) {
   );
   if (step === "ramble") {
     return (
-      <FlowShell title="🗣 Ramble" onBack={() => setStep("pick")} foot={<><span className="quiet grow">{draft && text === draft.text && text ? "Picked up where you left off" : ""}</span><button className="btn primary" disabled={words < 3} onClick={sort}>✦ Sort it</button></>}>
+      <FlowShell title="🗣 Ramble" onBack={() => setStep("pick")} foot={<><span className="quiet grow">{draft && text === draft.text && text ? "Picked up where you left off" : ""}</span><button className="btn primary" disabled={words < 3} onClick={sort}><I n="sort" /> Sort it</button></>}>
         {chip}
         <h2>Ramble about it</h2>
         <p className="lede detail">What to do, buy, call, worry about. Don't organize. That's the app's job.</p>
         <textarea className="dump ramble-box" autoFocus aria-label="Your ramble" value={text} onChange={(e) => setText(e.target.value)} placeholder={focus?.kind === "project" ? "Okay so for this one… first I need to…" : "Just start talking…"} />
         {dict.interim && <div className="quiet" style={{ fontStyle: "italic" }}>{dict.interim}</div>}
         <div className="row" style={{ marginTop: 8 }}>
-          {dict.supported && <button className={"btn sm" + (dict.on ? " rec" : "")} onClick={dict.on ? dict.stop : dict.start}>🎙 {dict.on ? "Listening · stop" : "Talk"}</button>}
+          {dict.supported && <button className={"btn sm" + (dict.on ? " rec" : "")} onClick={dict.on ? dict.stop : dict.start}><I n="mic" /> {dict.on ? "Listening · stop" : "Talk"}</button>}
           <span className="quiet">{dict.supported ? "Or the" : "Tip: the"} keyboard mic works.</span>
         </div>
       </FlowShell>
@@ -270,7 +271,7 @@ export function Ramble(props: { focus?: Focus }) {
   const datesLost = mode === "steps" && kept.some((r) => r.when || r.due || r.waitingOn);
   return (
     <FlowShell title="🗣 Ramble" onBack={() => setStep("ramble")} foot={<>
-      <button className="btn" onClick={() => setStep("ramble")}>✎ More</button><span style={{ flex: 1 }} />
+      <button className="btn" onClick={() => setStep("ramble")}><I n="edit" /> More</button><span style={{ flex: 1 }} />
       <button className="btn primary" disabled={!kept.length && !materials.length && !notes.trim()} onClick={save}>{focus!.kind === "project" ? "＋ To project" : mode === "project" ? "📁 Create project" : focus!.kind === "task" ? "＋ To task" : "＋ Create task"}</button>
     </>}>
       {chip}
@@ -281,12 +282,12 @@ export function Ramble(props: { focus?: Focus }) {
       <div className="row" style={{ marginTop: 8 }}>
         <input className="field sm" placeholder="Add a to-do" value={newTodo} onChange={(e) => setNewTodo(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newTodo.trim()) { setRows([...rows, { id: C.uid("r"), title: newTodo.trim(), keep: true, contexts: [], when: null, due: null, est: null, waitingOn: null, phase: null, note: null }]); setNewTodo(""); } }} />
       </div>
-      <section className="hsec"><div className="sec-head"><span>🧰</span><span className="grow">Materials</span></div>
-        {materials.length ? <div className="chips">{materials.map((m, i) => <span className="chip" key={m + i}>{m}<button aria-label={"Remove " + m} onClick={() => setMaterials(materials.filter((_, j) => j !== i))}>✕</button></span>)}</div> : <div className="quiet">None mentioned.</div>}
+      <section className="hsec"><div className="sec-head"><span><I n="box" /></span><span className="grow">Materials</span></div>
+        {materials.length ? <div className="chips">{materials.map((m, i) => <span className="chip" key={m + i}>{m}<button aria-label={"Remove " + m} onClick={() => setMaterials(materials.filter((_, j) => j !== i))}><I n="close" /></button></span>)}</div> : <div className="quiet">None mentioned.</div>}
         <input className="field sm" style={{ marginTop: 8 }} placeholder="Add a material" value={newMat} onChange={(e) => setNewMat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newMat.trim()) { setMaterials([...materials, newMat.trim()]); setNewMat(""); } }} />
-        {materials.length > 0 && groceryArea && <label className="row" style={{ marginTop: 8, fontSize: 14 }}><input type="checkbox" checked={matToGroceries} onChange={(e) => setMatToGroceries(e.target.checked)} />🛒 On the {groceryArea.name} list instead</label>}
+        {materials.length > 0 && groceryArea && <label className="row" style={{ marginTop: 8, fontSize: 14 }}><input type="checkbox" checked={matToGroceries} onChange={(e) => setMatToGroceries(e.target.checked)} /><I n="groceries" /> On the {groceryArea.name} list instead</label>}
       </section>
-      <section className="hsec"><div className="sec-head"><span>✎</span><span className="grow">Notes worth keeping</span></div>
+      <section className="hsec"><div className="sec-head"><span><I n="edit" /></span><span className="grow">Notes worth keeping</span></div>
         <textarea className="field sm" rows={4} value={notes} placeholder="Measurements, prices, names…" onChange={(e) => setNotes(e.target.value)} />
       </section>
       {focus!.kind !== "project" && (

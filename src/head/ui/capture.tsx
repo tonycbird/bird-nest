@@ -7,6 +7,7 @@ import { closeOverlay, go, nav, openOverlay, openTask, useHeadData, useHeadSetti
 import { ic, Seg } from "./bits";
 import { openSheet } from "./sheets";
 import { ContextPicker, DatePicker, MovePicker, type MoveResult, type WhenResult } from "./pickers";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's capture (src/ui/capture.js): Quick Add with live parsing, Brain dump, Groceries. */
 
@@ -148,7 +149,7 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
     <div className="qa">
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
         <ModeSwitch mode={mode} onMode={onMode} hasGroceries={!!groceryArea} />
-        <button className="iconbtn" aria-label="Close" onClick={closeOverlay}>✕</button>
+        <button className="iconbtn" aria-label="Close" onClick={closeOverlay}><I n="close" /></button>
       </div>
       <div className="qa-wrap">
         <Mirror text={text} tokens={parsed.tokens} />
@@ -160,25 +161,25 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
         <div className="chips" style={{ marginTop: 10 }}>
           {parsed.tokens.map((tok) => (
             <span key={tok.start + tok.type} className={"chip tok " + tok.type + (tok.unresolved ? " unresolved" : "")}>
-              {tok.label}<button aria-label={(tok.symbol ? "Remove " : "Keep as text: ") + tok.raw} onClick={() => removeToken(tok)}>✕</button>
+              {tok.label}<button aria-label={(tok.symbol ? "Remove " : "Keep as text: ") + tok.raw} onClick={() => removeToken(tok)}><I n="close" /></button>
             </span>
           ))}
-          {extra.when && <span className="chip tok when">{C.relLabel(extra.when)}{extra.tod ? " " + extra.tod : ""}<button aria-label="Remove date" onClick={() => setExtra({ ...extra, when: undefined, tod: undefined })}>✕</button></span>}
-          {extra.someday && <span className="chip tok">💤<button aria-label="Remove" onClick={() => setExtra({ ...extra, someday: undefined })}>✕</button></span>}
-          {(extra.contexts || []).map((c) => <span key={c} className="chip tok context">{c}<button aria-label={"Remove " + c} onClick={() => setExtra({ ...extra, contexts: extra.contexts!.filter((x) => x !== c) })}>✕</button></span>)}
-          {extra.important && <span className="chip tok important">⚑<button aria-label="Remove" onClick={() => setExtra({ ...extra, important: undefined })}>✕</button></span>}
+          {extra.when && <span className="chip tok when">{C.relLabel(extra.when)}{extra.tod ? " " + extra.tod : ""}<button aria-label="Remove date" onClick={() => setExtra({ ...extra, when: undefined, tod: undefined })}><I n="close" /></button></span>}
+          {extra.someday && <span className="chip tok"><I n="sleep" /><button aria-label="Remove" onClick={() => setExtra({ ...extra, someday: undefined })}><I n="close" /></button></span>}
+          {(extra.contexts || []).map((c) => <span key={c} className="chip tok context">{c}<button aria-label={"Remove " + c} onClick={() => setExtra({ ...extra, contexts: extra.contexts!.filter((x) => x !== c) })}><I n="close" /></button></span>)}
+          {extra.important && <span className="chip tok important"><I n="flag" /><button aria-label="Remove" onClick={() => setExtra({ ...extra, important: undefined })}><I n="close" /></button></span>}
         </div>
       )}
       {!text && <div className="qa-hint detail">tomorrow · due fri · +Project · ^Area · @errands · ~30m · ! · every monday</div>}
       <div className="qa-tools">
         <button className="chip" onClick={pickMove} aria-label={"Destination: " + dest.text}>{dest.icon} {dest.text}</button>
         <span style={{ flex: 1 }} />
-        <button className="iconbtn" aria-label="When" onClick={pickDate}>📅</button>
+        <button className="iconbtn" aria-label="When" onClick={pickDate}><I n="calendar" /></button>
         <button className="iconbtn" aria-label="Contexts" onClick={pickCtx}>@</button>
-        <button className={"iconbtn" + (fields.important ? " on" : "")} aria-label="Important" onClick={() => setExtra({ ...extra, important: !fields.important || undefined })}>⚑</button>
-        <button className="iconbtn" aria-label="Photo" onClick={() => file.current?.click()}>📷</button>
-        {speech.supported && <button className={"iconbtn" + (speech.on ? " rec" : "")} aria-label={speech.on ? "Stop" : "Speak"} onClick={speech.on ? speech.stop : speech.start}>🎙</button>}
-        <button className="btn primary sm" disabled={!text.trim()} onClick={save}>✓</button>
+        <button className={"iconbtn" + (fields.important ? " on" : "")} aria-label="Important" onClick={() => setExtra({ ...extra, important: !fields.important || undefined })}><I n="flag" /></button>
+        <button className="iconbtn" aria-label="Photo" onClick={() => file.current?.click()}><I n="camera" /></button>
+        {speech.supported && <button className={"iconbtn" + (speech.on ? " rec" : "")} aria-label={speech.on ? "Stop" : "Speak"} onClick={speech.on ? speech.stop : speech.start}><I n="mic" /></button>}
+        <button className="btn primary sm" disabled={!text.trim()} onClick={save}><I n="tick" /></button>
         <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
       </div>
     </div>
@@ -206,16 +207,16 @@ export function BrainDump(props: { onMode?: (m: string) => void; hasGroceries?: 
       {!props.standalone && (
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
           <ModeSwitch mode="dump" onMode={props.onMode || (() => {})} hasGroceries={!!props.hasGroceries} />
-          <button className="iconbtn" aria-label="Close" onClick={closeOverlay}>✕</button>
+          <button className="iconbtn" aria-label="Close" onClick={closeOverlay}><I n="close" /></button>
         </div>
       )}
       <textarea className="dump" autoFocus aria-label="Brain dump" value={text} onChange={(e) => setText(e.target.value)}
         placeholder={"One thing per line\nCall Smith about the vanity\nGreek reading ch. 4 due fri\nBuy furnace filter @errands"} />
-      <div className="qa-hint detail">Each line → Inbox. Dates and @tags work. The keyboard mic works well here.</div>
-      {!props.standalone && <button className="linkbtn" onClick={() => openOverlay("ramble")}>🗣 Ramble about one thing instead</button>}
+      <div className="qa-hint detail">Each line <I n="arrow" /> Inbox. Dates and @tags work. The keyboard mic works well here.</div>
+      {!props.standalone && <button className="linkbtn" onClick={() => openOverlay("ramble")}><I n="talk" /> Ramble about one thing instead</button>}
       <div className="row" style={{ marginTop: 10 }}>
         <span className="quiet" style={{ flex: 1 }}>{lines.length ? `${lines.length} item${lines.length === 1 ? "" : "s"}` : ""}</span>
-        <button className="btn primary" disabled={!lines.length} onClick={save}>📥 Add</button>
+        <button className="btn primary" disabled={!lines.length} onClick={save}><I n="inbox" /> Add</button>
       </div>
     </div>
   );
@@ -225,7 +226,7 @@ export function GroceryAdd(props: { onMode: (m: string) => void; area?: Area }) 
   const [text, setText] = useState("");
   const [added, setAdded] = useState<{ id: string; title: string; cat: string }[]>([]);
   const inp = useRef<HTMLInputElement>(null);
-  if (!props.area) return <div className="qa"><p>No grocery list yet. Turn on 🛒 for an area.</p></div>;
+  if (!props.area) return <div className="qa"><p>No grocery list yet. Turn on <I n="groceries" /> for an area.</p></div>;
   const area = props.area;
   const add = async () => {
     const v = text.trim();
@@ -244,25 +245,25 @@ export function GroceryAdd(props: { onMode: (m: string) => void; area?: Area }) 
     <div className="qa">
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
         <ModeSwitch mode="grocery" onMode={props.onMode} hasGroceries />
-        <button className="iconbtn" aria-label="Close" onClick={closeOverlay}>✕</button>
+        <button className="iconbtn" aria-label="Close" onClick={closeOverlay}><I n="close" /></button>
       </div>
       <div className="row">
         <input ref={inp} autoFocus className="field" placeholder="Milk, eggs, 2x4s…" value={text} aria-label="Add to shopping list"
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} />
-        <button className="btn primary" onClick={add} disabled={!text.trim()}>＋</button>
+        <button className="btn primary" onClick={add} disabled={!text.trim()}><I n="plus" /></button>
       </div>
       <div className="qa-hint detail">Commas for several.</div>
       <div style={{ marginTop: 10 }}>
         {added.map((a) => (
           <div key={a.id} className="row" style={{ minHeight: 36 }}>
-            <span>✓</span><span style={{ flex: 1 }}>{a.title}</span><span className="quiet">{catName(a.cat)}</span>
-            <button className="iconbtn" aria-label={"Remove " + a.title} onClick={async () => { await H.deleteTask(a.id); setAdded(added.filter((x) => x.id !== a.id)); }}>✕</button>
+            <span><I n="tick" /></span><span style={{ flex: 1 }}>{a.title}</span><span className="quiet">{catName(a.cat)}</span>
+            <button className="iconbtn" aria-label={"Remove " + a.title} onClick={async () => { await H.deleteTask(a.id); setAdded(added.filter((x) => x.id !== a.id)); }}><I n="close" /></button>
           </div>
         ))}
       </div>
       <div className="sheet-actions">
-        <button className="btn" onClick={() => { closeOverlay(); go("area", area.id); }}>🛒 Open list</button>
-        <button className="btn primary" onClick={closeOverlay}>✓ Done</button>
+        <button className="btn" onClick={() => { closeOverlay(); go("area", area.id); }}><I n="groceries" /> Open list</button>
+        <button className="btn primary" onClick={closeOverlay}><I n="tick" /> Done</button>
       </div>
     </div>
   );

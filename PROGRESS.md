@@ -1,5 +1,22 @@
 # Progress
 
+## Now: Design overhaul · built Oct 21, waiting on the phone check
+
+Picked on the design canvas: **G** (Bloom timeline + Flow's task circles), colors **Follow the sun**, Nest's own icons.
+
+- [x] Two looks: **Mist** (light, airy) from sunrise to sunset, **Dusk** (soft slate) at night. Sun times worked out on the phone for Coeur d'Alene. ⚙ → Look: Follow the sun / Light / Dark
+- [x] One color per life area everywhere: body teal, stretch sky, warm-up peach, head violet, money gold, people green, home pink, rest indigo, calendar gray
+- [x] 83 Nest icons drawn for the app (`src/ui/icons.ts`). Any emoji that reaches the screen (old blocks, Claude's plans, toasts, areas) is swapped for a Nest icon by the JSX runtime (`src/jsx`)
+- [x] Font: Plus Jakarta Sans (bundled, works offline)
+- [x] Today: big date, week tiles with color bars (swipe for other weeks), task circles (Claude, today's workout, Head tasks, late, to sort, Plan), pill timeline, now card with the current step + Start, "2/5 ⌄" opens all steps, free gaps, dashed calendar rows
+- [x] Tab bar: Today · Head · ＋ · Body · Claude
+- [x] Head, Body (Fitness skin), Claude, Settings, sheets, step player restyled; new home-screen icon
+- [x] Tests: 94 unit tests, e2e phase 2/2-bulk/3/3-offline/4 all pass on the new screens
+
+### Design done-check
+- [ ] Looks right on the iPhone in daylight and after sunset
+- [ ] Home-screen icon updated (delete + re-add the app if iOS keeps the old one)
+
 ## Now: Phase 4 — The Claude loop · code done, waiting on Supabase setup + phone check
 
 Built Oct 16–17, 2026.

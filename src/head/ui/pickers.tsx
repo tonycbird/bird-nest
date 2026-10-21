@@ -4,6 +4,7 @@ import type { Area, Project, RepeatRule, Tod, Waiting } from "../types";
 import { useHeadData, useHeadSettings } from "../useHead";
 import { ic, Seg } from "./bits";
 import { SheetFrame, type SheetProps } from "./sheets";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's pickers (src/ui/pickers.js), rebuilt as Bird sheets. Same choices, same results. */
 
@@ -19,9 +20,9 @@ function MonthCalendar(props: { value: string | null; weekStart: number; onPick:
   return (
     <div className="cal">
       <div className="row" style={{ justifyContent: "space-between", margin: "10px 0 6px" }}>
-        <button className="iconbtn" aria-label="Previous month" onClick={() => setMonth(C.addMonths(month, -1))}>‹</button>
+        <button className="iconbtn" aria-label="Previous month" onClick={() => setMonth(C.addMonths(month, -1))}><I n="chevL" /></button>
         <b>{C.monthLabel(month)}</b>
-        <button className="iconbtn" aria-label="Next month" onClick={() => setMonth(C.addMonths(month, 1))}>›</button>
+        <button className="iconbtn" aria-label="Next month" onClick={() => setMonth(C.addMonths(month, 1))}><I n="chevR" /></button>
       </div>
       <div className="cal-grid">
         {heads.map((h) => <span key={h} className="cal-h">{h}</span>)}
@@ -64,7 +65,7 @@ export function DatePicker(p: SheetProps & { title?: string; value: string | nul
   return (
     <SheetFrame title={p.title || (mode === "due" ? "⚑ Deadline" : "📅 When")}
       foot={<>
-        {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(mode === "due" ? { due: null } : { when: null, tod: null, someday: false })}>✕ Clear</button>}
+        {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(mode === "due" ? { due: null } : { when: null, tod: null, someday: false })}><I n="close" /> Clear</button>}
         <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
       </>}>
       <input className="field sm" autoFocus placeholder="fri · oct 20 · in 3 days" value={typed}
@@ -73,7 +74,7 @@ export function DatePicker(p: SheetProps & { title?: string; value: string | nul
       {typed && (
         <div className="qd" style={{ marginTop: 8 }}>
           {parsed
-            ? <button onClick={() => pick(parsed.date, parsed.tod ? { tod: parsed.tod as Tod } : {})}><span>✓</span>{C.longLabel(parsed.date)}<span className="side">{C.relLabel(parsed.date)}</span></button>
+            ? <button onClick={() => pick(parsed.date, parsed.tod ? { tod: parsed.tod as Tod } : {})}><span><I n="tick" /></span>{C.longLabel(parsed.date)}<span className="side">{C.relLabel(parsed.date)}</span></button>
             : <p className="quiet" style={{ padding: 8 }}>Try “tomorrow”, “fri”, “oct 20”.</p>}
         </div>
       )}
@@ -82,7 +83,7 @@ export function DatePicker(p: SheetProps & { title?: string; value: string | nul
           <button key={q.k} onClick={() => pick(q.d, "tod" in q && q.tod ? { tod: q.tod } : {})}><span>{q.i}</span>{q.k}<span className="side">{q.side}</span></button>
         ))}
         {mode === "when" && p.allowSomeday !== false && (
-          <button onClick={() => p.done({ when: null, tod: null, someday: true })}><span>💤</span>Someday<span className="side" /></button>
+          <button onClick={() => p.done({ when: null, tod: null, someday: true })}><span><I n="sleep" /></span>Someday<span className="side" /></button>
         )}
       </div>
       {mode === "when" && (
@@ -125,7 +126,7 @@ export function MovePicker(p: SheetProps & { title?: string; allowInbox?: boolea
         {!p.projectsOnly && <button onClick={() => p.done({ areaId: a.id, projectId: null, sectionId: null })}><span>{ic(a.icon)}</span><b>{a.name}</b><span className="side" /></button>}
         {p.projectsOnly && ps.length > 0 && <div className="lbl" style={{ margin: "10px 0 4px" }}>{ic(a.icon)} {a.name}</div>}
         {!p.areasOnly && ps.map((x) => (
-          <button key={x.id} className="indent" onClick={() => pickProject(x)}><span>📁</span>{x.name}<span className="side">{x.status !== "active" ? x.status : ""}</span></button>
+          <button key={x.id} className="indent" onClick={() => pickProject(x)}><span><I n="project" /></span>{x.name}<span className="side">{x.status !== "active" ? x.status : ""}</span></button>
         ))}
       </div>
     );
@@ -135,9 +136,9 @@ export function MovePicker(p: SheetProps & { title?: string; allowInbox?: boolea
     <SheetFrame title={p.title || "↪ Move to"} foot={<button className="btn" onClick={() => p.done(undefined)}>Cancel</button>}>
       <input className="field sm" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="qd" style={{ marginTop: 8 }}>
-        {p.allowInbox !== false && !p.areasOnly && !p.projectsOnly && <button onClick={() => p.done({ areaId: null, projectId: null, sectionId: null })}><span>📥</span>Inbox<span className="side" /></button>}
+        {p.allowInbox !== false && !p.areasOnly && !p.projectsOnly && <button onClick={() => p.done({ areaId: null, projectId: null, sectionId: null })}><span><I n="inbox" /></span>Inbox<span className="side" /></button>}
         {areas.map(row)}
-        {!p.areasOnly && orphans.map((x) => <button key={x.id} onClick={() => pickProject(x)}><span>📁</span>{x.name}<span className="side" /></button>)}
+        {!p.areasOnly && orphans.map((x) => <button key={x.id} onClick={() => pickProject(x)}><span><I n="project" /></span>{x.name}<span className="side" /></button>)}
       </div>
     </SheetFrame>
   );
@@ -158,11 +159,11 @@ export function ContextPicker(p: SheetProps & { value: string[] }) {
     setExtra("");
   };
   return (
-    <SheetFrame title="@ Contexts" foot={<><button className="btn" onClick={() => p.done(undefined)}>Cancel</button><button className="btn primary" onClick={() => p.done(sel)}>✓ Save</button></>}>
+    <SheetFrame title="@ Contexts" foot={<><button className="btn" onClick={() => p.done(undefined)}>Cancel</button><button className="btn primary" onClick={() => p.done(sel)}><I n="tick" /> Save</button></>}>
       <div className="chips">{all.map((c) => <button key={c} className={"chip" + (sel.includes(c) ? " on" : "")} onClick={() => toggle(c)}>{c}</button>)}</div>
       <div className="row" style={{ marginTop: 10 }}>
         <input className="field sm" placeholder="New context" value={extra} onChange={(e) => setExtra(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addExtra()} />
-        <button className="btn sm" onClick={addExtra}>＋</button>
+        <button className="btn sm" onClick={addExtra}><I n="plus" /></button>
       </div>
     </SheetFrame>
   );
@@ -174,7 +175,7 @@ export function EstimatePicker(p: SheetProps & { value: number | null }) {
   const parsed = typed ? C.parseEstimate(typed.trim().replace(/\s+/g, "")) ?? C.parseDuration(typed) : null;
   return (
     <SheetFrame title="⏱ Estimate" foot={<>
-      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}>✕ Clear</button>}
+      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}><I n="close" /> Clear</button>}
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
     </>}>
       <div className="chips">{C.ESTIMATES.map((m) => <button key={m} className={"chip" + (p.value === m ? " on" : "")} onClick={() => p.done(m)}>{C.fmtMinutes(m)}</button>)}</div>
@@ -225,9 +226,9 @@ export function RepeatEditor(p: SheetProps & { value: RepeatRule | null; base?: 
   const cap = (x: string) => x[0].toUpperCase() + x.slice(1);
   return (
     <SheetFrame title="↻ Repeat" foot={<>
-      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}>✕ Stop</button>}
+      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}><I n="close" /> Stop</button>}
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
-      <button className="btn primary" onClick={() => p.done(rule)}>✓ Save</button>
+      <button className="btn primary" onClick={() => p.done(rule)}><I n="tick" /> Save</button>
     </>}>
       <div style={{ overflowX: "auto" }}>
         <Seg label="Frequency" value={freq} onChange={setFreq} options={[
@@ -287,9 +288,9 @@ export function WaitingPicker(p: SheetProps & { value: Waiting | null }) {
   const [followUp, setFollowUp] = useState(p.value?.followUp ?? C.addDays(t, 3));
   return (
     <SheetFrame title="⏳ Waiting for" foot={<>
-      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}>✕ Not waiting</button>}
+      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}><I n="close" /> Not waiting</button>}
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
-      <button className="btn primary" disabled={!who.trim()} onClick={() => p.done({ who: who.trim(), since, followUp })}>✓ Save</button>
+      <button className="btn primary" disabled={!who.trim()} onClick={() => p.done({ who: who.trim(), since, followUp })}><I n="tick" /> Save</button>
     </>}>
       <input className="field sm" autoFocus value={who} placeholder="Who?" onChange={(e) => setWho(e.target.value)} />
       <div className="chips" style={{ marginTop: 8 }}>{["Client", "Supplier", "Professor", "Wife"].map((x) => <button key={x} className={"chip" + (who === x ? " on" : "")} onClick={() => setWho(x)}>{x}</button>)}</div>
@@ -340,12 +341,12 @@ export function AreaEditor(p: SheetProps & { area?: Area }) {
   return (
     <SheetFrame title={p.area ? "✏ Area" : "＋ Area"} foot={<>
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
-      <button className="btn primary" disabled={!name.trim()} onClick={() => p.done({ name: name.trim(), icon, color: p.area?.color ?? "blue", listMode: groceries ? "groceries" : null })}>✓ Save</button>
+      <button className="btn primary" disabled={!name.trim()} onClick={() => p.done({ name: name.trim(), icon, color: p.area?.color ?? "blue", listMode: groceries ? "groceries" : null })}><I n="tick" /> Save</button>
     </>}>
       <input className="field sm" autoFocus placeholder="Area name" value={name} onChange={(e) => setName(e.target.value)} />
       <div className="lbl">Icon</div>
       <div className="chips">{C.AREA_ICONS.map((x) => <button key={x} className={"chip" + (icon === x ? " on" : "")} onClick={() => setIcon(x)} aria-label={x}>{ic(x)}</button>)}</div>
-      <label className="row" style={{ marginTop: 12 }}><input type="checkbox" checked={groceries} onChange={(e) => setGroceries(e.target.checked)} /> 🛒 Grocery list</label>
+      <label className="row" style={{ marginTop: 12 }}><input type="checkbox" checked={groceries} onChange={(e) => setGroceries(e.target.checked)} /> <I n="groceries" /> Grocery list</label>
     </SheetFrame>
   );
 }
@@ -364,7 +365,7 @@ export function ProjectEditor(p: SheetProps & { project?: Project; areaId?: stri
   return (
     <SheetFrame title={pr ? "✏ Project" : "＋ Project"} foot={<>
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
-      <button className="btn primary" disabled={!name.trim()} onClick={() => p.done({ name: name.trim(), areaId, outcome, description, start: start || null, deadline: deadline || null, status, client })}>✓ Save</button>
+      <button className="btn primary" disabled={!name.trim()} onClick={() => p.done({ name: name.trim(), areaId, outcome, description, start: start || null, deadline: deadline || null, status, client })}><I n="tick" /> Save</button>
     </>}>
       <input className="field sm" autoFocus placeholder="Project name" value={name} onChange={(e) => setName(e.target.value)} />
       <div className="lbl">Area</div>
@@ -382,7 +383,7 @@ export function ProjectEditor(p: SheetProps & { project?: Project; areaId?: stri
       </div>
       <div className="lbl">Status</div>
       <div className="chips">{C.PROJECT_STATUSES.map((s) => <button key={s.id} className={"chip" + (status === s.id ? " on" : "")} onClick={() => setStatus(s.id)}>{s.name}</button>)}</div>
-      <label className="row" style={{ marginTop: 12 }}><input type="checkbox" checked={!!client} onChange={(e) => setClient(e.target.checked ? {} : null)} /> 🔨 Client job</label>
+      <label className="row" style={{ marginTop: 12 }}><input type="checkbox" checked={!!client} onChange={(e) => setClient(e.target.checked ? {} : null)} /> <I n="job" /> Client job</label>
       {client && (
         <div className="stack" style={{ marginTop: 8 }}>
           <input className="field sm" placeholder="Client name" value={client.name || ""} onChange={(e) => setClient({ ...client, name: e.target.value })} />

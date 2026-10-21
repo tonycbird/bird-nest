@@ -9,6 +9,7 @@ import { closeTask, nav, openOverlay, useHeadData, useHeadSettings } from "../us
 import { Check, ic } from "./bits";
 import * as A from "./actions";
 import { putTaskOnRiver } from "../river-bridge";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's task detail (src/ui/detail.js): title, notes, checklist, the property rows,
    job details for handyman work, photos and the activity log. Opens as a tall sheet. */
@@ -71,7 +72,7 @@ export function Checklist(props: { items: ChecklistItem[]; onChange: (x: Checkli
         </div>
       ))}
       <div className="subtask">
-        <span className="plus">＋</span>
+        <span className="plus"><I n="plus" /></span>
         <input value={draft} placeholder={props.placeholder || "Add a step"} aria-label={props.placeholder || "Add a step"}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && draft.trim()) { add(draft.trim()); setDraft(""); } }}
@@ -90,7 +91,7 @@ function Prop(props: { icon: string; label: string; value: React.ReactNode; plac
         <span className="pr-label">{props.label}</span>
         <span className={"pr-val" + (has ? "" : " ph")}>{has ? props.value : props.placeholder || "—"}</span>
       </button>
-      {has && props.onClear && <button className="pr-x" aria-label={"Clear " + props.label} onClick={props.onClear}>✕</button>}
+      {has && props.onClear && <button className="pr-x" aria-label={"Clear " + props.label} onClick={props.onClear}><I n="close" /></button>}
     </div>
   );
 }
@@ -112,7 +113,7 @@ function HandyBlock(props: { task: Task; project: Project | null }) {
   );
   return (
     <div className="dblock">
-      <div className="dhead">🔨 Job{client && !t.handy ? <span className="quiet"> · from project</span> : null}</div>
+      <div className="dhead"><I n="job" /> Job{client && !t.handy ? <span className="quiet"> · from project</span> : null}</div>
       <div className="card" style={{ padding: "4px 14px" }}>
         {field("client", name, "Client", "👤")}
         {field("address", address, "Address", "📍")}
@@ -121,7 +122,7 @@ function HandyBlock(props: { task: Task; project: Project | null }) {
         {phone && <div className="hlinks"><a href={"tel:" + digits}>Call</a><a href={"sms:" + digits}>Text</a></div>}
         {field("price", String(price), "Price ($)", "💲")}
       </div>
-      <div className="dhead" style={{ marginTop: 12 }}>🧰 Materials</div>
+      <div className="dhead" style={{ marginTop: 12 }}><I n="box" /> Materials</div>
       <Checklist items={h.materials || []} placeholder="Add material" onChange={(materials) => void save({ materials })} />
     </div>
   );
@@ -152,8 +153,8 @@ function PhotoStrip(props: { owner: { kind: "task" | "project"; id: string }; ph
           <div className="lightbox" onClick={() => setOpen(null)}>
             <img src={p.data} alt="" />
             <div className="lb-bar">
-              <button className="btn sm" onClick={async (e) => { e.stopPropagation(); setOpen(null); toast("🗑 Photo removed", await H.removePhoto(props.owner, p.id)); }}>🗑</button>
-              <button className="btn sm" onClick={() => setOpen(null)}>✕</button>
+              <button className="btn sm" onClick={async (e) => { e.stopPropagation(); setOpen(null); toast("🗑 Photo removed", await H.removePhoto(props.owner, p.id)); }}><I n="trash" /></button>
+              <button className="btn sm" onClick={() => setOpen(null)}><I n="close" /></button>
             </div>
           </div>
         );
@@ -195,9 +196,9 @@ export function TaskDetail({ task: t }: { task: Task }) {
   return (
     <div className="tdetail">
       <div className="row" style={{ justifyContent: "flex-end", gap: 6, marginBottom: 6 }}>
-        <button className="iconbtn" aria-label="Focus" onClick={() => { closeTask(); openOverlay("focus", { taskId: t.id }); }}>🎯</button>
-        <button className="iconbtn" aria-label="More actions" onClick={more}>⋯</button>
-        <button className="btn sm primary" onClick={closeTask}>✓ Done</button>
+        <button className="iconbtn" aria-label="Focus" onClick={() => { closeTask(); openOverlay("focus", { taskId: t.id }); }}><I n="target" /></button>
+        <button className="iconbtn" aria-label="More actions" onClick={more}><I n="more" /></button>
+        <button className="btn sm primary" onClick={closeTask}><I n="tick" /> Done</button>
       </div>
       <div className="d-top">
         <Check on={done} important={t.important} onToggle={() => A.complete(t.id)} />
@@ -214,9 +215,9 @@ export function TaskDetail({ task: t }: { task: Task }) {
         <div className="stuck">
           <b>Pushed {t.reschedules} times.</b> Too big, or not for now?
           <div className="chips" style={{ marginTop: 8 }}>
-            <button className="chip" onClick={() => A.toProject(t)}>✂ Break it down</button>
-            <button className="chip" onClick={() => A.toSomeday(t.id)}>💤 Someday</button>
-            <button className="chip" onClick={() => A.remove(t.id)}>🗑 Delete</button>
+            <button className="chip" onClick={() => A.toProject(t)}><I n="edit" /> Break it down</button>
+            <button className="chip" onClick={() => A.toSomeday(t.id)}><I n="sleep" /> Someday</button>
+            <button className="chip" onClick={() => A.remove(t.id)}><I n="trash" /> Delete</button>
             <button className="chip" onClick={() => H.updateTask(t.id, { reschedules: 0 })}>Keep it</button>
           </div>
         </div>
@@ -237,7 +238,7 @@ export function TaskDetail({ task: t }: { task: Task }) {
             <span className="pr-ic">▲</span><span className="pr-label">Priority</span>
             <span className="pr-val">{{ high: "High", normal: "Normal", low: "Low" }[t.priority || "normal"]}</span>
           </button>
-          <button className={"chip" + (t.important ? " on imp" : "")} aria-pressed={t.important} onClick={() => H.updateTask(t.id, { important: !t.important })}>⚑ Important</button>
+          <button className={"chip" + (t.important ? " on imp" : "")} aria-pressed={t.important} onClick={() => H.updateTask(t.id, { important: !t.important })}><I n="flag" /> Important</button>
         </div>
         <Prop icon="⏳" label="Waiting" value={t.waiting ? `${t.waiting.who}${t.waiting.since ? " · since " + C.relLabel(t.waiting.since) : ""}${t.waiting.followUp ? " · nudge " + C.relLabel(t.waiting.followUp) : ""}` : null}
           placeholder="No" onClick={() => A.setWaiting(t.id)} onClear={() => H.updateTask(t.id, { waiting: null })} />
@@ -246,12 +247,12 @@ export function TaskDetail({ task: t }: { task: Task }) {
       {s.features.handyman && (handyArea || t.handy) && <HandyBlock task={t} project={project} />}
 
       <div className="dblock">
-        <div className="dhead">📷 Photos</div>
+        <div className="dhead"><I n="camera" /> Photos</div>
         <PhotoStrip owner={{ kind: "task", id: t.id }} photos={t.photos || []} />
       </div>
 
       <div className="dblock">
-        <button className="dhead" onClick={() => setHist(!hist)} aria-expanded={hist}>🕘 Activity {hist ? "▴" : "▾"}</button>
+        <button className="dhead" onClick={() => setHist(!hist)} aria-expanded={hist}><I n="later" /> Activity {hist ? "▴" : "▾"}</button>
         <div className="history">
           <div>Created {C.timeAgo(t.createdAt)}</div>
           {done && t.doneAt && <div>Done {C.timeAgo(t.doneAt)}</div>}

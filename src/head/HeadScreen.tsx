@@ -16,6 +16,7 @@ import { Empty, ic, PageHead } from "./ui/bits";
 import * as A from "./ui/actions";
 import { BulkBar } from "./ui/bulk";
 import { clearMulti, multi } from "./useHead";
+import { I, Icon, type IconName } from "../ui/Icon";
 
 /* The Head tab: Clearhead inside Bird Nest. */
 
@@ -27,23 +28,23 @@ function NavChips() {
   const todayN = C.selectToday(data).main.filter(C.isOpen).length;
   const waitDue = C.selectWaiting(data).filter((x) => x.waiting?.followUp && x.waiting.followUp <= t).length;
   const groc = C.areaList(data).find((a) => a.listMode === "groceries");
-  const items: { v: HeadView; icon: string; label: string; n?: number; id?: string }[] = [
-    { v: "inbox", icon: "📥", label: "Inbox", n: inbox },
-    { v: "today", icon: "⭐", label: "Today", n: todayN },
-    { v: "upcoming", icon: "📅", label: "Ahead" },
-    { v: "anytime", icon: "🗂", label: "Anytime" },
-    { v: "projects", icon: "📁", label: "Projects" },
-    { v: "waiting", icon: "⏳", label: "Waiting", n: waitDue },
-    { v: "someday", icon: "💤", label: "Someday" },
-    ...(groc ? [{ v: "area" as HeadView, icon: "🛒", label: "Groceries", id: groc.id }] : []),
-    { v: "logbook", icon: "✅", label: "Done" },
-    { v: "search", icon: "🔍", label: "Find" },
+  const items: { v: HeadView; icon: IconName; label: string; n?: number; id?: string }[] = [
+    { v: "inbox", icon: "inbox", label: "Inbox", n: inbox },
+    { v: "today", icon: "star", label: "Today", n: todayN },
+    { v: "upcoming", icon: "calendar", label: "Ahead" },
+    { v: "anytime", icon: "layers", label: "Anytime" },
+    { v: "projects", icon: "project", label: "Projects" },
+    { v: "waiting", icon: "waiting", label: "Waiting", n: waitDue },
+    { v: "someday", icon: "sleep", label: "Someday" },
+    ...(groc ? [{ v: "area" as HeadView, icon: "groceries" as IconName, label: "Groceries", id: groc.id }] : []),
+    { v: "logbook", icon: "check", label: "Done" },
+    { v: "search", icon: "search", label: "Find" },
   ];
   return (
     <nav className="hnav" aria-label="Head lists">
       {items.map((x) => (
         <button key={x.v + (x.id || "")} className={"hn" + (v === x.v && (!x.id || nav.get().id === x.id) ? " on" : "")} onClick={() => go(x.v, x.id ?? null)}>
-          <span className="hn-ic">{x.icon}{x.n ? <i>{x.n}</i> : null}</span><span className="hn-l">{x.label}</span>
+          <span className="hn-ic"><Icon n={x.icon} size={22} tone={v === x.v && (!x.id || nav.get().id === x.id)} />{x.n ? <i>{x.n}</i> : null}</span><span className="hn-l">{x.label}</span>
         </button>
       ))}
     </nav>
@@ -51,10 +52,10 @@ function NavChips() {
 }
 
 function Rituals() {
-  const r: [string, string, string][] = [["process", "✦", "Process"], ["plan", "🌅", "Plan"], ["whatnow", "🧭", "Now"], ["ramble", "🗣", "Ramble"], ["review", "🗓", "Review"], ["shutdown", "⏻", "Shutdown"]];
+  const r: [string, IconName, string][] = [["process", "sort", "Process"], ["plan", "morning", "Plan"], ["whatnow", "compass", "Now"], ["ramble", "talk", "Ramble"], ["review", "calendar", "Review"], ["shutdown", "shutdown", "Shutdown"]];
   return (
     <div className="rituals">
-      {r.map(([k, i, l]) => <button key={k} className="chip" onClick={() => openOverlay(k)}>{i} {l}</button>)}
+      {r.map(([k, i, l]) => <button key={k} className="chip" onClick={() => openOverlay(k)}><Icon n={i} size={17} />{l}</button>)}
     </div>
   );
 }
@@ -82,45 +83,45 @@ export function HeadSettingsView() {
   return (
     <>
       <PageHead kicker="⚙ Head" title="Settings" />
-      <div className="lbl">⬆ Clearhead</div>
+      <div className="lbl"><I n="upload" /> Clearhead</div>
       <div className="card">
-        <p className="quiet">In Clearhead: Settings → Export JSON. Then pick that file here. Safe to run twice.</p>
-        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => file.current?.click()}>⬆ Import Clearhead backup</button>
+        <p className="quiet">In Clearhead: Settings <I n="arrow" /> Export JSON. Then pick that file here. Safe to run twice.</p>
+        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => file.current?.click()}><I n="upload" /> Import Clearhead backup</button>
         <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => void importFile(e.target.files?.[0])} />
         {result && <pre className="importres">{result}</pre>}
       </div>
       <div className="lbl">@ Contexts</div>
       <div className="chips">
-        {(s.contexts || []).map((c) => <span key={c} className="chip">{c}<button aria-label={"Remove " + c} onClick={() => H.saveSettings({ contexts: s.contexts.filter((x) => x !== c) })}>✕</button></span>)}
+        {(s.contexts || []).map((c) => <span key={c} className="chip">{c}<button aria-label={"Remove " + c} onClick={() => H.saveSettings({ contexts: s.contexts.filter((x) => x !== c) })}><I n="close" /></button></span>)}
       </div>
       <div className="row" style={{ marginTop: 8 }}>
         <input className="field sm" placeholder="@New" value={newCtx} onChange={(e) => setNewCtx(e.target.value)} />
-        <button className="btn sm" onClick={() => { const v = newCtx.trim(); if (!v) return; const n = v.startsWith("@") ? v : "@" + v; void H.saveSettings({ contexts: [...new Set([...(s.contexts || []), n])] }); setNewCtx(""); }}>＋</button>
+        <button className="btn sm" onClick={() => { const v = newCtx.trim(); if (!v) return; const n = v.startsWith("@") ? v : "@" + v; void H.saveSettings({ contexts: [...new Set([...(s.contexts || []), n])] }); setNewCtx(""); }}><I n="plus" /></button>
       </div>
-      <div className="lbl">🕓 Rhythm</div>
+      <div className="lbl"><I n="later" /> Rhythm</div>
       <div className="card">
-        <div className="kv"><span>🌅 Plan by</span><input type="time" className="field sm" style={{ width: 130 }} value={s.planTime} onChange={(e) => H.saveSettings({ planTime: e.target.value })} /></div>
-        <div className="kv"><span>⏻ Shutdown</span><input type="time" className="field sm" style={{ width: 130 }} value={s.shutdownTime} onChange={(e) => H.saveSettings({ shutdownTime: e.target.value })} /></div>
-        <div className="kv"><span>🗓 Review day</span><select className="field sm" style={{ width: 130 }} value={s.reviewDay} onChange={(e) => H.saveSettings({ reviewDay: Number(e.target.value) })}>{[0, 1, 2, 3, 4, 5, 6].map((d) => <option key={d} value={d}>{wd(d)}</option>)}</select></div>
-        <div className="kv"><span>📅 Week starts</span><select className="field sm" style={{ width: 130 }} value={s.weekStart} onChange={(e) => H.saveSettings({ weekStart: Number(e.target.value) })}><option value={0}>Sun</option><option value={1}>Mon</option></select></div>
+        <div className="kv"><span><I n="morning" /> Plan by</span><input type="time" className="field sm" style={{ width: 130 }} value={s.planTime} onChange={(e) => H.saveSettings({ planTime: e.target.value })} /></div>
+        <div className="kv"><span><I n="shutdown" /> Shutdown</span><input type="time" className="field sm" style={{ width: 130 }} value={s.shutdownTime} onChange={(e) => H.saveSettings({ shutdownTime: e.target.value })} /></div>
+        <div className="kv"><span><I n="calendar" /> Review day</span><select className="field sm" style={{ width: 130 }} value={s.reviewDay} onChange={(e) => H.saveSettings({ reviewDay: Number(e.target.value) })}>{[0, 1, 2, 3, 4, 5, 6].map((d) => <option key={d} value={d}>{wd(d)}</option>)}</select></div>
+        <div className="kv"><span><I n="calendar" /> Week starts</span><select className="field sm" style={{ width: 130 }} value={s.weekStart} onChange={(e) => H.saveSettings({ weekStart: Number(e.target.value) })}><option value={0}>Sun</option><option value={1}>Mon</option></select></div>
       </div>
-      <div className="lbl">📵 Phone-free days</div>
+      <div className="lbl"><I n="quiet" /> Phone-free days</div>
       <div className="chips">{[0, 1, 2, 3, 4, 5, 6].map((d) => <button key={d} className={"chip" + ((s.offDays || []).includes(d) ? " on" : "")} onClick={() => H.saveSettings({ offDays: (s.offDays || []).includes(d) ? s.offDays.filter((x) => x !== d) : [...(s.offDays || []), d] })}>{wd(d)}</button>)}</div>
-      <div className="lbl">✓ Features</div>
+      <div className="lbl"><I n="tick" /> Features</div>
       <div className="card">
         {([["estimates", "⏱ Estimates"], ["energy", "⚡ Energy"], ["handyman", "🔨 Job details"]] as const).map(([k, l]) => (
           <label key={k} className="kv"><span>{l}</span><input type="checkbox" checked={s.features[k]} onChange={(e) => H.saveSettings({ features: { ...s.features, [k]: e.target.checked } })} /></label>
         ))}
-        <label className="kv"><span>🌙 Quiet screen after shutdown</span><input type="checkbox" checked={s.quietMode} onChange={(e) => H.saveSettings({ quietMode: e.target.checked })} /></label>
-        <label className="kv"><span>🔕 Do Not Disturb reminder</span><input type="checkbox" checked={s.dndReminder} onChange={(e) => H.saveSettings({ dndReminder: e.target.checked })} /></label>
+        <label className="kv"><span><I n="sleep" /> Quiet screen after shutdown</span><input type="checkbox" checked={s.quietMode} onChange={(e) => H.saveSettings({ quietMode: e.target.checked })} /></label>
+        <label className="kv"><span><I n="quiet" /> Do Not Disturb reminder</span><input type="checkbox" checked={s.dndReminder} onChange={(e) => H.saveSettings({ dndReminder: e.target.checked })} /></label>
       </div>
-      <div className="lbl">⬇ Export</div>
+      <div className="lbl"><I n="download" /> Export</div>
       <div className="stack">
-        <button className="btn" onClick={() => saveBlob(new Blob([C.csvForTasks([...data.tasks.values()], data)], { type: "text/csv" }), `nest-tasks-${C.today()}.csv`)}>⬇ Tasks as CSV</button>
-        <button className="btn" onClick={() => openOverlay("templates")}>📋 Templates</button>
-        <button className="btn" onClick={() => go("trash")}>🗑 Recently deleted</button>
+        <button className="btn" onClick={() => saveBlob(new Blob([C.csvForTasks([...data.tasks.values()], data)], { type: "text/csv" }), `nest-tasks-${C.today()}.csv`)}><I n="download" /> Tasks as CSV</button>
+        <button className="btn" onClick={() => openOverlay("templates")}><I n="copy" /> Templates</button>
+        <button className="btn" onClick={() => go("trash")}><I n="trash" /> Recently deleted</button>
         {C.areaList(data, { includeArchived: true }).filter((a) => a.archived).map((a) => (
-          <button key={a.id} className="btn" onClick={() => H.updateArea(a.id, { archived: false })}>↺ Unarchive {ic(a.icon)} {a.name}</button>
+          <button key={a.id} className="btn" onClick={() => H.updateArea(a.id, { archived: false })}><I n="undo" /> Unarchive {ic(a.icon)} {a.name}</button>
         ))}
       </div>
     </>
@@ -132,8 +133,8 @@ function FirstRun() {
   return (
     <Empty icon="🧠" title="Head is empty" sub="Bring Clearhead over, or start fresh.">
       <div className="stack" style={{ maxWidth: 300, margin: "16px auto 0" }}>
-        <button className="btn primary" onClick={() => file.current?.click()}>⬆ Import Clearhead</button>
-        <button className="btn" onClick={async () => { await H.seedAreas(); toast("▣ 6 areas ready"); }}>▣ Start fresh</button>
+        <button className="btn primary" onClick={() => file.current?.click()}><I n="upload" /> Import Clearhead</button>
+        <button className="btn" onClick={async () => { await H.seedAreas(); toast("▣ 6 areas ready"); }}><I n="project" /> Start fresh</button>
         <input ref={file} type="file" accept="application/json,.json" hidden onChange={async (e) => {
           const f = e.target.files?.[0];
           if (!f) return;
@@ -143,7 +144,7 @@ function FirstRun() {
           } catch (err) { toast("✕ " + (err as Error).message); }
         }} />
       </div>
-      <p className="quiet" style={{ marginTop: 12 }}>Clearhead → Settings → Export JSON</p>
+      <p className="quiet" style={{ marginTop: 12 }}>Clearhead <I n="arrow" /> Settings <I n="arrow" /> Export JSON</p>
     </Empty>
   );
 }
@@ -184,8 +185,8 @@ export default function HeadScreen() {
     <>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <NavChips />
-        <button className={"iconbtn" + (m.on ? " on" : "")} aria-label="Select tasks" onClick={() => (m.on ? clearMulti() : multi.set({ on: true, ids: [] }))}>☑</button>
-        <button className="iconbtn" aria-label="Head settings" onClick={() => go("settings")}>⚙</button>
+        <button className={"iconbtn" + (m.on ? " on" : "")} aria-label="Select tasks" onClick={() => (m.on ? clearMulti() : multi.set({ on: true, ids: [] }))}><I n="select" /></button>
+        <button className="iconbtn" aria-label="Head settings" onClick={() => go("settings")}><I n="settings" /></button>
       </div>
       {empty && r.view !== "settings" ? <FirstRun /> : (
         <>

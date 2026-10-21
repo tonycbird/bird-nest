@@ -61,18 +61,18 @@ async function fakeSupabase(route) {
 
   // Nest opens straight to Today, signed out. Nothing is locked.
   assert(await p.locator('.tabs').count() === 1 && await p.locator('text=Welcome home.').count() === 0, 'Nest opens without signing in');
-  await p.click('.tabs >> text=Head'); await p.click('text=▣ Start fresh'); await p.waitForTimeout(300);
-  await p.click('.tabs >> text=Today'); await p.click('text=☀ Sample day'); await p.waitForTimeout(400);
-  const before = await p.locator('.rb:not(.cal) .rb-t b').allInnerTexts();
+  await p.click('.tabs >> text=Head'); await p.click('button >> text=Start fresh'); await p.waitForTimeout(300);
+  await p.click('.tabs >> text=Today'); await p.click('text=Sample day'); await p.waitForTimeout(400);
+  const before = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
 
   // ✓ tab says Claude isn't connected.
-  await p.click('.tabs >> text=Approve'); await p.waitForTimeout(200);
-  assert(await p.locator("text=☁ Claude isn't connected").count() === 1, '✓ tab offers to connect');
-  await p.click('text=⚙ Connect'); await p.waitForTimeout(300);
-  await p.click('text=☁ Connect Claude');
+  await p.click('.tabs >> text=Claude'); await p.waitForTimeout(200);
+  assert(await p.locator("text=Claude isn't connected").count() === 1, '✓ tab offers to connect');
+  await p.click('button >> text=Connect'); await p.waitForTimeout(300);
+  await p.click('text=Connect Claude');
   await p.click('text=First time here');
   await p.fill('input[type=email]', 'anthony@example.com'); await p.fill('input[type=password]', 'correct horse battery');
-  await p.click('text=✓ Make account'); await p.waitForTimeout(2500);
+  await p.click('text=Make account'); await p.waitForTimeout(2500);
   assert(server.otp === 1, 'account made with email + password');
   await shot(p, '40-settings-connected');
   assert(await p.locator('.kv >> text=anthony@example.com').count() === 1, 'Settings shows connected');
@@ -82,9 +82,9 @@ async function fakeSupabase(route) {
   assert(server.rows.has('derived|prefs'), 'prefs for Claude went up');
 
   // Claude's suggestions came down.
-  await p.click('.tabs >> text=Approve'); await p.waitForTimeout(400);
+  await p.click('.tabs >> text=Claude'); await p.waitForTimeout(400);
   assert(await p.locator('.prop').count() === 4, '4 proposals waiting');
-  assert(await p.locator('text=📧 Mail Claude flagged · 1').count() === 1, 'flagged mail shows');
+  assert(await p.locator('text=Mail Claude flagged · 1').count() === 1, 'flagged mail shows');
   await p.locator('.prop', { hasText: 'Plan for' }).click(); await p.waitForTimeout(200);
   assert(await p.locator('.prop-list li').count() === 2, 'tapping a plan previews its blocks');
   await shot(p, '41-approve');
@@ -95,18 +95,18 @@ async function fakeSupabase(route) {
   // ✓ the gym booking: waits for Claude's applier.
   await p.locator('.prop', { hasText: 'Gym' }).locator('[aria-label=Approve]').click(); await p.waitForTimeout(500);
   assert(server.proposals.find((x) => x.id === 'p-gym').status === 'approved', 'booking approved, waiting for the applier');
-  assert(await p.locator('text=📅 Waiting for Claude · 1').count() === 1, 'shows as waiting for Claude');
+  assert(await p.locator('text=Waiting for Claude · 1').count() === 1, 'shows as waiting for Claude');
   // ✓ the mail task.
   await p.locator('.prop', { hasText: 'Send Dave' }).locator('[aria-label=Approve]').click(); await p.waitForTimeout(500);
   assert(server.proposals.find((x) => x.id === 'p-mail').status === 'applied', 'task applied on the phone, marked applied');
   // ✓ the day plan: replaces the River.
   await p.locator('.prop', { hasText: 'Plan for' }).locator('[aria-label=Approve]').click(); await p.waitForTimeout(600);
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(500);
-  const after = await p.locator('.rb:not(.cal) .rb-t b').allInnerTexts();
+  const after = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
   assert(after.join('|') === 'Legs|Smith quote', `River replaced (${before.length} sample blocks → ${after.join(', ')})`);
-  assert(await p.locator('h1.sentence >> text=Legs, then the Smith quote.').count() === 1, "Claude's sentence on top");
-  assert(await p.locator('.rb.cal >> text=Dentist').count() === 1, 'calendar event shows as a locked row');
-  assert(await p.locator('.cal-chip >> text=Payday').count() === 1, 'all-day event shows as a chip');
+  assert(await p.locator('.t-sentence >> text=Legs, then the Smith quote.').count() === 1, "Claude's sentence on top");
+  assert(await p.locator('.tr.cal >> text=Dentist').count() === 1, 'calendar event shows as a locked row');
+  assert(await p.locator('.allday >> text=Payday').count() === 1, 'all-day event shows as a chip');
   await shot(p, '42-river-from-claude');
 
   // Head got the mail task with its link.
@@ -117,8 +117,8 @@ async function fakeSupabase(route) {
   // Offline: the app keeps working, edits wait, then go up.
   await ctx.setOffline(true);
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(200);
-  if (!(await p.locator('.rb.open', { hasText: 'Legs' }).count())) await p.locator('.rb', { hasText: 'Legs' }).locator('.rb-head').click();
-  await p.locator('.sp').first().click(); await p.waitForTimeout(300);
+  if (!(await p.locator('.tr.open', { hasText: 'Legs' }).count())) await p.locator('.tr', { hasText: 'Legs' }).locator('.bc-main').click();
+  await p.locator('.tr.open .bc-cur').first().click(); await p.waitForTimeout(300);
   const stepsBefore = [...server.rows.values()].filter((r) => r.tbl === 'steps' && r.data.done_at).length;
   await ctx.setOffline(false);
   await p.evaluate(() => window.dispatchEvent(new Event('online'))); await p.waitForTimeout(1500);

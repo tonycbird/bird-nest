@@ -8,6 +8,7 @@ import { Empty, ic, PageHead, Ring, TaskRow } from "./bits";
 import * as A from "./actions";
 import { useLiveQuery } from "dexie-react-hooks";
 import { putTasksOnRiver } from "../river-bridge";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's list views (src/views/lists.js) in Bird dress. */
 
@@ -58,7 +59,7 @@ function Nudges({ data, s }: ViewProps) {
   return (
     <div className="nudges">
       {out.slice(0, 4).map((n) => (
-        <button key={n.key} className="nudge" onClick={n.run}><span className="n-ic">{n.icon}</span><span className="grow"><b>{n.title}</b>{n.sub && <small>{n.sub}</small>}</span><span className="quiet">›</span></button>
+        <button key={n.key} className="nudge" onClick={n.run}><span className="n-ic">{n.icon}</span><span className="grow"><b>{n.title}</b>{n.sub && <small>{n.sub}</small>}</span><span className="quiet"><I n="chevR" /></span></button>
       ))}
     </div>
   );
@@ -69,7 +70,7 @@ export function InboxView({ data, s }: ViewProps) {
   const tasks = C.selectInbox(data);
   return (
     <>
-      <PageHead kicker="📥 Inbox" title={tasks.length ? `${tasks.length} to sort` : "Inbox zero"} right={tasks.length > 0 && <button className="btn sm primary" onClick={() => openOverlay("process")}>✦ Process</button>} />
+      <PageHead kicker="📥 Inbox" title={tasks.length ? `${tasks.length} to sort` : "Inbox zero"} right={tasks.length > 0 && <button className="btn sm primary" onClick={() => openOverlay("process")}><I n="sort" /> Process</button>} />
       <List tasks={tasks} data={data} empty={<Empty icon="📥" title="All sorted" sub="Everything has a home." />} />
       <Nudges data={data} s={s} />
     </>
@@ -90,25 +91,25 @@ export function TodayView({ data, s }: ViewProps) {
     <>
       <PageHead kicker={"⭐ " + C.longLabel(t)} title={main.length ? `${main.length} for today` : "Today"}
         right={<>
-          <button className="btn sm" onClick={() => openOverlay("plan")}>🌅 Plan</button>
+          <button className="btn sm" onClick={() => openOverlay("plan")}><I n="morning" /> Plan</button>
           <button className="iconbtn" aria-label="More" onClick={() => A.openMenu("Today", [
             { text: "Put today on the River", icon: "🌊", run: async () => toast("🌊 On the River", await putTasksOnRiver(main.filter(C.isOpen).map((x) => x.id))) },
             { text: "What can I do now?", icon: "🧭", run: () => openOverlay("whatnow") },
             { text: "Shutdown", icon: "⏻", run: () => openOverlay("shutdown") },
             { text: "Plan tomorrow", icon: "📅", run: () => openOverlay("planday", { date: C.addDays(C.today(), 1) }) },
-          ])}>⋯</button>
+          ])}><I n="more" /></button>
         </>} />
       <Nudges data={data} s={s} />
       {overdue.length > 0 && (
         <section className="hsec over">
           <div className="sec-head" role="button" onClick={() => setOpenOver(!overOpen)}>
-            <span>⚠</span><span className="grow">From earlier · {overdue.length}</span>
+            <span><I n="warn" /></span><span className="grow">From earlier · {overdue.length}</span>
             <button className="btn sm" onClick={async (e) => {
               e.stopPropagation();
               const us: H.Undo[] = [];
               for (const x of overdue) us.push(await H.updateTask(x.id, { when: t }));
               toast("⭐ Moved to today", async () => { for (const u of us) await u(); });
-            }}>→ Today</button>
+            }}><I n="arrow" /> Today</button>
           </div>
           {overOpen && <List tasks={overdue} data={data} showWhen />}
         </section>
@@ -121,8 +122,8 @@ export function TodayView({ data, s }: ViewProps) {
       )) : !overdue.length && (
         <Empty icon="✓" title="All clear" sub={doneToday.length ? `${doneToday.length} done today.` : "Nothing planned. Pull from Anytime, or rest."}>
           <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-            <button className="btn sm" onClick={() => go("anytime")}>🗂 Anytime</button>
-            <button className="btn sm" onClick={() => openOverlay("whatnow")}>🧭 What now?</button>
+            <button className="btn sm" onClick={() => go("anytime")}><I n="layers" /> Anytime</button>
+            <button className="btn sm" onClick={() => openOverlay("whatnow")}><I n="compass" /> What now?</button>
           </div>
         </Empty>
       )}
@@ -146,7 +147,7 @@ export function UpcomingView({ data, s }: ViewProps) {
   if (!tasks.length && !previews.length) return <><PageHead kicker="📅 Upcoming" title="Ahead" /><Empty icon="📅" title="Nothing scheduled" sub="Give a task a date and it shows up here." /></>;
   return (
     <>
-      <PageHead kicker="📅 Upcoming" title="Ahead" right={<button className="btn sm" onClick={() => openOverlay("review")}>🗓 Review</button>} />
+      <PageHead kicker="📅 Upcoming" title="Ahead" right={<button className="btn sm" onClick={() => openOverlay("review")}><I n="calendar" /> Review</button>} />
       {buckets.map((b) => {
         if (b.kind === "later" && !showLater) {
           const n = tasks.filter((x) => inB(b, x.date)).length;
@@ -166,13 +167,13 @@ export function UpcomingView({ data, s }: ViewProps) {
         const d = C.parseYmd(b.from);
         const empty = !items.length && !pv.length;
         const head = isDay
-          ? <div className={"sec-head day" + (empty ? " empty" : "")}><span className="daynum">{d.getDate()}</span><span className="grow">{C.diffDays(t, b.from) === 1 ? "Tomorrow" : C.longLabel(b.from).split(",")[0]}{(d.getDate() === 1 || C.diffDays(t, b.from) === 1) ? <span className="quiet"> · {C.monthLabel(b.from)}</span> : null}</span>{C.isOffDay(s, b.from) && <span className="pill">📵</span>}</div>
+          ? <div className={"sec-head day" + (empty ? " empty" : "")}><span className="daynum">{d.getDate()}</span><span className="grow">{C.diffDays(t, b.from) === 1 ? "Tomorrow" : C.longLabel(b.from).split(",")[0]}{(d.getDate() === 1 || C.diffDays(t, b.from) === 1) ? <span className="quiet"> · {C.monthLabel(b.from)}</span> : null}</span>{C.isOffDay(s, b.from) && <span className="pill"><I n="quiet" /></span>}</div>
           : <div className="sec-head big">{b.kind === "week" ? `${C.MON_SHORT[d.getMonth()]} ${d.getDate()} – ${C.parseYmd(b.to).getDate()}` : b.kind === "month" ? C.monthLabel(b.from) : "Later"}</div>;
         return (
           <section key={b.key} className="hsec">
             {head}
             <List tasks={items.map((x) => x.task)} data={data} showWhen={!isDay} />
-            {pv.map((x) => <div key={x.task.id + x.date} className="task preview"><span className="ck ghost">↻</span><div className="t-body"><div className="t-title">{x.task.title}</div>{!isDay && <div className="t-meta"><span>{C.relLabel(x.date)}</span></div>}</div></div>)}
+            {pv.map((x) => <div key={x.task.id + x.date} className="task preview"><span className="ck ghost"><I n="refresh" /></span><div className="t-body"><div className="t-title">{x.task.title}</div>{!isDay && <div className="t-meta"><span>{C.relLabel(x.date)}</span></div>}</div></div>)}
           </section>
         );
       })}
@@ -210,7 +211,7 @@ export function AnytimeView({ data, s }: ViewProps) {
           <List tasks={loose} data={data} showHome={false} />
           {projects.map(({ p, ts }) => (
             <div key={p.id} style={{ marginTop: 6 }}>
-              <button className="subhead" onClick={() => go("project", p.id)}>📁 {p.name}</button>
+              <button className="subhead" onClick={() => go("project", p.id)}><I n="project" /> {p.name}</button>
               <List tasks={ts} data={data} showHome={false} />
             </div>
           ))}
@@ -226,7 +227,7 @@ export function ProjectLine({ p, data }: { p: Project; data: HeadData }) {
   const st = C.projectStats(data, p);
   return (
     <button className="proj-row" onClick={() => go("project", p.id)}>
-      <Ring pct={st.pct} size={22} /><span className="grow">{p.name}</span>{a && <span className="quiet">{a.name}</span>}<span className="quiet">›</span>
+      <Ring pct={st.pct} size={22} /><span className="grow">{p.name}</span>{a && <span className="quiet">{a.name}</span>}<span className="quiet"><I n="chevR" /></span>
     </button>
   );
 }
@@ -257,7 +258,7 @@ export function WaitingView({ data }: ViewProps) {
         const due = !!x.waiting?.followUp && x.waiting.followUp <= t;
         return (
           <div className="wait-side" onClick={(e) => e.stopPropagation()}>
-            <button className={"btn sm" + (due ? " primary" : "")} onClick={() => A.followUp(x)}>➤</button>
+            <button className={"btn sm" + (due ? " primary" : "")} onClick={() => A.followUp(x)}><I n="arrow" /></button>
             <div className="quiet" style={{ fontSize: 12 }}>{x.waiting?.since ? C.relLabel(x.waiting.since) : ""}</div>
           </div>
         );
@@ -302,11 +303,11 @@ export function TrashView({ data }: ViewProps) {
           <div key={x.id} className="kv">
             <span style={{ minWidth: 0 }}>{x.kind === "tasks" ? "☐" : x.kind === "projects" ? "📁" : "▣"} {name}{n > 0 && <span className="quiet"> +{n}</span>}<div className="quiet" style={{ fontSize: 12 }}>{C.timeAgo(x.deletedAt)}</div></span>
             <span className="row" style={{ gap: 6 }}>
-              <button className="btn sm" onClick={async () => { await H.restoreGroup(x.group); toast("↺ Restored"); }}>↺</button>
+              <button className="btn sm" onClick={async () => { await H.restoreGroup(x.group); toast("↺ Restored"); }}><I n="undo" /></button>
               <button className="btn sm" onClick={async () => {
                 if (!(await A.confirm("Delete forever?", undefined, "🗑 Delete", true))) return;
                 for (const y of (items || []).filter((y) => y.group === x.group)) await H.purgeTrashItem(y);
-              }}>✕</button>
+              }}><I n="close" /></button>
             </span>
           </div>
         );

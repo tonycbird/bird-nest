@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./lib/db";
 import { cloud } from "./lib/sync";
-import { setSetting, useSetting } from "./lib/settings";
+import { useSetting } from "./lib/settings";
 import { ToastProvider } from "./lib/toast";
 import Today from "./screens/Today";
 import Approvals from "./screens/Approvals";
@@ -12,6 +12,7 @@ import HeadScreen, { HeadOverlays } from "./head/HeadScreen";
 import { appNav, goTab, multi, openOverlay, type AppTab } from "./head/useHead";
 import * as C from "./head/core/clearhead.js";
 import BodyScreen, { BodyFrame, TimerPill } from "./body/BodyScreen";
+import { Icon, type IconName } from "./ui/Icon";
 
 export default function App() {
   const c = cloud.use();
@@ -22,7 +23,7 @@ export default function App() {
   const pending = useLiveQuery(() => db.proposals.where("status").equals("pending").count(), [], 0);
   const inbox = useLiveQuery(() => db.tasks.filter((t) => t.status === "open" && !t.areaId && !t.projectId && !t.list && !t.someday).count(), [], 0);
 
-  // Quiet by default: anything marked .detail shows only after ⓘ.
+  // Quiet by default: anything marked .detail shows only when "Show details" is on (Settings).
   useEffect(() => { document.documentElement.classList.toggle("quiet", !details); }, [details]);
 
   useEffect(() => {
@@ -40,32 +41,33 @@ export default function App() {
   useEffect(() => { window.scrollTo(0, 0); }, [tab]);
 
 
-  const T = (t: AppTab, icon: string, label: string, badge?: number) => (
-    <button className={"tab" + (tab === t || (t === "today" && tab === "settings") ? " on" : "")} onClick={() => goTab(t)}>
-      <span className="ic">{icon}</span>{label}{badge ? <span className="badge">{badge}</span> : null}
-    </button>
-  );
+  const T = (t: AppTab, icon: IconName, label: string, badge?: number) => {
+    const on = tab === t;
+    return (
+      <button className={"tab" + (on ? " on" : "")} aria-current={on ? "page" : undefined} onClick={() => goTab(t)}>
+        <Icon n={icon} size={23} tone={on} />{label}{badge ? <span className="badge">{badge}</span> : null}
+      </button>
+    );
+  };
 
   return (
     <ToastProvider>
       <div className="app">
         <main className="main">
-          {tab === "today" && <Today pending={pending} online={online} details={details}
-            onToggleDetails={() => void setSetting("details", !details)}
-            onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}
+          {tab === "today" && <Today pending={pending} online={online} onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}
           {tab === "head" && <HeadScreen />}
           {tab === "body" && <BodyScreen />}
           {tab === "ok" && <Approvals />}
           {tab === "settings" && <Settings email={c.email} online={online} />}
         </main>
-        {(tab === "today" || tab === "head") && !selecting && (
-          <button className="fab" aria-label="Quick add" onClick={() => openOverlay("quickadd", tab === "today" ? { defaults: { when: C.today() } } : {})}>＋</button>
-        )}
         <nav className="tabs" aria-label="Main">
-          {T("today", "☀", "Today")}
-          {T("head", "🧠", "Head", inbox)}
-          {T("body", "🏋", "Body")}
-          {T("ok", "✓", "Approve", pending)}
+          {T("today", "today", "Today")}
+          {T("head", "head", "Head", inbox)}
+          <div className="tab-add">
+            {!selecting && <button aria-label="Quick add" onClick={() => openOverlay("quickadd", tab === "today" ? { defaults: { when: C.today() } } : {})}><Icon n="plus" size={26} tone={false} /></button>}
+          </div>
+          {T("body", "body", "Body")}
+          {T("ok", "claude", "Claude", pending)}
         </nav>
         <BodyFrame />
         <TimerPill />

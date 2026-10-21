@@ -1,7 +1,6 @@
 import { Component, StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource-variable/fraunces";
-import "@fontsource-variable/archivo";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./styles/tokens.css";
 import "./styles/app.css";
 import "./styles/head.css";
@@ -10,6 +9,7 @@ import App from "./App";
 import { installRiverBridge } from "./head/river-bridge";
 import { installBody } from "./body/install";
 import { installSync } from "./lib/sync";
+import { installTheme } from "./lib/theme";
 
 /** If a screen throws, show the error and the way out instead of an empty page. */
 class Rescue extends Component<{ children: ReactNode }, { err: string | null }> {
@@ -31,6 +31,7 @@ try {
   });
 } catch (e) { console.error(e); }
 
+try { installTheme(); } catch (e) { console.error(e); }
 try { installRiverBridge(); } catch (e) { console.error(e); }
 try { installBody(); } catch (e) { console.error(e); }
 try { installSync(); } catch (e) { console.error(e); }

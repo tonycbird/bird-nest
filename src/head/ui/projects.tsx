@@ -11,6 +11,7 @@ import { NotesEditor, PhotoStrip } from "./detail";
 import { openSheet } from "./sheets";
 import { TextSheet } from "./pickers";
 import { putGroceriesOnRiver } from "../river-bridge";
+import { I } from "../../ui/Icon";
 
 /* Clearhead's projects, areas and grocery list (src/views/projects.js). */
 
@@ -30,8 +31,8 @@ function ProjectCard({ p, data }: { p: Project } & Pick<ViewProps, "data">) {
     <button className="pcard" onClick={() => go("project", p.id)}>
       <div className="row"><Ring pct={st.pct} size={28} /><b className="grow">{p.name}</b></div>
       {a && <div className="quiet">{ic(a.icon)} {a.name}</div>}
-      <div className="pc-next">{next ? <><span className="quiet">Next ›</span> {next.title}</> : <span className="stalled">⏸ No next step</span>}</div>
-      {p.deadline && <span className={"pill" + (dd! <= 7 ? " warn" : "")}>⚑ {dd! < 0 ? "Late" : C.relLabel(p.deadline)}</span>}
+      <div className="pc-next">{next ? <><span className="quiet">Next <I n="chevR" /></span> {next.title}</> : <span className="stalled"><I n="pause" /> No next step</span>}</div>
+      {p.deadline && <span className={"pill" + (dd! <= 7 ? " warn" : "")}><I n="flag" /> {dd! < 0 ? "Late" : C.relLabel(p.deadline)}</span>}
     </button>
   );
 }
@@ -44,14 +45,14 @@ export function ProjectsView({ data }: ViewProps) {
   return (
     <>
       <PageHead kicker="📁 Projects" title={`${active.length} active`} right={<>
-        <button className="iconbtn" aria-label="New area" onClick={() => A.newArea()}>▣</button>
-        <button className="iconbtn" aria-label="New project" onClick={() => newProjectMenu()}>＋</button>
+        <button className="iconbtn" aria-label="New area" onClick={() => A.newArea()}><I n="project" /></button>
+        <button className="iconbtn" aria-label="New project" onClick={() => newProjectMenu()}><I n="plus" /></button>
       </>} />
       {!active.length && (
         <Empty icon="📁" title="No active projects" sub="A project is any outcome with more than one step.">
           <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-            <button className="btn primary sm" onClick={() => A.newProject()}>＋ Project</button>
-            <button className="btn sm" onClick={() => openOverlay("templates")}>📋 Template</button>
+            <button className="btn primary sm" onClick={() => A.newProject()}><I n="plus" /> Project</button>
+            <button className="btn sm" onClick={() => openOverlay("templates")}><I n="copy" /> Template</button>
           </div>
         </Empty>
       )}
@@ -61,10 +62,10 @@ export function ProjectsView({ data }: ViewProps) {
         {areas.map((a) => (
           <button key={a.id} className="proj-row" onClick={() => go("area", a.id)}>
             <span>{ic(a.icon)}</span><span className="grow">{a.name}</span>
-            <span className="quiet">{[...data.tasks.values()].filter((t) => C.isOpen(t) && C.areaOfTask(t, data)?.id === a.id && !t.grocery).length || ""}</span><span className="quiet">›</span>
+            <span className="quiet">{[...data.tasks.values()].filter((t) => C.isOpen(t) && C.areaOfTask(t, data)?.id === a.id && !t.grocery).length || ""}</span><span className="quiet"><I n="chevR" /></span>
           </button>
         ))}
-        <button className="proj-row" onClick={() => A.newArea()}><span>＋</span><span className="grow quiet">New area</span></button>
+        <button className="proj-row" onClick={() => A.newArea()}><span><I n="plus" /></span><span className="grow quiet">New area</span></button>
       </div>
       {other.length > 0 && (
         <>
@@ -80,9 +81,9 @@ function ClientCard({ c }: { c: Client }) {
   const digits = String(c.phone || "").replace(/[^\d+]/g, "");
   return (
     <div className="card client">
-      {c.name && <div><b>👤 {c.name}</b>{c.price ? <span className="quiet"> · est. ${c.price}</span> : null}</div>}
-      {c.address && <div>📍 <a href={"https://maps.apple.com/?q=" + encodeURIComponent(c.address)} target="_blank" rel="noopener">{c.address}</a></div>}
-      {c.phone && <div>📞 {c.phone} <a href={"tel:" + digits}>Call</a> <a href={"sms:" + digits}>Text</a></div>}
+      {c.name && <div><b><I n="person" /> {c.name}</b>{c.price ? <span className="quiet"> · est. ${c.price}</span> : null}</div>}
+      {c.address && <div><I n="place" /> <a href={"https://maps.apple.com/?q=" + encodeURIComponent(c.address)} target="_blank" rel="noopener">{c.address}</a></div>}
+      {c.phone && <div><I n="call" /> {c.phone} <a href={"tel:" + digits}>Call</a> <a href={"sms:" + digits}>Text</a></div>}
     </div>
   );
 }
@@ -132,10 +133,10 @@ export function ProjectView({ data, id }: ViewProps & { id: string }) {
     <>
       <PageHead kicker={(a ? ic(a.icon) + " " + a.name : "📁 Project") + (p.status !== "active" ? " · " + (C.PROJECT_STATUSES.find((x) => x.id === p.status)?.name ?? "") : "")}
         title={<span className="row" style={{ gap: 10 }}><Ring pct={st.pct} size={28} />{p.name}</span>}
-        sub={<>{p.start && <span>▶ {C.relLabel(p.start)} </span>}{p.deadline && <span style={C.diffDays(C.today(), p.deadline) <= 7 ? { color: "var(--warn)" } : undefined}>⚑ {C.longLabel(p.deadline)}</span>}</>}
+        sub={<>{p.start && <span><I n="play" /> {C.relLabel(p.start)} </span>}{p.deadline && <span style={C.diffDays(C.today(), p.deadline) <= 7 ? { color: "var(--warn)" } : undefined}><I n="flag" /> {C.longLabel(p.deadline)}</span>}</>}
         right={<>
-          <button className="iconbtn" aria-label="Ramble" onClick={() => openOverlay("ramble", { focus: { kind: "project", id } })}>🗣</button>
-          <button className="iconbtn" aria-label="Project options" onClick={menu}>⋯</button>
+          <button className="iconbtn" aria-label="Ramble" onClick={() => openOverlay("ramble", { focus: { kind: "project", id } })}><I n="talk" /></button>
+          <button className="iconbtn" aria-label="Project options" onClick={menu}><I n="more" /></button>
         </>} />
       <button className="outcome" onClick={() => A.editProject(id)}>
         <div className="lbl" style={{ margin: 0 }}>Done looks like</div>
@@ -144,20 +145,20 @@ export function ProjectView({ data, id }: ViewProps & { id: string }) {
       </button>
       {p.client && (p.client.name || p.client.phone || p.client.address) && <ClientCard c={p.client} />}
       {p.status === "active" && (next
-        ? <div className="nextup"><div className="lbl" style={{ margin: "0 0 4px" }}>▶ Next</div><List tasks={[next]} data={data} showHome={false} /></div>
-        : <div className="nextup"><div className="stalled">⏸ No next step</div>
+        ? <div className="nextup"><div className="lbl" style={{ margin: "0 0 4px" }}><I n="play" /> Next</div><List tasks={[next]} data={data} showHome={false} /></div>
+        : <div className="nextup"><div className="stalled"><I n="pause" /> No next step</div>
           <div className="row" style={{ marginTop: 6 }}>
             <input className="field sm" placeholder="The very next step?" value={nextDraft} onChange={(e) => setNextDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void addNext()} />
-            <button className="btn sm primary" disabled={!nextDraft.trim()} onClick={addNext}>＋</button>
+            <button className="btn sm primary" disabled={!nextDraft.trim()} onClick={addNext}><I n="plus" /></button>
           </div></div>)}
       {secs.map((sec) => {
         const ts = inSec(sec.id);
         if (!sec.id && !ts.length && (p.sections || []).length) return null;
         return (
           <section key={sec.id || "none"} className="hsec">
-            {sec.id && <div className="sec-head"><span className="grow">{sec.name}</span><button className="iconbtn sm" aria-label={"Options for " + sec.name} onClick={() => secMenu(sec as { id: string; name: string }, ts)}>⋯</button></div>}
+            {sec.id && <div className="sec-head"><span className="grow">{sec.name}</span><button className="iconbtn sm" aria-label={"Options for " + sec.name} onClick={() => secMenu(sec as { id: string; name: string }, ts)}><I n="more" /></button></div>}
             <List tasks={ts} data={data} showHome={false} />
-            <button className="linkbtn" onClick={() => openOverlay("quickadd", { defaults: { projectId: id, sectionId: sec.id } })}>＋ Task</button>
+            <button className="linkbtn" onClick={() => openOverlay("quickadd", { defaults: { projectId: id, sectionId: sec.id } })}><I n="plus" /> Task</button>
           </section>
         );
       })}
@@ -167,9 +168,9 @@ export function ProjectView({ data, id }: ViewProps & { id: string }) {
           {showDone && <List tasks={done} data={data} showHome={false} showWhen={false} />}
         </>
       )}
-      <section className="hsec"><div className="sec-head"><span>✎</span><span className="grow">Notes</span></div>
+      <section className="hsec"><div className="sec-head"><span><I n="edit" /></span><span className="grow">Notes</span></div>
         <NotesEditor value={p.notes} placeholder="✎ Plans, measurements, links" onSave={(v) => void H.updateProject(id, { notes: v })} /></section>
-      <section className="hsec"><div className="sec-head"><span>📷</span><span className="grow">Photos</span></div>
+      <section className="hsec"><div className="sec-head"><span><I n="camera" /></span><span className="grow">Photos</span></div>
         <PhotoStrip owner={{ kind: "project", id }} photos={p.photos || []} /></section>
     </>
   );
@@ -197,15 +198,15 @@ export function AreaView({ data, id }: ViewProps & { id: string }) {
   return (
     <>
       <PageHead kicker="▣ Area" title={<>{ic(a.icon)} {a.name}</>} right={<>
-        <button className="iconbtn" aria-label="New project" onClick={() => newProjectMenu(id)}>＋</button>
-        <button className="iconbtn" aria-label="Area options" onClick={menu}>⋯</button>
+        <button className="iconbtn" aria-label="New project" onClick={() => newProjectMenu(id)}><I n="plus" /></button>
+        <button className="iconbtn" aria-label="Area options" onClick={menu}><I n="more" /></button>
       </>} />
       {a.listMode === "groceries" && <GroceryList area={a} data={data} />}
       {activeP.length > 0 && <section className="hsec"><div className="sec-head"><span className="grow">Projects</span></div>{activeP.map((p) => <ProjectLine key={p.id} p={p} data={data} />)}</section>}
       <section className="hsec">
         {(activeP.length > 0 || a.listMode === "groceries") && <div className="sec-head"><span className="grow">{a.listMode === "groceries" ? "Errands" : "Tasks"}</span></div>}
         <List tasks={loose} data={data} showHome={false} empty={!activeP.length && a.listMode !== "groceries" && <Empty icon={ic(a.icon)} title="Nothing here yet" />} />
-        <button className="linkbtn" onClick={() => openOverlay("quickadd", { defaults: { areaId: id } })}>＋ {a.listMode === "groceries" ? "Errand" : "Task"}</button>
+        <button className="linkbtn" onClick={() => openOverlay("quickadd", { defaults: { areaId: id } })}><I n="plus" /> {a.listMode === "groceries" ? "Errand" : "Task"}</button>
       </section>
       {otherP.length > 0 && <section className="hsec"><div className="sec-head"><span className="grow">Someday · on hold</span></div>{otherP.map((p) => <ProjectLine key={p.id} p={p} data={data} />)}</section>}
     </>
@@ -246,7 +247,7 @@ export function GroceryList({ area, data }: { area: Area } & Pick<ViewProps, "da
           { text: "Delete", icon: "🗑", danger: true, run: () => A.remove(t.id) },
         ])}>
           <div className="t-title">{t.title}</div>
-          {by === "aisle" && t.grocery!.store && <div className="t-meta"><span>🏪 {t.grocery!.store}</span></div>}
+          {by === "aisle" && t.grocery!.store && <div className="t-meta"><span><I n="box" /> {t.grocery!.store}</span></div>}
         </div>
       </div>
     );
@@ -255,22 +256,22 @@ export function GroceryList({ area, data }: { area: Area } & Pick<ViewProps, "da
     <div>
       <div className="row">
         <input className="field" placeholder="Milk, 2x4s, diapers" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} aria-label="Add to list" />
-        <button className="btn primary" disabled={!text.trim()} onClick={add}>＋</button>
+        <button className="btn primary" disabled={!text.trim()} onClick={add}><I n="plus" /></button>
       </div>
       <div className="row" style={{ justifyContent: "space-between", margin: "10px 0" }}>
         <Seg label="Group by" value={by} onChange={setBy} options={[{ id: "aisle", name: "Aisle" }, { id: "store", name: "Store" }]} />
         <div className="row" style={{ gap: 6 }}>
-          {open.length > 0 && <button className="btn sm" onClick={async () => { const u = await putGroceriesOnRiver(area.id); if (u) toast("🌊 Shopping block on the River", u); }}>🌊 River</button>}
+          {open.length > 0 && <button className="btn sm" onClick={async () => { const u = await putGroceriesOnRiver(area.id); if (u) toast("🌊 Shopping block on the River", u); }}><I n="river" /> River</button>}
           {checked.length > 0 && <button className="btn sm" onClick={async () => {
             const ids = checked.map((t) => t.id);
             for (const tid of ids) { const t = data.tasks.get(tid)!; await H.updateTask(tid, { grocery: { ...t.grocery!, cleared: true } as never }); }
             toast("🧹 Cleared", async () => { for (const tid of ids) { const t = data.tasks.get(tid)!; await H.updateTask(tid, { grocery: { ...t.grocery!, cleared: false } as never }); } });
-          }}>🧹</button>}
+          }}><I n="home" /></button>}
         </div>
       </div>
       {!open.length && !checked.length && <Empty icon="🛒" title="List is empty" />}
       {groups.map((g) => <section key={g.key} className="hsec"><div className="sec-head"><span className="grow">{g.name}</span><span className="quiet">{g.ts.length}</span></div>{g.ts.map(row)}</section>)}
-      {checked.length > 0 && <section className="hsec"><div className="sec-head"><span className="grow quiet">🛒 In the cart</span></div>{checked.map(row)}</section>}
+      {checked.length > 0 && <section className="hsec"><div className="sec-head"><span className="grow quiet"><I n="groceries" /> In the cart</span></div>{checked.map(row)}</section>}
     </div>
   );
 }
