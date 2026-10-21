@@ -57,6 +57,10 @@ export interface FitApi {
   openStretch(date: string, k: string): void;
   openToday(date?: string): void;
   checkIn(): void;
+  makeup(missed: string): string;
+  setWorkout(date: string, wid: string | null): string;
+  restoreOverrides(prev: string): void;
+  missed(): { date: string; workout: string } | null;
   refresh(): void;
   markWarm(date: string): void;
   timerAdd(s: number): void;

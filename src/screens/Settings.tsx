@@ -5,7 +5,9 @@ import { counts, download, exportAll, markBackedUp, restoreAll, saveJSON, valida
 import { restoreBlock, trash } from "../lib/river";
 import { DEFAULT_TZ } from "../lib/dayKey";
 import { keyLabel } from "../lib/time";
-import { CLOUD, supabase } from "../lib/supabase";
+import { CLOUD } from "../lib/supabase";
+import { cloud, cloudCounts, restoreFromCloud, signOut as cloudSignOut, syncNow } from "../lib/sync";
+import SignIn from "./SignIn";
 import { useToast } from "../lib/toast";
 import { go, goTab } from "../head/useHead";
 import { fitApi, fitCounts, importFitness, readFitnessBackup, resetFitCache, type FitnessBackup } from "../body/host";
@@ -65,11 +67,6 @@ export default function Settings(props: { email: string; online: boolean }) {
     setFitPending(null);
     toast(`🏋 Imported · ${r.sessions} workouts`, async () => { await restoreAll(safety); await resetFitCache(); });
   }
-  async function signOut() {
-    await supabase.auth.signOut();
-    location.reload();
-  }
-
   return (
     <>
       <header className="top"><div><div className="date">Settings</div><h1 className="sentence">⚙ Nest</h1></div></header>
@@ -135,17 +132,61 @@ export default function Settings(props: { email: string; online: boolean }) {
         </div>
       )}
 
+      <CloudCard />
+
       <div className="lbl">ⓘ App</div>
       <div className="card">
-        {CLOUD && <div className="kv"><span>👤</span><span className="muted">{props.email}</span></div>}
         <div className="kv"><span>🕓 Time zone</span><span className="muted">{DEFAULT_TZ}</span></div>
         <div className="kv"><span>📶</span><span className="muted">{props.online ? "Online" : "Offline"}</span></div>
-        <div className="kv"><span>☁ Cloud sync</span><span className="muted">{CLOUD ? "On" : "Phase 4"}</span></div>
+
         <div className="kv"><span>🏷 Version</span><span className="muted">{__BUILD__}</span></div>
       </div>
       <div className="stack" style={{ marginTop: 10 }}>
         <button className="btn" onClick={() => location.reload()}>↻ Check for update</button>
-        {CLOUD && <button className="btn" onClick={signOut}>⎋ Sign out</button>}
+
+      </div>
+    </>
+  );
+}
+
+function since(iso: string): string {
+  if (!iso) return "Not yet";
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return m < 1 ? "Just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+}
+
+/** ☁ Claude: sign in once so Claude can read the plan and send suggestions. Nest works the same without it. */
+function CloudCard() {
+  const c = cloud.use();
+  const toast = useToast();
+  const [connecting, setConnecting] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
+  if (!CLOUD) return null;
+  return (
+    <>
+      <div className="lbl">☁ Claude</div>
+      <div className="card">
+        <div className="kv"><span>👤 Connected</span><span className="muted">{c.signedIn ? c.email : "No"}</span></div>
+        {c.signedIn && <>
+          <div className="kv"><span>🔑 Claude's door</span><span className="muted">{c.claimed ? "Open" : "Waiting"}</span></div>
+          <div className="kv"><span>☁ Last sync</span><span className="muted">{c.busy ? "Syncing…" : since(c.lastSync)}</span></div>
+          <div className="kv"><span>⬆ Waiting to go up</span><span className="muted">{c.pending}</span></div>
+          {c.error && <div className="kv"><span>⚠</span><span className="muted" style={{ color: "var(--warn)" }}>{c.error}</span></div>}
+        </>}
+      </div>
+      {!c.signedIn && !connecting && <p className="quiet" style={{ marginTop: 8 }}>Sign in once so Claude can plan your mornings. Nest works the same without it.</p>}
+      <div className="stack" style={{ marginTop: 10 }}>
+        {!c.signedIn && !connecting && <button className="btn primary" onClick={() => setConnecting(true)}>☁ Connect Claude</button>}
+        {!c.signedIn && connecting && <div className="card"><SignIn compact onDone={() => { setConnecting(false); toast("☁ Connected"); }} /></div>}
+        {c.signedIn && <button className="btn" disabled={c.busy} onClick={async () => toast((await syncNow()) ? "☁ Synced" : "☁ Couldn't sync")}>↻ Sync now</button>}
+        {c.signedIn && !counts && <button className="btn" onClick={async () => setCounts(await cloudCounts())}>☁ What's in the cloud?</button>}
+        {c.signedIn && counts && <div className="card">
+          <div className="kv"><span>🧠 Tasks</span><span className="muted">{counts.tasks}</span></div>
+          <div className="kv"><span>🌊 Blocks</span><span className="muted">{counts.blocks}</span></div>
+          <div className="kv"><span>🏋 Fitness docs</span><span className="muted">{counts.fit}</span></div>
+          <button className="btn" style={{ marginTop: 8, width: "100%" }} onClick={async () => { const n = await restoreFromCloud(); toast(`⬇ Added ${n} rows from the cloud`); }}>⬇ Add missing rows to this phone</button>
+        </div>}
+        {c.signedIn && <button className="btn" onClick={async () => { await cloudSignOut(); toast("⎋ Signed out"); }}>⎋ Sign out</button>}
       </div>
     </>
   );

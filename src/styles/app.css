@@ -153,3 +153,12 @@ html.quiet .detail{display:none !important;}
 .timer-pill.done{background:var(--good);}
 .body-tray .sec-head .btn{flex:none;}
 .tray-note{font-size:13px; color:var(--ink-3); margin-top:4px;}
+
+/* ---------- Claude loop (Phase 4) ---------- */
+.rb.cal{background:none; border-style:dashed; min-height:0;}
+.rb.cal .rb-ic{font-size:11px; border-width:1px; border-style:dashed;}
+.cal-t{padding:9px 14px; font-size:14px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cal-chip{font-size:13px; padding:5px 10px; cursor:default;}
+.recap{margin-top:14px;} .recap p{margin:4px 0 0;}
+.prop-list{margin:8px 0 0; padding-left:18px; font-size:14px;} .prop-list li{margin:3px 0;}
+.prop{cursor:pointer;}

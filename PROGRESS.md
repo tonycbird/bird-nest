@@ -1,6 +1,39 @@
 # Progress
 
-## Now: Phase 3 — Body (Bird Fitness port) · code done, waiting on Anthony's phone check
+## Now: Phase 4 — The Claude loop · code done, waiting on Supabase setup + phone check
+
+Built Oct 16–17, 2026.
+
+### Setup (Anthony, once)
+1. Supabase → SQL editor: run `supabase/migrations/0002_phase4.sql`, then `supabase/local/0002b_token.sql` (not in git; the door key's hash).
+2. Supabase → Authentication → Sign In / Providers → Email: turn off **Confirm email** (free Supabase can't change its emails, so Nest uses email + password).
+3. Commit "Phase 4 Claude loop" and push.
+4. iPhone: ⚙ → ☁ Connect Claude → First time here → email + password (save it in iPhone Passwords).
+5. Supabase → Authentication → Sign In / Providers: turn off "Allow new users to sign up".
+
+### Phase 4 done
+- [x] The door: `nest_gateway()` SQL function (snapshot, propose, cache_calendar, add_mail, approved, mark), token checked by hash, tied to Anthony's account on first sign-in
+- [x] The phone's copy goes up to `nest_rows` (every table except photos), offline edits wait and go up later; a week of Body plans goes up for Claude
+- [x] Nest never waits for sign-in; ☁ Connect lives in ⚙
+- [x] ✓ tab: preview, ✓ applies on the phone (day plan replaces the River, task, rollover, recap, groceries, makeup, swap, weekly review, ramble tasks), ✕ declines; calendar bookings wait for the applier; flagged mail with links
+- [x] Calendar events on the River as dashed, locked rows; all-day ones as chips; evening recap card
+- [x] Four scheduled tasks created (morning 4:45, applier 7:10/10:10/1:10/4:10/7:10, evening 8:40, Sunday 5:50 PM); prompts in `claude/tasks/`
+- [x] Tests: SQL tests in Postgres (`tests/sql/`), 88 unit tests, Phase 4 e2e with a fake Supabase
+
+### Phase 4 done-check (from BUILD.md)
+- [ ] Three mornings in a row, the plan is waiting by 5:00
+- [x] ✓ replaces the River (e2e) — confirm on the phone
+- [x] ✕ leaves it alone (e2e)
+- [ ] An approved gym booking appears in Google Calendar by the next applier run, and never twice (applier searches first; mark is one-time)
+- [x] A declined proposal never reappears the same day (enforced in the database; SQL test)
+
+### Not done in Phase 4 (and why)
+- ✎ edit on a proposal → tap a card to preview; edit after ✓ on the River
+- Restoring from the cloud adds missing rows only (never overwrites the phone)
+
+---
+
+## Phase 3 — Body (Bird Fitness port) · code done, waiting on Anthony's phone check
 
 Built Oct 15, 2026.
 

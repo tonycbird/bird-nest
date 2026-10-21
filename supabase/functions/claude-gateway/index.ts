@@ -1,3 +1,4 @@
+// NOT USED (Phase 0 draft). Phase 4 replaced this with the SQL function nest_gateway() in supabase/migrations/0002_phase4.sql.
 // Bird Nest · claude-gateway (Phase 0: snapshot + propose)
 // The one narrow door between Claude scheduled tasks and the app's data.
 // Secrets (set in Supabase → Edge Functions → Secrets, never in git):

@@ -4,6 +4,7 @@ dev-dist
 .env
 .env.*
 !.env.example
+!.env.production
 migration/raw
 *.local
 .DS_Store
@@ -12,3 +13,6 @@ migration/raw
 Claude outputs/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Supabase SQL with secrets in it (the door key hash)
+supabase/local/

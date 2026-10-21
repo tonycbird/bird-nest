@@ -1,47 +1,129 @@
+import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type ProposalStatus } from "../lib/db";
-import { decide } from "../lib/proposals";
+import { db, type Proposal } from "../lib/db";
+import { approve, decline } from "../lib/apply";
+import { cloud, dismissMail, syncNow } from "../lib/sync";
+import { CLOUD } from "../lib/supabase";
 import { useToast } from "../lib/toast";
+import { goTab } from "../head/useHead";
+import { keyLabel, shortTime } from "../lib/time";
 
 const ICON: Record<string, string> = {
   hello: "👋", day_plan: "☀", task: "☐", calendar_book: "📅", workout_swap: "🔁", makeup: "🏋",
   grocery: "🛒", ramble_split: "🗣", recap: "🌙", rollover: "↪", weekly_review: "🗓",
 };
+const DONE_MSG: Record<string, string> = {
+  day_plan: "☀ River replaced", task: "☐ Task added", calendar_book: "📅 Booking within the hour", grocery: "🛒 Added to groceries",
+  rollover: "↪ Moved to tomorrow", recap: "🌙 Saved", makeup: "🏋 Makeup set", workout_swap: "🔁 Swapped",
+  ramble_split: "🗣 Tasks added", weekly_review: "🗓 On the River",
+};
 
-function title(p: { kind: string; payload: Record<string, unknown> }): string {
+type J = Record<string, unknown>;
+const list = (v: unknown): J[] => (Array.isArray(v) ? (v as J[]) : []);
+
+function title(p: Proposal): string {
   const t = p.payload?.["title"];
-  return typeof t === "string" && t ? t : p.kind.replace(/_/g, " ");
+  if (typeof t === "string" && t) return t;
+  const P = p.payload as J;
+  if (p.kind === "day_plan") return `Plan for ${p.day_key ? keyLabel(p.day_key) : "today"}`;
+  if (p.kind === "grocery") return `Groceries · ${list(P.items).length}`;
+  if (p.kind === "rollover") return "Move to tomorrow";
+  if (p.kind === "recap") return "Today's recap";
+  if (p.kind === "makeup") return "Make up the missed workout";
+  if (p.kind === "weekly_review") return "Weekly review";
+  if (p.kind === "ramble_split") return `Tasks from a ramble · ${list(P.tasks).length}`;
+  return p.kind.replace(/_/g, " ");
+}
+
+/** What ✓ would do, in a few lines. */
+function Preview({ p }: { p: Proposal }) {
+  const P = p.payload as J;
+  if (p.kind === "day_plan") return (
+    <>
+    {typeof P.sentence === "string" && <p className="quiet" style={{ marginTop: 6 }}>“{P.sentence}”</p>}
+    <ol className="prop-list">
+      {list(P.blocks).map((b, i) => <li key={i}><b>{shortTime(String(b.start ?? ""))}</b> {String(b.icon ?? "")} {String(b.title ?? "")} <span className="quiet">· {list(b.steps).length} steps</span></li>)}
+    </ol>
+    </>
+  );
+  if (p.kind === "grocery") return <ol className="prop-list">{list(P.items).map((x, i) => <li key={i}>{String(x.name)} {x.amt ? <span className="quiet">· {String(x.amt)}</span> : null}</li>)}</ol>;
+  if (p.kind === "recap") return <ol className="prop-list">{(Array.isArray(P.lines) ? P.lines : []).map((x, i) => <li key={i}>{String(x)}</li>)}</ol>;
+  if (p.kind === "ramble_split") return <ol className="prop-list">{list(P.tasks).map((x, i) => <li key={i}>{String(x.title)}</li>)}</ol>;
+  if (p.kind === "rollover") return <p className="quiet">{list(P.move).length} to tomorrow{list(P.someday).length ? ` · ${list(P.someday).length} to Someday` : ""}</p>;
+  if (p.kind === "calendar_book") return <p className="quiet">{String(P.day ?? "")} {shortTime(String(P.start ?? ""))}–{shortTime(String(P.end ?? ""))}</p>;
+  if (p.kind === "task") return <p className="quiet">{[P.when && `📅 ${P.when}`, P.due && `⚑ ${P.due}`, P.link && "📧 link"].filter(Boolean).join(" · ")}</p>;
+  if (p.kind === "weekly_review") return <ol className="prop-list">{(Array.isArray(P.prompts) ? P.prompts : []).map((x, i) => <li key={i}>{String(x)}</li>)}</ol>;
+  return null;
 }
 
 export default function Approvals() {
   const items = useLiveQuery(() => db.proposals.where("status").equals("pending").reverse().sortBy("created_at"), [], []);
+  const waiting = useLiveQuery(() => db.proposals.where("status").equals("approved").toArray(), [], []);
+  const mail = useLiveQuery(() => db.mail.orderBy("created_at").reverse().toArray(), [], []);
+  const c = cloud.use();
   const toast = useToast();
+  const [open, setOpen] = useState<string | null>(null);
 
-  async function act(id: string, status: ProposalStatus) {
-    toast(status === "approved" ? "✓ Approved" : "✕ Skipped", await decide(id, status));
+  async function act(p: Proposal, yes: boolean) {
+    try {
+      const undo = yes ? await approve(p) : await decline(p);
+      toast(yes ? (DONE_MSG[p.kind] ?? "✓ Approved") : "✕ Skipped", undo);
+    } catch (e) {
+      toast("⚠ " + (e as Error).message);
+    }
   }
 
   return (
     <>
       <header className="top"><div><div className="date">From Claude</div><h1 className="sentence">✓ Approve</h1></div></header>
+      {CLOUD && !c.signedIn && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <p><strong>☁ Claude isn't connected</strong></p>
+          <button className="btn primary" style={{ marginTop: 8 }} onClick={() => goTab("settings")}>⚙ Connect</button>
+        </div>
+      )}
       {items.length === 0 ? (
-        <div className="empty"><div className="big">✓</div><h2>All clear</h2><p className="detail">Claude's suggestions land here from Phase 4.</p></div>
+        <div className="empty"><div className="big">✓</div><h2>All clear</h2>
+          {c.signedIn && <button className="btn sm" onClick={() => void syncNow()}>↻ Check now</button>}
+        </div>
       ) : (
         <div className="stack">
           {items.map((p) => (
-            <div key={p.id} className="card prop">
+            <div key={p.id} className="card prop" onClick={() => setOpen(open === p.id ? null : p.id)}>
               <span style={{ fontSize: 22 }}>{ICON[p.kind] ?? "•"}</span>
               <div style={{ minWidth: 0 }}>
                 <div className="what">{title(p)}</div>
                 {p.reason && <div className="why">{p.reason}</div>}
+                {open === p.id && <Preview p={p} />}
               </div>
-              <div className="acts">
-                <button className="iconbtn" aria-label="Skip" onClick={() => act(p.id, "declined")}>✕</button>
-                <button className="iconbtn yes" aria-label="Approve" onClick={() => act(p.id, "approved")}>✓</button>
+              <div className="acts" onClick={(e) => e.stopPropagation()}>
+                <button className="iconbtn" aria-label="Skip" onClick={() => act(p, false)}>✕</button>
+                <button className="iconbtn yes" aria-label="Approve" onClick={() => act(p, true)}>✓</button>
               </div>
             </div>
           ))}
         </div>
+      )}
+      {waiting.length > 0 && (
+        <>
+          <div className="lbl">📅 Waiting for Claude · {waiting.length}</div>
+          <div className="card">{waiting.map((p) => <div key={p.id} className="kv"><span>{ICON[p.kind] ?? "•"} {title(p)}</span><span className="muted">next run</span></div>)}</div>
+        </>
+      )}
+      {mail.length > 0 && (
+        <>
+          <div className="lbl">📧 Mail Claude flagged · {mail.length}</div>
+          <div className="card">
+            {mail.map((m) => (
+              <div key={m.id} className="kv">
+                <a href={m.link} target="_blank" rel="noreferrer" style={{ minWidth: 0, color: "inherit" }}>
+                  <b>{m.ask || m.subject}</b><div className="quiet detail">{m.sender} · {m.subject}</div>
+                </a>
+                <button className="iconbtn" aria-label="Dismiss" onClick={() => void dismissMail(m.id)}>✕</button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </>
   );

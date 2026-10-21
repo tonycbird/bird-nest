@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../lib/db";
+import { db, type CalEvent } from "../lib/db";
 import {
   completeBlock, copyDay, defaultSentence, loadDay, loadSample, moveBlock, nextLine, nowBlock, nowStep,
   setSentence, skipBlock, softDelete, toggleStep, type RiverBlock,
@@ -22,6 +22,12 @@ export default function Today(props: Props) {
   const isToday = day === today();
   const blocks = useLiveQuery(() => loadDay(day), [day], [] as RiverBlock[]);
   const dayRow = useLiveQuery(() => db.days.get(day), [day]);
+  // Google Calendar events Claude copied in: thin, locked rows on the River.
+  const cal = useLiveQuery(() => db.calendar.where("day").equals(day).toArray(), [day], [] as CalEvent[]);
+  const timedCal = cal.filter((e) => !e.all_day && e.start).sort((a, b) => a.start!.localeCompare(b.start!));
+  const allDay = cal.filter((e) => e.all_day || !e.start);
+  const merged: ({ b: RiverBlock; e?: undefined; start: string } | { e: CalEvent; b?: undefined; start: string })[] =
+    [...blocks.map((b) => ({ b, e: undefined, start: b.start })), ...timedCal.map((e) => ({ e, b: undefined, start: e.start! }))].sort((x, y) => x.start.localeCompare(y.start) || (x.e ? -1 : 1));
   const [openId, setOpenId] = useState<string | "auto">("auto");
   const [menu, setMenu] = useState<RiverBlock | null>(null);
   const [sheet, setSheet] = useState<{ block?: RiverBlock } | null>(null);
@@ -81,7 +87,15 @@ export default function Today(props: Props) {
         </button>
       )}
 
+      {allDay.length > 0 && (
+        <div className="chips" style={{ marginBottom: 10 }}>{allDay.map((e) => <span key={e.id} className="chip cal-chip">📅 {e.title}</span>)}</div>
+      )}
+
       {blocks.length === 0 ? (
+        <>
+        {timedCal.length > 0 && (
+          <div className="rv" style={{ marginBottom: 12 }}>{timedCal.map((e) => <CalRow key={e.id} e={e} />)}</div>
+        )}
         <div className="empty">
           <div className="big">🪺</div>
           <h2>Nothing planned</h2>
@@ -92,10 +106,13 @@ export default function Today(props: Props) {
             <button className="btn" onClick={async () => toast("☀ Sample day", await loadSample(day))}>☀ Sample day</button>
           </div>
         </div>
+        </>
       ) : (
         <>
           <div className="rv">
-            {blocks.map((b) => {
+            {merged.map((r) => {
+              if (r.e) return <CalRow key={r.e.id} e={r.e} />;
+              const b = r.b;
               const isOpen = open === b.id;
               const cur = nowStep(b);
               const cls = ["rb", b.kind, b.status === "done" ? "done" : "", b.status === "skipped" ? "skipped" : "", now?.id === b.id ? "now" : "", isOpen ? "open" : ""].join(" ");
@@ -150,6 +167,13 @@ export default function Today(props: Props) {
         </>
       )}
 
+      {dayRow?.recap && dayRow.recap.length > 0 && (
+        <div className="card recap">
+          <div className="lbl" style={{ marginTop: 0 }}>🌙 Recap</div>
+          {dayRow.recap.map((l, i) => <p key={i}>{l}</p>)}
+        </div>
+      )}
+
       <BodyTray day={day} />
       <HeadTray day={day} />
 
@@ -192,4 +216,15 @@ function openBody(sourceId?: string | null) {
   else if (key === "cool") api.openStretch(date, "s2");
   else if (key === "warm") api.openToday(date);
   else api.openStretch(date, key);
+}
+
+/** A calendar event on the River: thin and locked. Change it in Google Calendar. */
+function CalRow({ e }: { e: CalEvent }) {
+  return (
+    <div className="rb cal" aria-label={`Calendar: ${e.title}`}>
+      <span className="rb-time">{shortTime(e.start)}{e.start && Number(e.start.slice(0, 2)) >= 12 && <span className="ap">p</span>}</span>
+      <span className="rb-ic" aria-hidden="true">📅</span>
+      <div className="cal-t"><b>{e.title}</b>{e.end && <small className="quiet"> · until {shortTime(e.end)}</small>}</div>
+    </div>
+  );
 }

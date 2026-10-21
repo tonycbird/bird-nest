@@ -10,7 +10,7 @@ export type BlockStatus = "open" | "done" | "skipped";
 
 export interface Row { id: string; created_at: string; updated_at: string; deleted_at: string | null; }
 
-export interface Day extends Omit<Row, "id"> { day: string; sentence: string | null; }
+export interface Day extends Omit<Row, "id"> { day: string; sentence: string | null; recap?: string[] | null; }
 
 export interface Block extends Row {
   day: string;            // YYYY-MM-DD in Anthony's time zone
@@ -42,7 +42,13 @@ export type ProposalStatus = "pending" | "approved" | "declined" | "applied" | "
 export interface Proposal {
   id: string; kind: string; payload: Record<string, unknown>; reason: string | null;
   status: ProposalStatus; needs_google: boolean; created_at: string; updated_at: string;
+  day_key?: string | null; note?: string | null;
 }
+/** A Google Calendar event Claude copied in. Read-only; shown on the River as a thin locked block. */
+export interface CalEvent { id: string; day: string; start: string | null; end: string | null; title: string; all_day: boolean }
+/** Mail Claude flagged: a summary line and a link, never the body. */
+export interface MailItem { id: string; received: string | null; sender: string | null; subject: string | null; ask: string | null; due: string | null; link: string; created_at: string; dismissed_at: string | null }
+
 export interface OutboxOp { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string; }
 
 export class NestDB extends Dexie {
@@ -61,6 +67,9 @@ export class NestDB extends Dexie {
   photos!: Table<Photo, string>;
   // Body (ported from Bird Fitness; documents keep the old app's shape so its logic runs unchanged)
   fit!: Table<FitDoc, string>;
+  // Phase 4: copies of what Claude wrote (calendar, flagged mail). Pulled from the cloud, never pushed.
+  calendar!: Table<CalEvent, string>;
+  mail!: Table<MailItem, string>;
   constructor(name = "bird-nest") {
     super(name);
     this.version(1).stores({ proposals: "id, status, created_at", outbox: "op_id, queued_at" });
@@ -81,6 +90,7 @@ export class NestDB extends Dexie {
       photos: "id, owner",
     });
     this.version(4).stores({ fit: "key, updated_at" });
+    this.version(5).stores({ calendar: "id, day", mail: "id, created_at" });
   }
 }
 export const db = new NestDB();

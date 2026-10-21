@@ -86,6 +86,11 @@
     openStretch: function (date, k) { closeSheet(); ACT.openStretchTab({ d: date, k: k }); },
     openToday: function (date) { closeSheet(); UI.date = date || today(); UI.seg.workout = 'today'; UI.stacks.workout = [{ v: 'wroot' }]; UI.tab = 'workout'; render({ top: true }); },
     checkIn: function () { ACT.checkIn(); },
+    // Claude's makeup / swap proposals. Each returns the old overrides so ✓ can be undone.
+    makeup: function (missed) { var prev = JSON.stringify(PRG().overrides); if (!pushBack(missed)) throw new Error('No open day for a makeup this week'); if (!Player.on) render(); return prev; },
+    setWorkout: function (date, wid) { var prev = JSON.stringify(PRG().overrides); PRG().overrides[date] = wid && workoutById(wid) ? wid : 'rest'; cleanOverrides(); Store.save('program'); if (!Player.on) render(); return prev; },
+    restoreOverrides: function (prev) { try { PRG().overrides = JSON.parse(prev); Store.save('program'); if (!Player.on) render(); } catch (e) {} },
+    missed: function () { var m = missedWorkout(); return m ? { date: m.date, workout: m.w } : null; },
     refresh: function () { try { if (!Player.on) render(); Timer.draw(); } catch (e) {} },
     markWarm: function (date) { var m = Store.month(monthKey(date), true); if (!m.warm[date]) { m.warm[date] = true; Store.save('m:' + monthKey(date)); if (!Player.on) render(); } },
     timerAdd: function (s) { Timer.add(s); },

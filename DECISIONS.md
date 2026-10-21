@@ -29,3 +29,10 @@
 | 2026-10-15 | One grocery list, in Head; Fitness sends to it | Head's list has aisles, stores and the 🌊 shopping block. Spices skipped (pantry). |
 | 2026-10-15 | Restoring an older backup leaves tables it doesn't have alone | A Phase 2 backup must not wipe Body data. |
 | 2026-10-17 | Updates install on their own (autoUpdate), registered at startup; a blank start repairs stale files once, then shows a rescue screen | iPhone got stuck on a bad cached copy and couldn't tap "Update". Reset app files fixed it; now the app does that itself. |
+| 2026-10-17 | Claude's door is a SQL function (`nest_gateway`) called through the REST API, not an Edge Function | One SQL paste instead of deploying a function; the token is checked by hash inside the database. `supabase/functions/claude-gateway` is the old Phase 0 draft, not used. |
+| 2026-10-17 | The phone stays the main copy; the cloud gets a copy of every row (`nest_rows`, jsonb) | Simple and safe: Claude reads it, a new phone can restore from it, and nothing on the phone is ever overwritten by the cloud. |
+| 2026-10-17 | ✓ is applied on the phone; only Google changes wait for the applier | The phone owns the data. The app marks its own proposals applied; the database guard allows that only for non-Google ones. |
+| 2026-10-17 | Sign-in is optional | Nest must work at the gym and can't be locked behind an email code. ☁ Connect is in ⚙. |
+| 2026-10-17 | The door key lives in the scheduled tasks; its hash in Supabase (`supabase/local/`, gitignored) | No secrets in git or the client. Rotate: new key, new hash row, update the four tasks. |
+| 2026-10-17 | Public Supabase URL + publishable key in `.env.production` (in git) | They're public by design (they ship in the app). Cloudflare builds need them; RLS does the protecting. |
+| 2026-10-21 | Sign-in is email + password, not a 6-digit code | Free Supabase won't let the email templates change without custom SMTP, and its default email only has a link (which opens Safari, not the app). "Confirm email" off; sign-ups off after Anthony's account. |
