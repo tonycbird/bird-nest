@@ -51,6 +51,7 @@ export interface Task {
   status: "open" | "done";
   doneAt: number | null;
   repeatNextId?: string | null; // the copy a repeating task made when it was finished (so reopening can take it back)
+  calId?: string | null; // the calendar event this task was accepted from (Today: hold an all-day item)
   doneBy?: string | null;
   createdAt: number;
   updatedAt: number;

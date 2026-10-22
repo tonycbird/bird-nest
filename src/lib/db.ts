@@ -21,8 +21,8 @@ export interface Block extends Row {
   title: string;
   status: BlockStatus;
   done_at: string | null;
-  source_type?: "task" | "groceries" | "workout" | null;  // made from Head (a task, grocery items) or Body (a workout part)
-  source_id?: string | null;    // task id; grocery task ids joined by ","; or "YYYY-MM-DD|warm|main|cool|…" for Body
+  source_type?: "task" | "groceries" | "workout" | "calendar" | null;  // made from Head (a task, grocery items), Body (a workout part), or a calendar event Anthony accepted
+  source_id?: string | null;    // task id; grocery task ids joined by ","; "YYYY-MM-DD|warm|main|cool|…" for Body; the calendar event id
 }
 
 export interface Step extends Row {

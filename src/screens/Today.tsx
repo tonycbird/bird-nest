@@ -13,6 +13,7 @@ import QuickRow from "./QuickRow";
 import { fitApi } from "../body/host";
 import { goTab, openTask, useHeadSettings } from "../head/useHead";
 import { placeTimedTasks } from "../head/river-bridge";
+import { acceptEvent, acceptedOn } from "../lib/calendar-accept";
 import { I, Icon } from "../ui/Icon";
 import { blockLook, colorFor } from "../ui/colors";
 
@@ -77,10 +78,16 @@ export default function Today(props: Props) {
   const isToday = day === todayKey;
   const blocks = useLiveQuery(() => loadDay(day), [day], [] as RiverBlock[]);
   const dayRow = useLiveQuery(() => db.days.get(day), [day]);
-  // Google Calendar events Claude copied in: dashed, locked rows on the timeline.
+  // Google Calendar items Claude copied in: small faded lines until Anthony holds one to make it his own.
   const cal = useLiveQuery(() => db.calendar.where("day").equals(day).toArray(), [day], [] as CalEvent[]);
-  const timedCal = useMemo(() => cal.filter((e) => !e.all_day && e.start).sort((a, b) => a.start!.localeCompare(b.start!)), [cal]);
-  const allDay = cal.filter((e) => e.all_day || !e.start);
+  const accepted = useLiveQuery(() => acceptedOn(day), [day], new Set<string>());
+  const timedCal = useMemo(() => cal.filter((e) => !e.all_day && e.start && !accepted.has(e.id)).sort((a, b) => a.start!.localeCompare(b.start!)), [cal, accepted]);
+  const allDay = cal.filter((e) => (e.all_day || !e.start) && !accepted.has(e.id));
+  const accept = async (e: CalEvent) => {
+    try { navigator.vibrate?.(12); } catch { /* not on iPhone */ }
+    toast(e.all_day || !e.start ? "✓ Added to your tasks" : "✓ On your day", await acceptEvent(e));
+  };
+  const holdHint = () => toast("Hold to make it yours");
   const [openId, setOpenId] = useState<string | "auto">("auto");
   const [menu, setMenu] = useState<RiverBlock | null>(null);
   const [sheet, setSheet] = useState<{ block?: RiverBlock; start?: string } | null>(null);
@@ -97,22 +104,20 @@ export default function Today(props: Props) {
   const open = openId === "auto" ? (isToday ? now?.id ?? null : null) : openId;
   const playingBlock = useMemo(() => blocks.find((b) => b.id === playing) ?? null, [blocks, playing]);
 
-  // Blocks and calendar events in time order, with the free gaps between them.
+  // Blocks in time order with the free gaps between them; calendar lines slot in by their time.
+  // A calendar item you haven't accepted doesn't take up time, so it doesn't shrink a gap.
   type Row = { t: "b"; b: RiverBlock } | { t: "e"; e: CalEvent } | { t: "gap"; from: string; mins: number };
   const rows: Row[] = useMemo(() => {
-    const items = [
-      ...blocks.map((b) => ({ start: b.start, end: endMin(b.start, b.end), row: { t: "b", b } as Row })),
-      ...timedCal.map((e) => ({ start: e.start!, end: endMin(e.start!, e.end), row: { t: "e", e } as Row })),
-    ].sort((x, y) => x.start.localeCompare(y.start));
-    const out: Row[] = [];
+    const out: { key: string; row: Row }[] = [];
     let last = -1;
-    for (const it of items) {
-      const s = minutes(it.start);
-      if (last >= 0 && s - last >= 45) out.push({ t: "gap", from: hhmm(last), mins: s - last });
-      out.push(it.row);
-      last = Math.max(last, it.end);
+    for (const b of [...blocks].sort((x, y) => x.start.localeCompare(y.start))) {
+      const s = minutes(b.start);
+      if (last >= 0 && s - last >= 45) out.push({ key: hhmm(last) + "0", row: { t: "gap", from: hhmm(last), mins: s - last } });
+      out.push({ key: b.start + "1", row: { t: "b", b } });
+      last = Math.max(last, endMin(b.start, b.end));
     }
-    return out;
+    for (const e of timedCal) out.push({ key: e.start! + "2", row: { t: "e", e } });
+    return out.sort((x, y) => x.key.localeCompare(y.key)).map((x) => x.row);
   }, [blocks, timedCal]);
 
   const parts = dateParts(day);
@@ -139,7 +144,7 @@ export default function Today(props: Props) {
 
       {isToday && <QuickRow day={day} pending={props.pending} onApprovals={props.onApprovals} />}
 
-      {allDay.length > 0 && <div className="allday">{allDay.map((e) => <span key={e.id}><I n="calendar" />{e.title}</span>)}</div>}
+      {allDay.length > 0 && <div className="allday" aria-label="All-day items from your calendar">{allDay.map((e) => <CalChip key={e.id} e={e} onAccept={() => void accept(e)} onTap={holdHint} />)}</div>}
 
       {rows.length > 0 && (
         <div className="tl">
@@ -149,7 +154,7 @@ export default function Today(props: Props) {
                 <button onClick={() => setSheet({ start: r.from })}><I n="plus" tone={false} />{dur(r.mins)} free</button>
               </div>
             );
-            if (r.t === "e") return <CalRow key={r.e.id} e={r.e} />;
+            if (r.t === "e") return <CalLine key={r.e.id} e={r.e} onAccept={() => void accept(r.e)} onTap={holdHint} />;
             return (
               <BlockRow key={r.b.id} b={r.b} isNow={now?.id === r.b.id} isToday={isToday} nowMin={nowMin} open={open === r.b.id}
                 onToggle={() => setOpenId(open === r.b.id ? "" : r.b.id)} onMenu={() => setMenu(r.b)} onPlay={() => setPlaying(r.b.id)} />
@@ -357,19 +362,50 @@ function openBody(sourceId?: string | null) {
   else api.openStretch(date, key);
 }
 
-/** A calendar event: dashed and locked. Change it in Google Calendar. */
-function CalRow({ e }: { e: CalEvent }) {
+/** Hold to accept: a fill runs across while the finger stays down; let go early (or scroll) and nothing happens. */
+const HOLD_MS = 550;
+function useHold(onDone: () => void, onTap: () => void) {
+  const [holding, setHolding] = useState(false);
+  const t = useRef(0), at = useRef<{ x: number; y: number; t: number } | null>(null), fired = useRef(false);
+  const stop = () => { window.clearTimeout(t.current); setHolding(false); at.current = null; };
+  return {
+    holding,
+    handlers: {
+      onPointerDown: (e: React.PointerEvent) => {
+        fired.current = false;
+        at.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+        setHolding(true);
+        t.current = window.setTimeout(() => { fired.current = true; stop(); onDone(); }, HOLD_MS);
+      },
+      onPointerMove: (e: React.PointerEvent) => { const a = at.current; if (a && Math.hypot(e.clientX - a.x, e.clientY - a.y) > 10) stop(); },
+      onPointerUp: () => { const a = at.current; const quick = !!a && Date.now() - a.t < 300; stop(); if (quick && !fired.current) onTap(); },
+      onPointerLeave: stop, onPointerCancel: stop,
+      onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    },
+  };
+}
+
+/** A calendar item you haven't accepted: one faded line. Hold it to make it a block. */
+function CalLine({ e, onAccept, onTap }: { e: CalEvent; onAccept: () => void; onTap: () => void }) {
+  const { holding, handlers } = useHold(onAccept, onTap);
   const s = minutes(e.start!), en = e.end ? minutes(e.end) : null;
   return (
-    <div className="tr cal" aria-label={`Calendar: ${e.title}`} style={k(colorFor("calendar"))}>
+    <div className={"tr calline" + (holding ? " holding" : "")} role="button" tabIndex={0} aria-label={`${e.title}, from your calendar. Hold to add it to your day`}
+      onKeyDown={(k) => { if (k.key === "Enter") onAccept(); }} {...handlers}>
       <div className="tr-time">{shortTime(e.start)}</div>
-      <div className="tp cal"><Icon n="calendar" size={19} /></div>
-      <div className="bc cal">
-        <div className="bc-row">
-          <div className="bc-main"><b>{e.title}</b>{en && en > s ? <small>{dur(en - s)}</small> : null}</div>
-          <span className="lock" role="img" aria-label="From Google Calendar"><Icon n="lock" size={16} /></span>
-        </div>
-      </div>
+      <div className="cl-dot"><Icon n="calendar" size={13} tone={false} /></div>
+      <div className="cl-body"><span className="cl-fill" /><span className="cl-t">{e.title}</span>{en && en > s ? <span className="cl-d">{dur(en - s)}</span> : null}</div>
     </div>
+  );
+}
+
+/** An all-day calendar item: a small chip. Hold it to make it a task for the day. */
+function CalChip({ e, onAccept, onTap }: { e: CalEvent; onAccept: () => void; onTap: () => void }) {
+  const { holding, handlers } = useHold(onAccept, onTap);
+  return (
+    <span className={"calchip" + (holding ? " holding" : "")} role="button" tabIndex={0} aria-label={`${e.title}, all day, from your calendar. Hold to add it to your tasks`}
+      onKeyDown={(k) => { if (k.key === "Enter") onAccept(); }} {...handlers}>
+      <span className="cl-fill" />{e.title}
+    </span>
   );
 }

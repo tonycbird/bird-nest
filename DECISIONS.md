@@ -57,3 +57,5 @@
 | 2026-10-22 | A dump offers new projects (on by default, one switch to skip) | Ranting about a new job is the main use. Steps keep the order they were said in; the first one is the next action. |
 | 2026-10-22 | Task titles stay short; the rest of what was said goes in the notes | Less is more on the lists; nothing he said is lost. |
 | 2026-10-22 | A Head task with a day and a time shows on that day's River by itself, once | Anthony chose "River + Head" for timed things; Google Calendar is untouched. Removing the block keeps it off. |
+| 2026-10-22 | Calendar items on Today are suggestions; hold one to accept it | Most shared-calendar items (sabbaticals, other people's days off) aren't his. Faded and small until held; a timed one becomes a River block, an all-day one a task that day. Deleting it un-accepts. |
+| 2026-10-22 | New app icon: a white monoline B on the teal gradient | Anthony passed on four concepts and asked for a B. Same teal as before, so it still reads as Nest. |

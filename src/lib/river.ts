@@ -13,7 +13,7 @@ export const MAX_STEPS = 7;
 export interface StepInput { label: string; value?: string | null; done?: boolean; }
 export interface BlockInput {
   day: string; start: string; end?: string | null; kind: Kind; title: string; icon?: string; steps: StepInput[];
-  source_type?: "task" | "groceries" | "workout" | null; source_id?: string | null;
+  source_type?: "task" | "groceries" | "workout" | "calendar" | null; source_id?: string | null;
 }
 
 /* ---------- reading ---------- */

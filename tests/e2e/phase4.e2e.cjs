@@ -105,9 +105,21 @@ async function fakeSupabase(route) {
   const after = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
   assert(after.join('|') === 'Legs|Smith quote', `River replaced (${before.length} sample blocks → ${after.join(', ')})`);
   assert(await p.locator('.t-sentence >> text=Legs, then the Smith quote.').count() === 1, "Claude's sentence on top");
-  assert(await p.locator('.tr.cal >> text=Dentist').count() === 1, 'calendar event shows as a locked row');
-  assert(await p.locator('.allday >> text=Payday').count() === 1, 'all-day event shows as a chip');
+  assert(await p.locator('.calline >> text=Dentist').count() === 1, 'calendar item shows as a small line');
+  assert(await p.locator('.allday >> text=Payday').count() === 1, 'all-day item shows as a small chip');
   await shot(p, '42-river-from-claude');
+  // A quick tap only says how; holding makes it yours.
+  await p.locator('.calline', { hasText: 'Dentist' }).click(); await p.waitForTimeout(300);
+  assert(await p.locator('.toast >> text=Hold to make it yours').count() === 1, 'a tap explains: hold');
+  assert(await p.locator('.calline', { hasText: 'Dentist' }).count() === 1, 'a tap alone does nothing');
+  const hold = async (loc) => { const bx = await loc.boundingBox(); await p.mouse.move(bx.x + bx.width / 2, bx.y + bx.height / 2); await p.mouse.down(); await p.waitForTimeout(800); await p.mouse.up(); await p.waitForTimeout(500); };
+  await hold(p.locator('.calline', { hasText: 'Dentist' }));
+  assert(await p.locator('.calline', { hasText: 'Dentist' }).count() === 0 && await p.locator('.tr:not(.calline) .bc-main b', { hasText: 'Dentist' }).count() === 1, 'holding a calendar line makes it a block');
+  await hold(p.locator('.calchip', { hasText: 'Payday' }));
+  assert(await p.locator('.calchip', { hasText: 'Payday' }).count() === 0, 'holding an all-day chip accepts it');
+  const payday = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.find((t) => t.title === 'Payday')); }; }); });
+  assert(payday && payday.calId, 'the all-day item is a task for the day');
+  await shot(p, '43-calendar-accepted');
 
   // Head got the mail task with its link.
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);

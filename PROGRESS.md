@@ -75,7 +75,7 @@ Picked on the design canvas: **G** (Bloom timeline + Flow's task circles), color
 - [x] One color per life area everywhere: body teal, stretch sky, warm-up peach, head violet, money gold, people green, home pink, rest indigo, calendar gray
 - [x] 83 Nest icons drawn for the app (`src/ui/icons.ts`). Any emoji that reaches the screen (old blocks, Claude's plans, toasts, areas) is swapped for a Nest icon by the JSX runtime (`src/jsx`)
 - [x] Font: Plus Jakarta Sans (bundled, works offline)
-- [x] Today: big date, week tiles with color bars (swipe for other weeks), task circles (Claude, today's workout, Head tasks, late, to sort, Plan), pill timeline, now card with the current step + Start, "2/5 ⌄" opens all steps, free gaps, dashed calendar rows
+- [x] Today: big date, week tiles with color bars (swipe for other weeks), task circles (Claude, today's workout, Head tasks, late, to sort, Plan), pill timeline, now card with the current step + Start, "2/5 ⌄" opens all steps, free gaps, small faded calendar lines
 - [x] Tab bar: Today · Head · ＋ · Body · Claude
 - [x] Head, Body (Fitness skin), Claude, Settings, sheets, step player restyled; new home-screen icon
 - [x] Tests: 94 unit tests, e2e phase 2/2-bulk/3/3-offline/4 all pass on the new screens
@@ -100,7 +100,7 @@ Built Oct 16–17, 2026.
 - [x] The phone's copy goes up to `nest_rows` (every table except photos), offline edits wait and go up later; a week of Body plans goes up for Claude
 - [x] Nest never waits for sign-in; ☁ Connect lives in ⚙
 - [x] ✓ tab: preview, ✓ applies on the phone (day plan replaces the River, task, rollover, recap, groceries, makeup, swap, weekly review, ramble tasks), ✕ declines; calendar bookings wait for the applier; flagged mail with links
-- [x] Calendar events on the River as dashed, locked rows; all-day ones as chips; evening recap card
+- [x] Calendar events on the River as small faded lines; all-day ones as small chips; hold one to make it yours (timed → a block at its time, all-day → a Head task that day); evening recap card
 - [x] Four scheduled tasks created (morning 4:45, applier 7:10/10:10/1:10/4:10/7:10, evening 8:40, Sunday 5:50 PM); prompts in `claude/tasks/`
 - [x] Tests: SQL tests in Postgres (`tests/sql/`), 88 unit tests, Phase 4 e2e with a fake Supabase
 
