@@ -107,7 +107,7 @@ const PROBE = `(() => {
   await shot(p, '05-river-workout');
 
   // 🏋 Log opens the logger; logging every set of the first lift ticks step 1 on the River.
-  await p.click('.tr.open [aria-label="Open in Body"]'); await p.waitForTimeout(700);
+  await p.click('.tr.open [aria-label^="More for"]'); await p.click('.menu >> text=Open in Body'); await p.waitForTimeout(700);
   assert(await f.locator('[data-a="openEx"]').count() > 0, '🏋 Log opens the workout in Body');
   await shot(p, '06-body-workout-detail');
   await f.locator('[data-a="openEx"]').first().click(); await p.waitForTimeout(400);

@@ -72,6 +72,24 @@ const SHOTS = process.env.SHOTS;
   await p.touchscreen.tap(box.x + box.width / 2, box.y + 8); await p.waitForTimeout(500);
   assert(await p.locator('.sheet').count() === 0, 'tapping the grab bar closes a sheet');
 
+  // ---- Swipe left to delete in Head (with Undo) ----
+  await p.click('.tabs >> text=Head'); await p.click('.hn >> text=Today'); await p.waitForTimeout(300);
+  const row = p.locator('.swipe .task', { hasText: 'Pay avista' });
+  const rb = await row.boundingBox();
+  const y = rb.y + rb.height / 2;
+  await p.evaluate(({ x, y }) => {
+    const el = document.elementFromPoint(x, y);
+    const t = (cx) => [new Touch({ identifier: 1, target: el, clientX: cx, clientY: y })];
+    el.dispatchEvent(new TouchEvent('touchstart', { touches: t(x), bubbles: true }));
+    for (let i = 1; i <= 8; i++) el.dispatchEvent(new TouchEvent('touchmove', { touches: t(x - i * 20), bubbles: true }));
+    el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: t(x - 160), bubbles: true }));
+  }, { x: rb.x + rb.width - 30, y });
+  await p.waitForTimeout(700);
+  assert(await p.locator('.task', { hasText: 'Pay avista' }).count() === 0, 'swiping a task left deletes it');
+  await p.click('.toast >> text=Undo'); await p.waitForTimeout(500);
+  assert(await p.locator('.task', { hasText: 'Pay avista' }).count() === 1, 'Undo brings it back');
+  await shot('head-after-undo');
+
   assert(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.join(' | ') : ''));
   await b.close();
   console.log('\nTesting + Dump e2e: all passed');

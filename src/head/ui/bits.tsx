@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode, type TouchEvent } from "react";
 import * as C from "../core/clearhead.js";
 import type { Area, HeadData, Project, Task } from "../types";
 import { multi, openTask, toggleMulti } from "../useHead";
-import { I } from "../../ui/Icon";
+import { I, Icon } from "../../ui/Icon";
 
 /* Clearhead used Lucide icon names. Bird Nest shows them as emoji (no icon font to load offline). */
 const EMOJI: Record<string, string> = {
@@ -96,6 +96,36 @@ export function metaFor(t: Task, data: HeadData, opts: { showWhen?: boolean; sho
   return out;
 }
 
+/* Swipe a row left to delete it (Undo in the toast). Vertical scrolling wins if the finger moves up or down first. */
+function useSwipeDelete(onDelete: () => void, enabled: boolean) {
+  const [dx, setDx] = useState(0);
+  const [gone, setGone] = useState(false);
+  const st = useRef<{ x: number; y: number; lock: "h" | "v" | null } | null>(null);
+  const swiped = useRef(false);
+  const cur = useRef(0); // the latest offset, readable on touchend even before React re-renders
+  const CUT = -96;
+  return {
+    dx, gone, swiped,
+    handlers: !enabled ? {} : {
+      onTouchStart: (e: TouchEvent) => { st.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null }; swiped.current = false; },
+      onTouchMove: (e: TouchEvent) => {
+        const s = st.current; if (!s) return;
+        const ddx = e.touches[0].clientX - s.x, ddy = e.touches[0].clientY - s.y;
+        if (!s.lock && (Math.abs(ddx) > 8 || Math.abs(ddy) > 8)) s.lock = Math.abs(ddx) > Math.abs(ddy) ? "h" : "v";
+        if (s.lock === "h") { swiped.current = true; cur.current = Math.min(0, Math.max(-220, ddx)); setDx(cur.current); }
+      },
+      onTouchEnd: () => {
+        const s = st.current; st.current = null;
+        if (!s || s.lock !== "h") return;
+        if (cur.current <= CUT) { setGone(true); setDx(-400); window.setTimeout(onDelete, 160); }
+        else setDx(0);
+        cur.current = 0;
+        window.setTimeout(() => { swiped.current = false; }, 50);
+      },
+    },
+  };
+}
+
 export function TaskRow(props: {
   task: Task; data: HeadData; onToggle: (t: Task) => void; showWhen?: boolean; showHome?: boolean; right?: ReactNode;
 }) {
@@ -104,18 +134,23 @@ export function TaskRow(props: {
   const meta = metaFor(t, props.data, { showWhen: props.showWhen, showHome: props.showHome });
   const m = multi.use();
   const picked = m.ids.includes(t.id);
-  const open = () => (m.on ? toggleMulti(t.id) : openTask(t.id));
+  const sw = useSwipeDelete(() => void import("./actions").then((A) => A.remove(t.id)), !m.on);
+  const open = () => { if (sw.swiped.current) return; if (m.on) toggleMulti(t.id); else openTask(t.id); };
   return (
-    <div className={"task" + (done ? " done" : "") + (picked ? " picked" : "")} role="button" tabIndex={0}
-      onClick={open} onKeyDown={(e) => { if (e.key === "Enter") open(); }}>
-      {m.on
-        ? <Check square on={picked} onToggle={() => toggleMulti(t.id)} label={picked ? "Unselect" : "Select"} />
-        : <Check on={done} important={t.important} onToggle={() => props.onToggle(t)} />}
-      <div className="t-body">
-        <div className="t-title">{t.important && !done && <span className="imp-flag" aria-label="Important"><I n="flag" /> </span>}{t.title}</div>
-        {meta.length > 0 && <div className="t-meta">{meta.map((m, i) => <span key={i}>{m}</span>)}</div>}
+    <div className={"swipe" + (sw.gone ? " gone" : "")}>
+      <div className="swipe-bg" aria-hidden="true" style={{ opacity: Math.min(1, -sw.dx / 60) }}><Icon n="trash" size={20} />{sw.dx <= -96 ? "Let go to delete" : "Delete"}</div>
+      <div className={"task" + (done ? " done" : "") + (picked ? " picked" : "")} role="button" tabIndex={0}
+        style={sw.dx ? { transform: `translateX(${sw.dx}px)`, transition: sw.gone ? "transform .16s ease" : "none" } : { transition: "transform .2s ease" }}
+        onClick={open} onKeyDown={(e) => { if (e.key === "Enter") open(); }} {...sw.handlers}>
+        {m.on
+          ? <Check square on={picked} onToggle={() => toggleMulti(t.id)} label={picked ? "Unselect" : "Select"} />
+          : <Check on={done} important={t.important} onToggle={() => props.onToggle(t)} />}
+        <div className="t-body">
+          <div className="t-title">{t.important && !done && <span className="imp-flag" aria-label="Important">⚑ </span>}{t.title}</div>
+          {meta.length > 0 && <div className="t-meta">{meta.map((m, i) => <span key={i}>{m}</span>)}</div>}
+        </div>
+        {props.right}
       </div>
-      {props.right}
     </div>
   );
 }

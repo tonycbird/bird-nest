@@ -6,6 +6,13 @@
    Reads the public URL + key from .env.production and the door key from .env.gateway-token (gitignored). Never prints the key. */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+
+// Behind a proxy (Claude's cloud), Node's fetch needs NODE_USE_ENV_PROXY=1: run again with it.
+if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY) {
+  const r = spawnSync(process.execPath, ["--no-warnings", ...process.argv.slice(1)], { stdio: "inherit", env: { ...process.env, NODE_USE_ENV_PROXY: "1" } });
+  process.exit(r.status ?? 1);
+}
 
 const root = new URL("../../", import.meta.url).pathname;
 const env = Object.fromEntries(readFileSync(join(root, ".env.production"), "utf8").split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));

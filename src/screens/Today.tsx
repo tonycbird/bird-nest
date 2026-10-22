@@ -154,11 +154,11 @@ export default function Today(props: Props) {
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <h2><span className="ring on" style={k(blockLook(menu).color)}><Icon n={blockLook(menu).icon} size={17} /></span>{menu.title}</h2>
             <div className="menu">
+              {menu.source_type === "workout" && <button onClick={() => { openBody(menu.source_id); setMenu(null); }}><I n="lift" /> Open in Body</button>}
+              {menu.source_type === "task" && menu.source_id && <button onClick={() => { openTask(menu.source_id!); setMenu(null); }}><I n="head" /> Open task</button>}
               <button onClick={() => { setSheet({ block: menu }); setMenu(null); }}><I n="edit" /> Edit</button>
               {menu.steps.length > 0 && menu.status !== "done" && <button onClick={() => { setPlaying(menu.id); setMenu(null); }}><I n="play" /> Step by step</button>}
               {menu.status !== "done" && <button onClick={async () => { const u = await completeBlock(menu.id); setMenu(null); toast("✓ Done", u); }}><I n="check" /> Mark done</button>}
-              {menu.source_type === "task" && menu.source_id && <button onClick={() => { openTask(menu.source_id!); setMenu(null); }}><I n="head" /> Open task</button>}
-              {menu.source_type === "workout" && <button onClick={() => { openBody(menu.source_id); setMenu(null); }}><I n="lift" /> Open in Body</button>}
               <button onClick={async () => { const u = await moveBlock(menu.id); setMenu(null); toast("↪ Moved to tomorrow", u); }}><I n="arrow" /> Tomorrow</button>
               <button onClick={async () => { const u = await skipBlock(menu.id); setMenu(null); toast(menu.status === "skipped" ? "↺ Back on" : "⤼ Skipped", u); }}><I n={menu.status === "skipped" ? "undo" : "skip"} /> {menu.status === "skipped" ? "Un-skip" : "Skip today"}</button>
               <button className="danger" onClick={async () => { const u = await softDelete(menu.id); setMenu(null); toast("🗑 In Trash", u); }}><I n="trash" /> Delete</button>
@@ -298,15 +298,13 @@ function BlockRow(props: { b: RiverBlock; isNow: boolean; isToday: boolean; nowM
           {!done && (
             <div className="bc-acts">
               {n > 0
-                ? <button className="go" onClick={props.onPlay}><Icon n="play" size={14} />{b.doneCount ? "Keep going" : b.kind === "body" ? "Start set" : "Start"}</button>
+                ? <button className="go" onClick={props.onPlay}><Icon n="play" size={14} />{b.doneCount ? "Resume" : "Start"}</button>
                 : <button className="go" onClick={finish}><Icon n="tick" size={16} tone={false} />Done</button>}
               {n > 1 && <button className={"sec" + (all ? " up" : "")} aria-label={all ? "Hide steps" : `Show all ${n} steps`} onClick={() => setAll(!all)}>{Math.min(b.doneCount + 1, n)}/{n}<Icon n="chevD" size={16} tone={false} /></button>}
-              {b.source_type === "workout" && <button className="sec" aria-label="Open in Body" onClick={() => openBody(b.source_id)}><Icon n="lift" size={18} /></button>}
-              {b.source_type === "task" && b.source_id && <button className="sec" aria-label="Open task" onClick={() => openTask(b.source_id!)}><Icon n="head" size={18} /></button>}
-              <button className="sec" aria-label={`More for ${b.title}`} onClick={props.onMenu}><Icon n="more" size={18} tone={false} /></button>
+              <button className="sec icon" aria-label={`More for ${b.title}`} onClick={props.onMenu}><Icon n="more" size={18} tone={false} /></button>
             </div>
           )}
-          {done && <div className="bc-acts"><button className="sec" aria-label={`More for ${b.title}`} onClick={props.onMenu}><Icon n="more" size={18} tone={false} /></button></div>}
+          {done && <div className="bc-acts"><button className="sec icon" aria-label={`More for ${b.title}`} onClick={props.onMenu}><Icon n="more" size={18} tone={false} /></button></div>}
         </div>
       )}
     </div>

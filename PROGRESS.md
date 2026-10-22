@@ -1,5 +1,10 @@
 # Progress
 
+## Fixes from Anthony's first reports · Oct 22
+- [x] ＋ in the tab bar looked cut in half: the fade above the tab bar was drawn over it. Now the ＋ sits on top.
+- [x] "2/7" on the now card looked off-center: the card had five buttons squeezed in. Now three: Start/Resume, "2/7 ⌄", ⋯ (Open in Body / Open task moved to the top of ⋯).
+- [x] Idea → done: swipe a task left in any Head list to delete it; Undo in the toast.
+
 ## Now: Testing mode + new Brain dump · built Oct 22
 
 ### Setup (Anthony, once)
