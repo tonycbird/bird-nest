@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "../src/lib/db";
 import * as C from "../src/head/core/clearhead.js";
 import * as H from "../src/head/store";
-import { completeBlock, loadDay, toggleStep, updateBlock } from "../src/lib/river";
-import { installRiverBridge, putGroceriesOnRiver, putTaskOnRiver, putTasksOnRiver, stepsForTask } from "../src/head/river-bridge";
+import { completeBlock, loadDay, softDelete, toggleStep, updateBlock } from "../src/lib/river";
+import { installRiverBridge, placeTimedTasks, putGroceriesOnRiver, putTaskOnRiver, putTasksOnRiver, stepsForTask } from "../src/head/river-bridge";
 import { exportAll, restoreAll } from "../src/lib/backup";
 
 const D = "2026-10-15";
@@ -58,6 +58,20 @@ describe("Head ⇄ River", () => {
     const undoEdit = await updateBlock(b.id, { start: b.start, end: b.end, kind: b.kind, icon: b.icon, title: "Pay Avista bill", steps: b.steps.map((x) => ({ label: x.label, value: x.value })) });
     await undoEdit();
     expect((await db.tasks.get(t.id))!.status).toBe("done");
+  });
+
+  it("a task with a time shows up on its day's River by itself, once", async () => {
+    const t = await H.createTask({ title: "Meet Dave at the job", when: D, time: "15:00" });
+    await H.createTask({ title: "No time", when: D });
+    expect(await placeTimedTasks(D)).toBe(1);
+    let day = await loadDay(D);
+    expect(day.map((b) => [b.title, b.start])).toEqual([["Meet Dave at the job", "15:00"]]);
+    expect(await placeTimedTasks(D)).toBe(0);
+    await softDelete(day[0].id);
+    expect(await placeTimedTasks(D)).toBe(0); // taken off the River on purpose: stays off
+    day = await loadDay(D);
+    expect(day).toHaveLength(0);
+    void t;
   });
 
   it("a timed task lands at its time; others stack after it; no doubles", async () => {

@@ -23,8 +23,8 @@ describe("brain dump", () => {
   });
   test("each thing lands in the right place", () => {
     const out = titles("call dave about the smith quote tomorrow, I need to pay avista today and also we're out of milk, eggs and diapers. Maybe someday build a garden box. Greek reading due friday. I'm kind of stressed about money");
-    expect(out).toContain("date:Call dave about the smith quote");
-    expect(out).toContain("today:Pay avista");
+    expect(out).toContain("date:Call Dave about the Smith quote");
+    expect(out).toContain("today:Pay Avista");
     expect(out).toEqual(expect.arrayContaining(["shop:Milk", "shop:Eggs", "shop:Diapers"]));
     expect(out).toContain("someday:Build a garden box");
     expect(out.some((x) => x.startsWith("date:Greek reading"))).toBe(true);
@@ -39,21 +39,21 @@ describe("brain dump", () => {
   test("abbreviations don't split, lists without groceries stay a task", () => {
     expect(titles("read pp. 61-78 for class")).toEqual(["later:Read pp. 61-78 for class"]);
     expect(titles("get a price on lumber")).toEqual(["later:Get a price on lumber"]);
-    expect(titles("call mom and dad")).toEqual(["later:Call mom and dad"]);
+    expect(titles("call mom and dad")).toEqual(["later:Call Mom and Dad"]);
   });
   test("talking with only commas still separates cleanly", () => {
     expect(titles("pay avista today, out of milk eggs and diapers, maybe someday build a garden box, fix the porch light")).toEqual([
-      "today:Pay avista", "shop:Milk", "shop:Eggs", "shop:Diapers", "someday:Build a garden box", "later:Fix the porch light",
+      "today:Pay Avista", "shop:Milk", "shop:Eggs", "shop:Diapers", "someday:Build a garden box", "later:Fix the porch light",
     ]);
     expect(titles("and we need bread, peanut butter, bananas, also schedule an oil change for saturday")).toEqual([
       "shop:Bread", "shop:Peanut butter", "shop:Bananas", "date:Schedule an oil change",
     ]);
-    expect(titles("call mom, dad and grandma about thanksgiving")).toEqual(["later:Call mom, dad and grandma about thanksgiving"]);
+    expect(titles("call mom, dad and grandma about thanksgiving")).toEqual(["later:Call Mom, Dad and Grandma about Thanksgiving"]);
     const [inv] = sort("finish the smith invoice by thursday");
     expect(inv.due).toBe("2026-10-22");
   });
   test("a 'need to' keeps a feeling actionable", () => {
-    expect(titles("I'm worried I need to call the bank")[0]).not.toMatch(/^thought:/);
+    expect(titles("I'm worried I need to call the bank")).toContain("later:Call the bank");
   });
 });
 describe("brain dump shopping words", () => {
@@ -68,9 +68,9 @@ describe("brain dump shopping words", () => {
     expect(t("Pick up the leaves from Sam's house").dest).toBe("date");
     expect(t("Pick up the leaves").when).toBe("2026-10-27");
     expect(t("Pick up the leaves").title).toBe("Pick up the leaves from Sam's house");
-    expect(t("Get tarp and ratchet straps").dest).toBe("later");
-    expect(t("Take it to the dump").when).toBe("2026-10-27");
-    expect(t("Take it to the dump").est).toBe(60);
+    expect(t("Get a tarp and ratchet straps").dest).toBe("later");
+    expect(t("Take the leaves to the dump").when).toBe("2026-10-27");
+    expect(t("Take the leaves to the dump").est).toBe(60);
     expect(out).toHaveLength(3);
   });
   test("estimates come out of the title", () => {
@@ -82,7 +82,7 @@ describe("brain dump shopping words", () => {
   });
   test("'I'm going to' a place becomes Go to", () => {
     expect(titles("I'm going to Costco tomorrow")).toEqual(["date:Go to Costco"]);
-    expect(titles("I'm gonna call dave")).toEqual(["later:Call dave"]);
+    expect(titles("I'm gonna call dave")).toEqual(["later:Call Dave"]);
   });
 });
 

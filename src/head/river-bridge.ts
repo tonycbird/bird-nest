@@ -69,6 +69,17 @@ async function placeTask(taskId: string, day: string, at?: number): Promise<Undo
   return () => softDelete(id).then(() => {});
 }
 
+/** Tasks with a day and a time show up on that day's River by themselves, at their time.
+    Once per task and day: if Anthony takes the block off the River, it doesn't come back. */
+export async function placeTimedTasks(day: string = riverToday()): Promise<number> {
+  const blocks = await db.blocks.where("day").equals(day).toArray();
+  const placed = new Set(blocks.filter((b) => b.source_type === "task" && b.source_id).map((b) => b.source_id!)); // deleted ones count too
+  const due = (await db.tasks.where("when").equals(day).toArray())
+    .filter((t) => C.isOpen(t) && !!t.time && !t.someday && !placed.has(t.id) && !t.grocery);
+  for (const t of due) await putTaskOnRiver(t.id, day);
+  return due.length;
+}
+
 /** Several tasks in a row, back to back from the next free slot, in a sensible order:
     timed ones at their time; then "start with", morning, anytime, afternoon (from noon), evening (from 6 PM). */
 export async function putTasksOnRiver(ids: string[], day: string = riverToday()): Promise<Undo> {

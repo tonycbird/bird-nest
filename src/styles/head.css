@@ -233,3 +233,11 @@ html.quiet .task .t-meta span:nth-child(n+4){display:none;}
 .qa-many{display:flex; align-items:center; gap:6px; margin-top:6px; font-size:14px;}
 /* The task sheet keeps Done in reach while you scroll its details. */
 .d-bar{position:sticky; top:-10px; z-index:3; background:var(--bg); padding:8px 0 6px; margin-top:-8px;}
+/* Brain dump: a project the dump offers to make. */
+.dproj-head{display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--surface); border-radius:18px 18px 0 0; box-shadow:var(--shadow);}
+.dproj.off .dproj-head{border-radius:18px; opacity:.6;}
+.dproj .dproj-head .d-ic{width:30px; height:30px; border-radius:50%; background:var(--k); color:var(--glyph); display:flex; align-items:center; justify-content:center; flex:none;}
+.dproj-kick{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);}
+.dproj .d-in{width:100%; border:0; background:none; padding:2px 0; font:inherit; color:var(--ink); outline:none; text-overflow:ellipsis;}
+.dproj-name{font-size:18px !important; font-weight:800 !important; letter-spacing:-.01em;}
+.dproj .tlist{border-radius:0 0 18px 18px; border-top:1px solid var(--line);}

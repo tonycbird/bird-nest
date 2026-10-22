@@ -36,8 +36,8 @@ const SHOTS = process.env.SHOTS;
   assert(await p.locator('.flow').count() === 0, 'Put away closes the dump');
   const counts = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.map((t) => ({ title: t.title, when: t.when, grocery: !!t.grocery, someday: !!t.someday }))); }; }); });
   const has = (t) => counts.find((x) => x.title === t);
-  assert(has('Pay avista')?.when === '2026-10-21', 'today item has today');
-  assert(has('Call dave about the smith quote')?.when === '2026-10-22', 'tomorrow item dated');
+  assert(has('Pay Avista')?.when === '2026-10-21', 'today item has today');
+  assert(has('Call Dave about the smith quote')?.when === '2026-10-22', 'tomorrow item dated');
   assert(has('Milk')?.grocery && has('Diapers')?.grocery && !has('Eggs'), 'shopping went to the list, the unchecked one stayed out');
   assert(counts.some((x) => x.title.startsWith('Thoughts') && x.someday), 'thoughts saved together in Someday');
   assert(await p.evaluate(() => localStorage.getItem('nest-dump-draft')) === null, 'draft cleared after putting away');
@@ -99,9 +99,48 @@ const SHOTS = process.env.SHOTS;
   await p.click('.qa-many'); await p.waitForTimeout(300);
   await p.click('.flow-foot >> text=Sort'); await p.waitForTimeout(300);
   const dumped = await p.locator('input.d-in').evaluateAll((els) => els.map((e) => e.value));
-  assert(dumped.includes("Pick up the leaves from Sam's house") && dumped.includes('Get tarp and ratchet straps') && dumped.includes('Take it to the dump'), 'dictation sorted into 3 things: ' + dumped.join(' | '));
+  assert(dumped.includes("Pick up the leaves from Sam's house") && dumped.includes('Get a tarp and ratchet straps') && dumped.includes('Take the leaves to the dump'), 'dictation sorted into 3 things: ' + dumped.join(' | '));
   await p.click('.flow [aria-label="Close"]'); await p.waitForTimeout(300);
   await p.evaluate(() => localStorage.removeItem('nest-dump-draft'));
+
+  // A rant about jobs: a new project with its steps, an existing project, a timed thing on today's River.
+  await p.evaluate(async () => {
+    const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); });
+    const areas = await new Promise((res) => { const q = db.transaction('areas').objectStore('areas').getAll(); q.onsuccess = () => res(q.result); });
+    await new Promise((res) => { const tx = db.transaction('projects', 'readwrite'); tx.objectStore('projects').put({ id: 'pJon', name: 'Jon Wolfe Project', areaId: areas[0].id, status: 'active', sections: [], order: 1, createdAt: Date.now(), client: { name: 'Jon Wolfe' }, notes: '', outcome: '', description: '', photos: [], color: null, start: null, deadline: null, completedAt: null }); tx.oncomplete = res; });
+    db.close();
+  });
+  await p.reload(); await p.waitForTimeout(900);
+  await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.waitForTimeout(300);
+  await p.fill('textarea.dump', "new job for the Hendersons replace the front door and the storm door they want it done before thanksgiving need to measure first and get them a quote. tomorrow I gotta go to home depot for the jon wolfe job then start framing the closet. greek quiz today at 7 pm");
+  await p.waitForTimeout(400);
+  await p.click('.flow-foot >> text=Sort'); await p.waitForTimeout(400);
+  assert(await p.locator('.dproj-name').evaluate((e) => e.value) === 'Henderson job', 'the dump offers a new project, named for the client');
+  const stepNames = await p.locator('.dproj input.d-in:not(.dproj-name)').evaluateAll((els) => els.map((e) => e.value));
+  assert(stepNames.length === 3, 'its three steps sit under it: ' + stepNames.join(' | '));
+  assert(await p.locator('.dsec .sec-head', { hasText: /Jon Wolfe Project/i }).count() === 1, 'things for an existing project are grouped under it');
+  await p.locator('.dproj-name').fill('Henderson doors');
+  await shot('dump-projects');
+  await p.click('.flow-foot >> text=Put away'); await p.waitForTimeout(800);
+  const after = await p.evaluate(async () => {
+    const r = indexedDB.open('bird-nest');
+    return await new Promise((res) => { r.onsuccess = () => { const tx = r.result.transaction(['tasks', 'projects', 'blocks']); const out = {}; let n = 3;
+      const done = () => { if (--n === 0) res(out); };
+      tx.objectStore('tasks').getAll().onsuccess = (e) => { out.tasks = e.target.result; done(); };
+      tx.objectStore('projects').getAll().onsuccess = (e) => { out.projects = e.target.result; done(); };
+      tx.objectStore('blocks').getAll().onsuccess = (e) => { out.blocks = e.target.result; done(); }; }; });
+  });
+  const hp = after.projects.find((x) => x.name === 'Henderson doors');
+  assert(hp && hp.deadline === '2026-11-26', 'the new project was made, with its deadline');
+  const steps = after.tasks.filter((t) => t.projectId === hp.id).sort((a, b) => a.order - b.order).map((t) => t.title);
+  assert(JSON.stringify(steps) === JSON.stringify(['Replace the front door and the storm door', 'Measure', 'Get the Hendersons a quote']), 'its steps are in order: ' + steps.join(' | '));
+  assert(after.tasks.filter((t) => t.projectId === 'pJon').length === 2, 'two things went into the Jon Wolfe project');
+  const quiz = after.tasks.find((t) => t.title === 'Greek quiz');
+  assert(quiz && quiz.time === '19:00' && after.blocks.some((b) => b.source_id === quiz.id && b.start === '19:00' && !b.deleted_at), 'a thing with a time today is on the River at that time');
+  await p.click('.toast >> text=Undo'); await p.waitForTimeout(800);
+  const undone = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('projects').objectStore('projects').getAll(); q.onsuccess = () => res(q.result.filter((x) => x.name === 'Henderson doors').length); }; }); });
+  assert(undone === 0, 'Undo takes the new project back too');
+  await p.click('.tabs >> text=Head'); await p.click('.hn >> text=Today'); await p.waitForTimeout(300);
 
   // Every picker sheet has a ✕.
   await p.locator('.swipe .task', { hasText: 'Pay avista' }).click(); await p.waitForTimeout(300);
@@ -114,7 +153,7 @@ const SHOTS = process.env.SHOTS;
   await p.click('.notes-empty'); await p.waitForTimeout(150);
   await p.keyboard.type('Gate code 4411');
   await p.locator('.scrim').last().click({ position: { x: 10, y: 10 } }); await p.waitForTimeout(500);
-  const notes = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.find((t) => t.title === 'Pay avista')?.notes); }; }); });
+  const notes = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.find((t) => t.title === 'Pay Avista')?.notes); }; }); });
   assert(notes === 'Gate code 4411', 'notes typed before closing the task are saved');
 
   // Select mode ends when you leave Head (the ＋ comes back).

@@ -53,3 +53,7 @@
 | 2026-10-22 | Restoring a backup leaves Claude's suggestions alone | They belong to the cloud; old ones could be ✓'d twice. |
 | 2026-10-22 | Every sheet also gets a ✕; touch areas grow with invisible rings, not bigger buttons | Swipe-to-close isn't discoverable; bigger hit areas keep the airy look. |
 | 2026-10-22 | Muted text darkened in light mode (ink-3 #767D8F, accent text #0F8577, warn text #C05128) | The audit found small labels under 3:1 on Mist. Fills keep the original colors. |
+| 2026-10-22 | The brain dump sorts on the phone (no AI call) | Anthony picked phone-only: free, instant, works at the gym with no signal. Rules are tuned on real-style dictation; the review screen is where he fixes the rest. |
+| 2026-10-22 | A dump offers new projects (on by default, one switch to skip) | Ranting about a new job is the main use. Steps keep the order they were said in; the first one is the next action. |
+| 2026-10-22 | Task titles stay short; the rest of what was said goes in the notes | Less is more on the lists; nothing he said is lost. |
+| 2026-10-22 | A Head task with a day and a time shows on that day's River by itself, once | Anthony chose "River + Head" for timed things; Google Calendar is untouched. Removing the block keeps it off. |

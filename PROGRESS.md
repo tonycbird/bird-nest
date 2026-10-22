@@ -1,5 +1,18 @@
 # Progress
 
+## Brain dump, rebuilt for project rants · Oct 22
+Rant about your jobs and your week, out loud or typed, one long run-on is fine. Nest splits it, writes each thing as a short task, files it, and offers new projects. All on the phone, offline.
+
+- [x] Reads dictation with no punctuation: starts a new thing at "I need…", "we need…", "then…", "they want…", a second verb ("…the kids room print the coloring sheets…"), "every Monday…"
+- [x] Short titles: leads ("I'm going to need to"), fillers ("probably", "sometime"), who asked ("Abby wants me to"), reasons ("because…") and conditions ("once they approve") come out; the full words go in the task's notes. "It" becomes the thing ("cut and install them" → "Cut and install the trim boards"). Names, stores, days and books of the Bible get capitals
+- [x] Projects: "Backyard:", "For the Jon Wolfe project,", "jon wolfe kitchen backsplash…", "over at the wolfe place" file everything said about it into that project. A message to someone else ("text Abby") doesn't
+- [x] New projects: "I want to build a deck for the Smiths…", "New job for the Hendersons…", "Fence for the neighbors: …" → a "New project" card on top (name editable, switch to skip) with its steps in order. "They want it done before Thanksgiving" becomes its deadline. "Get them a quote" → "Get the Hendersons a quote"
+- [x] Days: a day said first covers the sentence ("Sunday I need to… and …"), "Tomorrow:" covers the list, "…and then…" keeps the day, "Monday… Wednesday… Friday" stay in order, "this week" / "this month" / "before Thanksgiving" become deadlines, "wednesday night at 7" is 7 PM, "every other week" repeats. A day that's part of a message ("text Aaron and see if he can help Saturday") isn't when to text
+- [x] Other: "the deck stain is peeling" / "it's leaking again" go in the notes; feelings go to Thoughts; groceries to Shopping (even "milk bread bananas" with no commas; not "a babysitter" or "Abby's prescription"); building materials said about a job stay a task in the job; "give around an hour" becomes ~1h
+- [x] Review screen: new projects first, then your projects, then Today / Coming up / No date yet / Shopping / Someday / Thoughts. Each row shows its day, time, deadline, repeat, estimate and a note mark. → can move a thing into any project or list
+- [x] Things with a time land on the River at that time: today's when you put them away, other days by themselves on that day (once; if you take one off, it stays off)
+- [x] Tests: 133 unit (32 rant tests from real-style dictation), e2e checks the new project, its steps in order, the deadline, the River block and Undo
+
 ## Debug sweep · Oct 22
 Walked every screen at 3 phone sizes in light and dark (`tests/e2e/audit.cjs`, about 80 screens each plus random taps), reviewed the code for Today, sync and Head, and ran Anthony's real data through Claude's door (read-only).
 

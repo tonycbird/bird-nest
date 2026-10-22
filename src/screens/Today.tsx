@@ -12,6 +12,7 @@ import StepPlayer from "./StepPlayer";
 import QuickRow from "./QuickRow";
 import { fitApi } from "../body/host";
 import { goTab, openTask, useHeadSettings } from "../head/useHead";
+import { placeTimedTasks } from "../head/river-bridge";
 import { I, Icon } from "../ui/Icon";
 import { blockLook, colorFor } from "../ui/colors";
 
@@ -87,6 +88,10 @@ export default function Today(props: Props) {
   const [editing, setEditing] = useState(false);
 
   useEffect(() => { setOpenId("auto"); }, [day]);
+  // Head tasks with a time today land on the River at that time, by themselves.
+  const timed = useLiveQuery(() => db.tasks.where("when").equals(todayKey).filter((t) => !!t.time && t.status === "open").primaryKeys(), [todayKey], [] as string[]);
+  const timedSig = timed.join(",");
+  useEffect(() => { if (timedSig) void placeTimedTasks(todayKey); }, [timedSig, todayKey]);
 
   const now = nowBlock(blocks);
   const open = openId === "auto" ? (isToday ? now?.id ?? null : null) : openId;
