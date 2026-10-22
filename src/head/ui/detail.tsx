@@ -57,6 +57,19 @@ export function NotesEditor(props: { value: string; onSave: (v: string) => void;
   );
 }
 
+/* A step's text is typed into local state and saved when the field is left (or on Enter). Saving every
+   keystroke to the database made the cursor jump to the end and could drop letters while typing fast. */
+function StepText(props: { text: string; onSave: (t: string) => void; onEmpty: () => void }) {
+  const [v, setV] = useState(props.text);
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setV(props.text); }, [props.text]);
+  return (
+    <input value={v} aria-label="Step" onFocus={() => { focused.current = true; }} onChange={(e) => setV(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      onBlur={() => { focused.current = false; const t = v.trim(); if (!t) props.onEmpty(); else if (t !== props.text) props.onSave(t); }} />
+  );
+}
+
 export function Checklist(props: { items: ChecklistItem[]; onChange: (x: ChecklistItem[]) => void; placeholder?: string }) {
   const [draft, setDraft] = useState("");
   const items = props.items || [];
@@ -67,8 +80,7 @@ export function Checklist(props: { items: ChecklistItem[]; onChange: (x: Checkli
       {items.map((c) => (
         <div key={c.id} className={"subtask" + (c.done ? " done" : "")}>
           <Check square on={c.done} onToggle={(v) => set(c.id, { done: v })} />
-          <input value={c.text} aria-label="Step" onChange={(e) => set(c.id, { text: e.target.value })}
-            onBlur={(e) => { if (!e.target.value.trim()) props.onChange(items.filter((x) => x.id !== c.id)); }} />
+          <StepText text={c.text} onSave={(t) => set(c.id, { text: t })} onEmpty={() => props.onChange(items.filter((x) => x.id !== c.id))} />
         </div>
       ))}
       <div className="subtask">
@@ -153,8 +165,8 @@ function PhotoStrip(props: { owner: { kind: "task" | "project"; id: string }; ph
           <div className="lightbox" onClick={() => setOpen(null)}>
             <img src={p.data} alt="" />
             <div className="lb-bar">
-              <button className="btn sm" onClick={async (e) => { e.stopPropagation(); setOpen(null); toast("🗑 Photo removed", await H.removePhoto(props.owner, p.id)); }}><I n="trash" /></button>
-              <button className="btn sm" onClick={() => setOpen(null)}><I n="close" /></button>
+              <button aria-label="Remove photo" className="btn sm" onClick={async (e) => { e.stopPropagation(); setOpen(null); toast("🗑 Photo removed", await H.removePhoto(props.owner, p.id)); }}><I n="trash" /></button>
+              <button aria-label="Close" className="btn sm" onClick={() => setOpen(null)}><I n="close" /></button>
             </div>
           </div>
         );
@@ -195,7 +207,7 @@ export function TaskDetail({ task: t }: { task: Task }) {
   ]);
   return (
     <div className="tdetail">
-      <div className="row" style={{ justifyContent: "flex-end", gap: 6, marginBottom: 6 }}>
+      <div className="row d-bar" style={{ justifyContent: "flex-end", gap: 6, marginBottom: 6 }}>
         <button className="iconbtn" aria-label="Focus" onClick={() => { closeTask(); openOverlay("focus", { taskId: t.id }); }}><I n="target" /></button>
         <button className="iconbtn" aria-label="More actions" onClick={more}><I n="more" /></button>
         <button className="btn sm primary" onClick={closeTask}><I n="tick" /> Done</button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { reloadFresh } from "../lib/update";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Report } from "../lib/db";
 import { setSetting, useSetting } from "../lib/settings";
@@ -65,7 +66,7 @@ function ReportSheet({ snap, onClose }: { snap: Snapshot; onClose: () => void })
     const open = await db.reports.where("status").equals("open").count();
     toast(`⚑ Saved · ${open} open`);
     onClose();
-    if (escape) window.setTimeout(() => location.reload(), 400);
+    if (escape) window.setTimeout(() => reloadFresh(), 400);
   }
   return (
     <div className="scrim tscrim" onClick={onClose}>
@@ -91,7 +92,7 @@ function ReportSheet({ snap, onClose }: { snap: Snapshot; onClose: () => void })
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn primary" disabled={busy || (!text.trim() && !photo)} onClick={() => void save(kind === "stuck")}>{kind === "stuck" ? "Save + get me out" : "Save"}</button>
         </div>
-        <button className="linkbtn" style={{ display: "block", margin: "10px auto 0" }} onClick={() => location.reload()}>Stuck? Back to Today</button>
+        <button className="linkbtn" style={{ display: "block", margin: "10px auto 0" }} onClick={() => reloadFresh()}>Stuck? Back to Today</button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { once } from "../../lib/once";
 import * as C from "../core/clearhead.js";
 import * as H from "../store";
 import { toast } from "../../lib/toast";
@@ -156,7 +157,9 @@ export function Ramble(props: { focus?: Focus }) {
   const kept = rows.filter((r) => r.keep && r.title.trim());
 
   const save = async () => {
-    if (!focus || !info) return;
+    if (!focus) return;
+    // The draft was about a project or task that's since been deleted: say so and let him pick again.
+    if (!info) { toast("That project or task is gone. Pick where this goes."); setFocus(null); setStep("pick"); return; }
     const d = new Date();
     const stamp = `From a ramble · ${C.MON_SHORT[d.getMonth()]} ${d.getDate()}`;
     const noteLines = notes.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -272,7 +275,7 @@ export function Ramble(props: { focus?: Focus }) {
   return (
     <FlowShell title="🗣 Ramble" onBack={() => setStep("ramble")} foot={<>
       <button className="btn" onClick={() => setStep("ramble")}><I n="edit" /> More</button><span style={{ flex: 1 }} />
-      <button className="btn primary" disabled={!kept.length && !materials.length && !notes.trim()} onClick={save}>{focus!.kind === "project" ? "＋ To project" : mode === "project" ? "📁 Create project" : focus!.kind === "task" ? "＋ To task" : "＋ Create task"}</button>
+      <button className="btn primary" disabled={!kept.length && !materials.length && !notes.trim()} onClick={() => void once("ramble-save", save)}>{focus!.kind === "project" ? "＋ To project" : mode === "project" ? "📁 Create project" : focus!.kind === "task" ? "＋ To task" : "＋ Create task"}</button>
     </>}>
       {chip}
       <h2>Here's what I heard</h2>

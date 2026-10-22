@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { once } from "../../lib/once";
 import * as C from "../core/clearhead.js";
 import * as H from "../store";
 import { toast } from "../../lib/toast";
 import type { Task } from "../types";
 import { closeOverlay, go, goTab, openOverlay, openTask, useHeadData, useHeadSettings } from "../useHead";
-import { Check, Empty, ic, Ring, Seg, TaskRow } from "./bits";
+import { Check, Empty, ic, NumField, Ring, Seg, TaskRow } from "./bits";
 import * as A from "./actions";
 import { DumpInline } from "./dump";
 import { openSheet } from "./sheets";
@@ -57,7 +58,7 @@ export function ProcessInbox(props: { ids?: string[]; onFinish?: () => void; tit
   if (!t) {
     return (
       <FlowShell title={title} onClose={finish}>
-        <Empty icon="📥" title="Inbox zero" sub="Everything has a home."><button className="btn primary" style={{ marginTop: 14 }} onClick={finish}><I n="tick" /> Done</button></Empty>
+        <Empty icon="📥" title={remaining.length ? "That's the pile" : "Inbox zero"} sub={remaining.length ? `${remaining.length} skipped · still in the Inbox for later.` : "Everything has a home."}><button className="btn primary" style={{ marginTop: 14 }} onClick={finish}><I n="tick" /> Done</button></Empty>
       </FlowShell>
     );
   }
@@ -114,7 +115,7 @@ export function ProcessInbox(props: { ids?: string[]; onFinish?: () => void; tit
         <button className="btn" onClick={() => assign({ title: "Assign to area", areasOnly: true, allowInbox: false })}><I n="project" /> Area</button>
         <button className="btn" onClick={someday}><I n="sleep" /> Someday</button>
         <button className="btn" onClick={waiting}><I n="waiting" /> Waiting</button>
-        <button className="btn" style={{ color: "var(--warn)" }} onClick={del}><I n="trash" /> Delete</button>
+        <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={del}><I n="trash" /> Delete</button>
       </div>
       <div className="row" style={{ justifyContent: "center", marginTop: 10 }}><button className="linkbtn" onClick={next}><I n="skip" /> Skip</button></div>
       <div className="swipe-hint detail"><span>← schedule</span><span>do it <I n="arrow" /></span></div>
@@ -138,7 +139,8 @@ export function PlanMyDay() {
   const [toRiver, setToRiver] = useState(true);
   if (!overIds || !suggestions) return <FlowShell title="🌅 Plan my day"><p className="quiet"><I n="more" /></p></FlowShell>;
   const st = step ?? (overIds.length ? 0 : 1);
-  const over = overIds.map((id) => data.tasks.get(id)).filter((x): x is Task => !!x && C.isOpen(x) && ((!!x.when && x.when < t) || (!!x.due && x.due < t)) && x.when !== t);
+  const over = overIds.map((id) => data.tasks.get(id)).filter((x): x is Task => !!x && C.isOpen(x) && ((!!x.when && x.when < t) || (!!x.due && x.due < t)) && x.when !== t
+    && !x.someday && !(x.when && x.when > t)); // moved to Later or Someday: handled, even if its deadline has passed
   const cur = over[0];
   const finish = async () => {
     await H.saveSettings({ lastPlan: t });
@@ -166,7 +168,7 @@ export function PlanMyDay() {
           <button className="btn" onClick={() => H.updateTask(cur.id, { when: t })}><I n="star" /> Today</button>
           <button className="btn" onClick={() => A.schedule(cur.id)}><I n="calendar" /> Later</button>
           <button className="btn" onClick={() => H.updateTask(cur.id, { someday: true, when: null })}><I n="sleep" /> Someday</button>
-          <button className="btn" style={{ color: "var(--warn)" }} onClick={async () => toast("🗑 Dropped", await H.deleteTask(cur.id))}><I n="trash" /> Drop</button>
+          <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={async () => toast("🗑 Dropped", await H.deleteTask(cur.id))}><I n="trash" /> Drop</button>
         </div>
         <div className="row" style={{ justifyContent: "center", marginTop: 12 }}><button className="linkbtn" onClick={() => setStep(1)}>Skip the rest</button></div>
       </FlowShell>
@@ -175,7 +177,7 @@ export function PlanMyDay() {
   if (st === 1) {
     const toggle = (id: string) => { const n = new Set(picked); if (n.has(id)) n.delete(id); else n.add(id); setPicked(n); };
     return (
-      <FlowShell title="🌅 Plan my day" step={1} steps={STEPS} onBack={overIds.length ? () => setStep(0) : null}
+      <FlowShell title="🌅 Plan my day" step={1} steps={STEPS} onBack={over.length ? () => setStep(0) : null}
         foot={<><Grow /><button className="btn primary" onClick={async () => { for (const id of picked) await H.updateTask(id, { when: t }); setStep(2); }}>{picked.size ? `＋ ${picked.size} to today` : "Next ›"}</button></>}>
         <h2>Anything else today?</h2><p className="lede detail">From Anytime: deadlines, flags, project next steps.</p>
         {!suggestions.length && <Empty icon="🗂" title="No suggestions" sub="Today is what you already planned." />}
@@ -224,7 +226,7 @@ export function PlanMyDay() {
   const todays = C.selectToday(data).main;
   return (
     <FlowShell title="🌅 Plan my day" step={3} steps={STEPS} onBack={() => setStep(2)}
-      foot={<><label className="row" style={{ gap: 6 }}><input type="checkbox" checked={toRiver} onChange={(e) => setToRiver(e.target.checked)} /><I n="river" /> River</label><Grow /><button className="btn primary" onClick={finish}><I n="play" /> Start my day</button></>}>
+      foot={<><label className="row" style={{ gap: 6 }}><input type="checkbox" checked={toRiver} onChange={(e) => setToRiver(e.target.checked)} /><I n="river" /> River</label><Grow /><button className="btn primary" onClick={() => void once("plan-finish", finish)}><I n="play" /> Start my day</button></>}>
       <h2>Here's today</h2><p className="lede">{todays.length ? `${todays.length} thing${todays.length === 1 ? "" : "s"}. One at a time.` : "A light day. Enjoy it."}</p>
       {todays.map((x) => <TaskRow key={x.id} task={x} data={data} onToggle={() => A.complete(x.id)} showWhen={false} />)}
       {toRiver && todays.length > 0 && <p className="quiet" style={{ marginTop: 10 }}>Each becomes a River block with steps, from the next free time.</p>}
@@ -263,6 +265,8 @@ export function WeeklyReview() {
     const next = C.nextAction(data, p);
     const st = C.projectStats(data, p);
     const advance = () => { setNextDraft(""); if (pi + 1 < projects.length) setPi(pi + 1); else { setPi(0); go2(2); } };
+    // Hold / Someday / Done take the project off this list, so the next one slides into the same spot: don't step past it.
+    const leave = () => { setNextDraft(""); if (pi + 1 >= projects.length) { setPi(0); go2(2); } };
     const addNext = async () => { if (nextDraft.trim()) { await H.createTask({ title: nextDraft.trim(), projectId: p.id }); setNextDraft(""); } };
     return shell(`Project ${Math.min(pi, projects.length - 1) + 1} of ${projects.length}`, "Each needs a clear next step.",
       <div className="card">
@@ -272,11 +276,16 @@ export function WeeklyReview() {
         <div style={{ marginTop: 10 }}>{next ? <><div className="lbl" style={{ margin: "0 0 4px" }}><I n="play" /> Next</div>{row(next)}</> : <div className="stalled"><I n="pause" /> No next step</div>}</div>
         <div className="row" style={{ marginTop: 8 }}>
           <input className="field sm" placeholder={next ? "Add another step" : "The very next step?"} value={nextDraft} onChange={(e) => setNextDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void addNext()} />
-          <button className="btn sm" disabled={!nextDraft.trim()} onClick={addNext}><I n="plus" /></button>
+          <button aria-label="Add next action" className="btn sm" disabled={!nextDraft.trim()} onClick={addNext}><I n="plus" /></button>
         </div>
         <div className="lbl">Status</div>
         <div className="chips">{([["active", "Active"], ["hold", "Hold"], ["someday", "Someday"], ["done", "Done"]] as const).map(([id, n]) => (
-          <button key={id} className={"chip" + (p.status === id ? " on" : "")} onClick={async () => { if (id === "done") await H.completeProject(p.id); else await H.updateProject(p.id, { status: id }); if (id !== "active") advance(); }}>{n}</button>
+          <button key={id} className={"chip" + (p.status === id ? " on" : "")} onClick={async () => {
+            if (id === p.status) return;
+            const label = id === "done" ? "✓ Project done" : id === "hold" ? "⏸ On hold" : id === "someday" ? "💤 Someday" : "▶ Active";
+            toast(label, id === "done" ? await H.completeProject(p.id) : await H.updateProject(p.id, { status: id }));
+            if (id !== "active") leave();
+          }}>{n}</button>
         ))}</div>
       </div>,
       <><button className="btn" onClick={() => { setPi(0); go2(2); }}>Skip</button><Grow /><button className="btn primary" onClick={advance}>{pi + 1 < projects.length ? "Next project ›" : "Next ›"}</button></>);
@@ -286,7 +295,7 @@ export function WeeklyReview() {
     return shell("Waiting", ws.length ? "Nudge anything gone quiet." : "Not waiting on anyone.",
       <>{ws.map((x) => {
         const stale = (x.waiting!.followUp && x.waiting!.followUp <= t) || (x.waiting!.since && C.diffDays(x.waiting!.since, t) >= 7);
-        return <div key={x.id} className="row" style={{ alignItems: "flex-start", borderBottom: "1px solid var(--line)" }}><div className="grow">{row(x)}</div><button className={"btn sm" + (stale ? " primary" : "")} style={{ marginTop: 8 }} onClick={() => A.followUp(x)}><I n="arrow" /></button></div>;
+        return <div key={x.id} className="row" style={{ alignItems: "flex-start", borderBottom: "1px solid var(--line)" }}><div className="grow">{row(x)}</div><button aria-label="Follow up" className={"btn sm" + (stale ? " primary" : "")} style={{ marginTop: 8 }} onClick={() => A.followUp(x)}><I n="arrow" /></button></div>;
       })}</>);
   }
   if (step === 3) {
@@ -302,10 +311,10 @@ export function WeeklyReview() {
     const { tasks, projects } = C.selectSomeday(data);
     return shell("Someday", tasks.length + projects.length ? "Ready to be real? Promote it, or leave it." : "Nothing parked.",
       <>
-        {projects.map((p) => <div key={p.id} className="row" style={{ borderBottom: "1px solid var(--line)", minHeight: 48 }}><span className="grow"><I n="project" /> {p.name}</span><button className="btn sm" onClick={async () => { await H.updateProject(p.id, { status: "active" }); toast("▶ Active"); }}><I n="play" /></button></div>)}
+        {projects.map((p) => <div key={p.id} className="row" style={{ borderBottom: "1px solid var(--line)", minHeight: 48 }}><span className="grow"><I n="project" /> {p.name}</span><button aria-label="Make active" className="btn sm" onClick={async () => { await H.updateProject(p.id, { status: "active" }); toast("▶ Active"); }}><I n="play" /></button></div>)}
         {tasks.map((x) => <div key={x.id} className="row" style={{ borderBottom: "1px solid var(--line)" }}><div className="grow">{row(x)}</div>
-          <button className="btn sm" onClick={async () => { await H.updateTask(x.id, { someday: false }); toast("🗂 To Anytime"); }}><I n="upload" /></button>
-          <button className="btn sm" onClick={() => A.schedule(x.id)}><I n="calendar" /></button></div>)}
+          <button aria-label="Move to Anytime" className="btn sm" onClick={async () => { await H.updateTask(x.id, { someday: false }); toast("🗂 To Anytime"); }}><I n="upload" /></button>
+          <button aria-label="Schedule" className="btn sm" onClick={() => A.schedule(x.id)}><I n="calendar" /></button></div>)}
       </>);
   }
   if (step === 5) {
@@ -417,7 +426,7 @@ export function DayPlanner({ date }: { date: string }) {
       {repeats.map((x) => <div key={"r" + x.id} className="dp-row faint"><span className="iconbtn ghost"><I n="refresh" /></span><span className="grow">{x.title}</span></div>)}
       <div className="row" style={{ marginTop: 12 }}>
         <input className="field sm" placeholder={`Add for ${rel === "Tomorrow" || rel === "Today" ? rel.toLowerCase() : dayName}…`} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} />
-        <button className="btn sm primary" disabled={!text.trim()} onClick={add}><I n="plus" /></button>
+        <button aria-label="Add" className="btn sm primary" disabled={!text.trim()} onClick={add}><I n="plus" /></button>
       </div>
       {tasks.length > 0 && (
         <button className="btn sm" style={{ marginTop: 10 }} onClick={async () => {
@@ -428,7 +437,7 @@ export function DayPlanner({ date }: { date: string }) {
       {sugg.length > 0 && (
         <div style={{ marginTop: 16 }}>
           <div className="lbl">Could also fit</div>
-          {sugg.map((x) => <div key={x.id} className="dp-row"><span className="grow">{x.title}</span><button className="btn sm" onClick={async () => { await H.updateTask(x.id, { when: date, someday: false }); setAdded([...added, x.id]); }}><I n="plus" /></button></div>)}
+          {sugg.map((x) => <div key={x.id} className="dp-row"><span className="grow">{x.title}</span><button aria-label="Add to this day" className="btn sm" onClick={async () => { await H.updateTask(x.id, { when: date, someday: false }); setAdded([...added, x.id]); }}><I n="plus" /></button></div>)}
         </div>
       )}
     </div>
@@ -507,7 +516,7 @@ export function Focus({ taskId }: { taskId: string }) {
         <div className="quiet">{phase === "work" ? (mode === "pomodoro" ? "Focus · 25" : `Focus · ${custom}`) : "Break · 5"}{task.focusMinutes ? ` · ${C.fmtMinutes(task.focusMinutes)} so far` : ""}</div>
         <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
           <Seg label="Timer" value={mode} onChange={(v) => { setMode(v); setEndAt(null); setPhase("work"); }} options={[{ id: "pomodoro", name: "25 / 5" }, { id: "custom", name: "Custom" }]} />
-          {mode === "custom" && <input className="field sm" style={{ width: 80 }} type="number" min={1} value={custom} onChange={(e) => setCustom(Math.max(1, Number(e.target.value) || 1))} aria-label="Minutes" />}
+          {mode === "custom" && <NumField className="field sm" style={{ width: 80 }} value={custom} onChange={setCustom} aria-label="Minutes" />}
         </div>
         <div className="row" style={{ justifyContent: "center", marginTop: 14, gap: 10 }}>
           <button className="btn primary" onClick={startPause}>{running ? "⏸ Pause" : left < workLen && phase === "work" ? "▶ Resume" : "▶ Start"}</button>
@@ -588,7 +597,7 @@ export function Templates(props: { areaId?: string | null; templateId?: string }
     toast(`📁 ${name.trim() || tpl.name}`);
   };
   return (
-    <FlowShell title={"📋 " + tpl.name} onBack={props.templateId ? null : () => setTplId(null)} foot={<><Grow /><button className="btn primary" onClick={create}><I n="project" /> Create</button></>}>
+    <FlowShell title={"📋 " + tpl.name} onBack={props.templateId ? null : () => setTplId(null)} foot={<><Grow /><button className="btn primary" onClick={() => void once("tpl-create", create)}><I n="project" /> Create</button></>}>
       <h2>{tpl.client ? "New job" : "Set it up"}</h2>
       <div className="stack">
         <input className="field sm" autoFocus value={name} placeholder={tpl.client ? "Smith bathroom remodel" : tpl.name} onChange={(e) => setName(e.target.value)} />

@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [
     react({ jsxImportSource: "nest-jsx" }),
     VitePWA({
-      registerType: "autoUpdate", // a new build takes over on its own (a stuck screen can't tap "Update")
+      registerType: "prompt", // a new build waits for a calm moment (app in background, or a Reload tap): see src/lib/update.ts
       includeAssets: ["icons/*.png", "icons/*.svg"],
       manifest: {
         name: "Bird Nest",

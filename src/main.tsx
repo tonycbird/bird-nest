@@ -4,7 +4,6 @@ import "@fontsource-variable/plus-jakarta-sans";
 import "./styles/tokens.css";
 import "./styles/app.css";
 import "./styles/head.css";
-import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { installRiverBridge } from "./head/river-bridge";
 import { installBody } from "./body/install";
@@ -12,6 +11,7 @@ import { installSync } from "./lib/sync";
 import { installTheme } from "./lib/theme";
 import { installTesting } from "./lib/testing";
 import { installSheetSwipe } from "./lib/sheet-swipe";
+import { installUpdates } from "./lib/update";
 
 /** If a screen throws, show the error and the way out instead of an empty page. */
 class Rescue extends Component<{ children: ReactNode }, { err: string | null }> {
@@ -26,12 +26,7 @@ class Rescue extends Component<{ children: ReactNode }, { err: string | null }> 
 }
 
 // Register updates before anything else, so even a screen that crashes still gets the next fix.
-try {
-  registerSW({
-    immediate: true,
-    onRegisteredSW(_url, reg) { if (reg) window.setInterval(() => void reg.update(), 30 * 60_000); },
-  });
-} catch (e) { console.error(e); }
+try { installUpdates(); } catch (e) { console.error(e); }
 
 try { installTesting(); } catch (e) { console.error(e); }
 try { installTheme(); } catch (e) { console.error(e); }

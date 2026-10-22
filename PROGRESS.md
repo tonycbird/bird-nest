@@ -1,5 +1,39 @@
 # Progress
 
+## Debug sweep · Oct 22
+Walked every screen at 3 phone sizes in light and dark (`tests/e2e/audit.cjs`, about 80 screens each plus random taps), reviewed the code for Today, sync and Head, and ran Anthony's real data through Claude's door (read-only).
+
+### Setup (Anthony, once)
+1. Supabase → SQL editor: paste `supabase/migrations/0004_door_per_item.sql` → Run. (Claude's door skips one bad item instead of failing the whole batch.)
+2. Supabase → Authentication → Sign In / Providers: check **Allow new users to sign up** is off.
+3. Push "Debug sweep" with GitHub Desktop.
+
+### Fixed
+- [x] Today stayed on yesterday after midnight; it now follows the clock (and catches up when the phone wakes)
+- [x] Blocks that run past midnight showed "1m"; a block with no start time broke the free gaps (start is now required)
+- [x] Body's Start button sat under the ＋; Body's "didn't load" card was hidden behind the frame
+- [x] Updates no longer reload the app while you're using it: they install when Nest goes to the background, or on Reload / Check for update
+- [x] Offline: the start-up rescue no longer wipes the app files (that left nothing to start from)
+- [x] Sheets: every picker and the block sheet have a ✕; a scrolled sheet no longer closes from a tap near its top; the task sheet keeps Done in view
+- [x] Typing then closing a sheet (swipe, tap outside, Done) now saves what you typed
+- [x] Claude tab: a quick double tap on ✓ applied a suggestion twice; a card decided during a refresh came back
+- [x] Sync: one row the cloud refuses (a half emoji, NUL) no longer stops everything else; a new phone joining the account gets Body settings from the cloud instead of overwriting them with defaults; ✓/✕ made while signed out wait instead of being dropped; dismissing a flagged email now really reaches the cloud; Claude's "fixed" notes can't be overwritten by an older copy
+- [x] Undoing an edit on a finished task-block no longer reopens the task; reopening a done repeating task no longer leaves two copies
+- [x] Restoring a backup no longer brings back old Claude suggestions that could be applied twice
+- [x] Head: ＋ on a project or area page files there (it went to Inbox); select mode ends when you leave Head (＋ was hidden everywhere); a cancelled bulk picker keeps the selection; a restored task whose project was deleted lands in Inbox (it was invisible); "Anytime" time of day sticks; archiving a project has Undo
+- [x] Plan my day: "Later" on a past-due task moves on; Back no longer bounces. Weekly review: changing a project's status no longer skips the next project, and has Undo
+- [x] Double taps on Create (templates), Put away (dump), Ramble save, Start my day and 🌊 no longer add things twice
+- [x] Checklist steps: the cursor no longer jumps while typing; Repeat "Every N" and Focus minutes can be cleared and retyped
+- [x] Brain dump understands how the phone talks: curly ’ (I’m), "I’m going to need to…", "this upcoming Tuesday", "give around one hour" (becomes ~1h), "need a tarp" → "Get tarp", and "…and then take it to the dump" keeps Tuesday. Quick add offers "Looks like a few things · Sort them" for a long dictation, and grows to fit it
+- [x] Easier to read: muted text and small teal/orange labels are darker in light mode; the gold "Important" chip uses dark text; Body's picked days read in dark mode
+- [x] Easier to tap: checkboxes, ✕ on chips, free-time gaps, back links and step ✕ have bigger touch areas (same look); icon-only buttons all have names
+- [x] Emoji that slipped through (🛋 🏡 ☕ 📆 🧾) are Nest icons now; new "weekend" icon
+- [x] Tests: 109 unit, SQL tests for 0004, all e2e pass; `testing.e2e.cjs` checks the new dump, the ✕, saving on close and select mode
+
+### Not changed (on purpose)
+- The testing flag can sit over a button: drag it anywhere
+- Reports aren't in the backup file (they're big and already in the cloud)
+
 ## Fixes from Anthony's first reports · Oct 22
 - [x] ＋ in the tab bar looked cut in half: the fade above the tab bar was drawn over it. Now the ＋ sits on top.
 - [x] "2/7" on the now card looked off-center: the card had five buttons squeezed in. Now three: Start/Resume, "2/7 ⌄", ⋯ (Open in Body / Open task moved to the top of ⋯).

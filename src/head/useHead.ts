@@ -59,9 +59,12 @@ export const goBack = () => {
   nav.set((s) => ({ ...s, view: b?.view ?? "today", id: b?.id ?? null, overlay: null }));
 };
 export const openTask = (id: string) => nav.set((s) => ({ ...s, selected: id }));
-export const closeTask = () => nav.set((s) => ({ ...s, selected: null }));
+/** Save whatever field is still being typed in (its onBlur saves) before the screen it's on goes away.
+    A sheet removed while a field has focus never gets a blur on iPhone, so the edit would be lost. */
+export const commitTyping = () => { try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch { /* no document */ } };
+export const closeTask = () => { commitTyping(); nav.set((s) => ({ ...s, selected: null })); };
 export const openOverlay = (name: string, props: Record<string, unknown> = {}) => nav.set((s) => ({ ...s, overlay: { name, props } }));
-export const closeOverlay = () => nav.set((s) => ({ ...s, overlay: null }));
+export const closeOverlay = () => { commitTyping(); nav.set((s) => ({ ...s, overlay: null })); };
 
 /* Which bottom tab the app shows. Head flows can send Anthony back to the River. */
 export type AppTab = "today" | "head" | "body" | "ok" | "settings";

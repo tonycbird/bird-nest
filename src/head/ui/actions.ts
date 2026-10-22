@@ -47,7 +47,8 @@ export async function schedule(ids: string | string[], opts: { title?: string } 
   const undos: H.Undo[] = [];
   for (const id of list) {
     const t = await T(id);
-    undos.push(await H.updateTask(id, { when: r.when, tod: r.when ? (r.tod ?? t?.tod ?? null) : null, someday: !!r.someday }));
+    // One task: the picker's time of day is the answer ("Anytime" = none). Several: keep each one's own unless one was picked.
+    undos.push(await H.updateTask(id, { when: r.when, tod: r.when ? (list.length === 1 ? r.tod ?? null : r.tod ?? t?.tod ?? null) : null, someday: !!r.someday }));
   }
   const label = r.someday ? "💤 Someday" : r.when ? `📅 ${C.relLabel(r.when)}${r.tod === "evening" && r.when === C.today() ? " evening" : ""}` : "✕ No date";
   toast(list.length > 1 ? `${list.length} · ${label}` : label, join(undos));
@@ -70,6 +71,7 @@ export async function move(ids: string | string[]) {
   for (const id of list) undos.push(await H.updateTask(id, { areaId: r.areaId, projectId: r.projectId, sectionId: r.sectionId }));
   const dest = r.projectId ? (await db.projects.get(r.projectId))?.name : r.areaId ? (await db.areas.get(r.areaId))?.name : "Inbox";
   toast(`↪ ${dest}`, join(undos));
+  return r;
 }
 
 export async function setContexts(ids: string | string[]) {
@@ -84,6 +86,7 @@ export async function setContexts(ids: string | string[]) {
     undos.push(await H.updateTask(id, { contexts: list.length > 1 ? [...new Set([...(t?.contexts || []), ...r])] : r }));
   }
   if (list.length > 1) toast("@ Added", join(undos));
+  return r;
 }
 
 export async function setRepeat(id: string) {

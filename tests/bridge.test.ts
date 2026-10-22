@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "../src/lib/db";
 import * as C from "../src/head/core/clearhead.js";
 import * as H from "../src/head/store";
-import { loadDay, toggleStep } from "../src/lib/river";
+import { completeBlock, loadDay, toggleStep, updateBlock } from "../src/lib/river";
 import { installRiverBridge, putGroceriesOnRiver, putTaskOnRiver, putTasksOnRiver, stepsForTask } from "../src/head/river-bridge";
 import { exportAll, restoreAll } from "../src/lib/backup";
 
@@ -46,6 +46,18 @@ describe("Head ⇄ River", () => {
     expect(b.status).toBe("open");
     expect(task.status).toBe("open");
     expect(task.checklist.map((c) => c.done)).toEqual([true, false]); // matches the River after undo
+  });
+
+  it("undoing an edit on a finished task-block leaves the task done", async () => {
+    const t = await H.createTask({ title: "Pay Avista", when: D });
+    await putTaskOnRiver(t.id, D, 10 * 60);
+    let [b] = await loadDay(D);
+    await completeBlock(b.id);
+    expect((await db.tasks.get(t.id))!.status).toBe("done");
+    [b] = await loadDay(D);
+    const undoEdit = await updateBlock(b.id, { start: b.start, end: b.end, kind: b.kind, icon: b.icon, title: "Pay Avista bill", steps: b.steps.map((x) => ({ label: x.label, value: x.value })) });
+    await undoEdit();
+    expect((await db.tasks.get(t.id))!.status).toBe("done");
   });
 
   it("a timed task lands at its time; others stack after it; no doubles", async () => {

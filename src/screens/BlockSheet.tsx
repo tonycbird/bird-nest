@@ -43,7 +43,7 @@ export default function BlockSheet(props: { day: string; block?: RiverBlock; sta
   }
 
   async function save() {
-    if (!title.trim()) return;
+    if (!title.trim() || !start) return;
     const input = { start, end: end || null, kind, icon: shown, title, steps };
     if (b) toast("✓ Saved", await updateBlock(b.id, input));
     else toast("＋ Added", (await addBlock({ ...input, day: props.day })).undo);
@@ -52,7 +52,8 @@ export default function BlockSheet(props: { day: string; block?: RiverBlock; sta
 
   return (
     <div className="scrim" onClick={props.onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={b ? "Edit block" : "New block"}>
+      <div className="sheet has-x" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={b ? "Edit block" : "New block"}>
+        <button className="sheet-x" aria-label="Close" onClick={props.onClose}><Icon n="close" size={18} tone={false} /></button>
         <h2>{b ? "Edit block" : "New block"}</h2>
 
         <input className="field" placeholder="Block name" value={title} autoFocus={!b} maxLength={48} onChange={(e) => setTitle(e.target.value)} />
@@ -94,10 +95,10 @@ export default function BlockSheet(props: { day: string; block?: RiverBlock; sta
 
         <div className="sheet-actions">
           {b && (confirmDel
-            ? <button className="btn" style={{ color: "var(--warn)" }} onClick={async () => { toast("🗑 In Trash", await softDelete(b.id)); props.onClose(); }}><I n="trash" /> Delete?</button>
+            ? <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={async () => { toast("🗑 In Trash", await softDelete(b.id)); props.onClose(); }}><I n="trash" /> Delete?</button>
             : <button className="btn" aria-label="Delete" style={{ flex: "none" }} onClick={() => setConfirmDel(true)}><I n="trash" /></button>)}
           <button className="btn" onClick={props.onClose}>Cancel</button>
-          <button className="btn primary" disabled={!title.trim()} onClick={save}>Save</button>
+          <button className="btn primary" disabled={!title.trim() || !start} onClick={save}>Save</button>
         </div>
       </div>
     </div>

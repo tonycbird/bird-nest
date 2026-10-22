@@ -42,9 +42,9 @@
           d.innerHTML = "<h2 style='margin:0 0 6px'>Nest didn't start</h2><p style='margin:0 0 10px'>" + (why || "") + " Take a screenshot of this for Claude.</p><ol style='padding-left:20px;font:12px/1.4 ui-monospace,Menlo,monospace'>" + list + "</ol>" +
             "<p style='font-size:12px;color:#646B7D'>" + navigator.userAgent + "</p>" +
             "<button id='rs1' style='display:block;width:100%;margin:14px 0 8px;padding:14px;border:0;border-radius:100px;background:#16A394;color:#fff;font-size:16px;font-weight:700'>Reload</button>" +
-            "<button id='rs2' style='display:block;width:100%;padding:14px;border:0;border-radius:100px;background:#ECEEF3;color:#171A23;font-size:16px;font-weight:700'>Reset app files (keeps your data)</button>";
+            "<button id='rs2' style='display:block;width:100%;padding:14px;border:0;border-radius:100px;background:#ECEEF3;color:#171A23;font-size:16px;font-weight:700'>Reset app files (keeps your data · needs internet)</button>";
           document.body.appendChild(d);
-          document.getElementById("rs1").onclick = function () { location.reload(); };
+          document.getElementById("rs1").onclick = function () { if (window.__nestReload) window.__nestReload(); else location.reload(); };
           document.getElementById("rs2").onclick = reset;
         };
         setTimeout(function () {
@@ -52,6 +52,8 @@
           if (r && r.textContent && r.textContent.trim()) return;
           // Usually a stale copy of the app's files. Fix it once on its own; if that didn't help, show this screen.
           var last = 0; try { last = +localStorage.getItem("nest:auto-reset") || 0; } catch (x) {}
+          // Offline, clearing the app files would leave nothing to start from. Show the way out instead.
+          if (!navigator.onLine) { window.__nestRescue("The screen stayed empty and the phone is offline."); return; }
           if (Date.now() - last > 10 * 60 * 1000) { try { localStorage.setItem("nest:auto-reset", String(Date.now())); } catch (x) {} reset(); return; }
           window.__nestRescue("The screen stayed empty.");
         }, 7000);

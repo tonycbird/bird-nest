@@ -50,6 +50,7 @@ export interface Task {
   list: string | null;
   status: "open" | "done";
   doneAt: number | null;
+  repeatNextId?: string | null; // the copy a repeating task made when it was finished (so reopening can take it back)
   doneBy?: string | null;
   createdAt: number;
   updatedAt: number;

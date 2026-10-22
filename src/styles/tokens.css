@@ -7,12 +7,12 @@
 
   /* Mist */
   --bg:#F4F5F8; --surface:#FFFFFF; --surface-2:#F1F3F7; --tint:#ECEEF3; --line:rgba(22,27,45,.08); --rail:#D3D8E2;
-  --ink:#171A23; --ink-2:#646B7D; --ink-3:#969CAB; --ink-4:#B4B9C4;
-  --accent:#16A394; --on-accent:#FFFFFF;
+  --ink:#171A23; --ink-2:#5C6375; --ink-3:#767D8F; --ink-4:#B4B9C4;
+  --accent:#16A394; --on-accent:#FFFFFF; --accent-ink:#0F8577;
   --c-body:#22B8A5; --c-stretch:#4C8DF6; --c-warm:#F2795F; --c-head:#8366F2; --c-money:#F2AE2E;
   --c-people:#3FB572; --c-home:#EC5F93; --c-rest:#5B67E8; --c-cal:#A3A9B6;
   --glyph:#FFFFFF;
-  --good:var(--accent); --warn:#E0683D;
+  --good:var(--accent); --warn:#E0683D; --warn-ink:#C05128;
   --body:var(--c-body); --head:var(--c-head); --money:var(--c-money);
   --shadow:0 1px 2px rgba(22,27,45,.04), 0 6px 18px rgba(22,27,45,.05);
   --shadow-lift:0 2px 4px rgba(22,27,45,.04), 0 14px 32px rgba(22,27,45,.09);
@@ -23,12 +23,12 @@
 /* Dusk */
 :root[data-theme="dark"]{
   --bg:#1B1E26; --surface:#242833; --surface-2:#2F3441; --tint:#2C313D; --line:rgba(255,255,255,.07); --rail:#3A4152;
-  --ink:#F3F5F9; --ink-2:#A3AABB; --ink-3:#7D8598; --ink-4:#626A7C;
-  --accent:#6FD6C1; --on-accent:#0F2420;
+  --ink:#F3F5F9; --ink-2:#A9B0C0; --ink-3:#8A92A5; --ink-4:#626A7C;
+  --accent:#6FD6C1; --on-accent:#0F2420; --accent-ink:#6FD6C1;
   --c-body:#6FD6C1; --c-stretch:#7FB2F5; --c-warm:#F5A38C; --c-head:#A99BF5; --c-money:#F3CB6B;
   --c-people:#86CF8E; --c-home:#F290B2; --c-rest:#8C95F7; --c-cal:#8A92A6;
   --glyph:#1B1E26;
-  --warn:#F2A07B;
+  --warn:#F2A07B; --warn-ink:#F2A07B;
   --shadow:0 0 0 1px rgba(255,255,255,.02);
   --shadow-lift:0 10px 30px rgba(0,0,0,.28);
   --scrim:rgba(6,8,12,.55);
@@ -37,10 +37,10 @@
 /* Before the script runs (or if it can't), follow the phone. */
 @media (prefers-color-scheme: dark){ :root:not([data-theme]){
   --bg:#1B1E26; --surface:#242833; --surface-2:#2F3441; --tint:#2C313D; --line:rgba(255,255,255,.07); --rail:#3A4152;
-  --ink:#F3F5F9; --ink-2:#A3AABB; --ink-3:#7D8598; --ink-4:#626A7C;
-  --accent:#6FD6C1; --on-accent:#0F2420;
+  --ink:#F3F5F9; --ink-2:#A9B0C0; --ink-3:#8A92A5; --ink-4:#626A7C;
+  --accent:#6FD6C1; --on-accent:#0F2420; --accent-ink:#6FD6C1;
   --c-body:#6FD6C1; --c-stretch:#7FB2F5; --c-warm:#F5A38C; --c-head:#A99BF5; --c-money:#F3CB6B;
   --c-people:#86CF8E; --c-home:#F290B2; --c-rest:#8C95F7; --c-cal:#8A92A6;
-  --glyph:#1B1E26; --warn:#F2A07B;
+  --glyph:#1B1E26; --warn:#F2A07B; --warn-ink:#F2A07B;
   --shadow:0 0 0 1px rgba(255,255,255,.02); --shadow-lift:0 10px 30px rgba(0,0,0,.28); --scrim:rgba(6,8,12,.55);
   color-scheme:dark; } }

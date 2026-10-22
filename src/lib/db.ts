@@ -65,7 +65,9 @@ export interface Report extends Row {
   fixed_at: string | null;
 }
 
-export interface OutboxOp { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string; }
+export type OutboxOp =
+  | { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string }
+  | { op_id: string; table: "mail_items"; row_id: string; patch: { dismissed_at: string }; queued_at: string };
 
 export class NestDB extends Dexie {
   days!: Table<Day, string>;

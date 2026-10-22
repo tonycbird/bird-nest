@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type TouchEvent } from "react";
 import * as C from "../core/clearhead.js";
 import type { Area, HeadData, Project, Task } from "../types";
 import { multi, openTask, toggleMulti } from "../useHead";
@@ -158,4 +158,16 @@ export function TaskRow(props: {
 export function projectLabel(p: Project, data: HeadData) {
   const a = p.areaId ? data.areas.get(p.areaId) : null;
   return a ? a.name : "";
+}
+
+/** A whole-number field you can clear and retype ("1" → "" → "2"), kept at least `min`. */
+export function NumField(props: { value: number; min?: number; onChange: (n: number) => void; className?: string; style?: CSSProperties; "aria-label"?: string }) {
+  const min = props.min ?? 1;
+  const [text, setText] = useState(String(props.value));
+  useEffect(() => { setText((t) => (Number(t) === props.value ? t : String(props.value))); }, [props.value]);
+  return (
+    <input className={props.className} style={props.style} type="number" min={min} inputMode="numeric" aria-label={props["aria-label"]} value={text}
+      onChange={(e) => { setText(e.target.value); const n = Math.floor(Number(e.target.value)); if (e.target.value !== "" && n >= min) props.onChange(n); }}
+      onBlur={() => { const n = Math.floor(Number(text)); if (text === "" || !(n >= min)) setText(String(props.value)); }} />
+  );
 }

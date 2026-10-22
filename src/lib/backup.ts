@@ -38,6 +38,8 @@ export async function restoreAll(b: Backup, db: NestDB = defaultDb): Promise<Bac
     for (const t of TABLES) {
       // A table the backup doesn't have (an older backup, before Body) is left as it is.
       if (!b.tables[t]) continue;
+      // Claude's suggestions belong to the cloud. Bringing back old ones would let a done ✓ be tapped twice.
+      if (t === "proposals") continue;
       await db.table(t).clear();
       const rows = b.tables[t];
       if (rows.length) await db.table(t).bulkPut(rows);

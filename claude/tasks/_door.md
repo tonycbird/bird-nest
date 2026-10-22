@@ -9,6 +9,7 @@ curl -s -X POST "<SUPABASE_URL>/rest/v1/rpc/nest_gateway" \
 ```
 
 The reply is JSON with `"ok": true`. If `ok` is false, or the call fails, stop and say why in one line. Never guess app data.
+An item the database can't read (a bad date, a bad id) is skipped on its own and counted in `skipped`; the rest still go in. If `skipped` is more than you expected, say so in one line.
 
 Actions:
 - `snapshot` (args `{}`): today, tomorrow, tz, blocks (with steps), open tasks, areas, projects, `body` (the next 7 days of workouts and stretch, already worked out by the app, plus `missed`), `prefs` (gym_days 0=Sun, gym_time, plan_time), calendar, pending proposals, `decided_today`.

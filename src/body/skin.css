@@ -1,10 +1,10 @@
 /* Bird Nest skin for the Fitness screens: Mist by day, Dusk at night (the app sets data-theme on this frame),
    Nest's font, teal for actions, sky blue for picks. Only tokens and a few shapes change; the old app's rules stay. */
 :root:root{
-  --bg:#F4F5F8; --card:#FFFFFF; --ink:#171A23; --ink2:#646B7D; --ink3:#969CAB; --line:#E8EBF1; --pill:#ECEEF3; --pill-ink:#646B7D;
+  --bg:#F4F5F8; --card:#FFFFFF; --ink:#171A23; --ink2:#5C6375; --ink3:#767D8F; --line:#E8EBF1; --pill:#ECEEF3; --pill-ink:#5C6375;
   --coral:#16A394; --coral-press:#11897C; --coral-soft:#DFF4F1; --coral-2:#8FD5CC;
   --blue:#3D7FEA; --blue-soft:#E6EFFD; --blue-2:#A9C6F7;
-  --green:#2FAE6E; --green-soft:#E1F4EA; --amber:#E19A1B; --amber-soft:#FCF1DC; --danger:#E0683D; --danger-soft:#FCE8E0;
+  --green:#1F8A55; --green-soft:#E1F4EA; --amber:#E19A1B; --amber-soft:#FCF1DC; --danger:#E0683D; --danger-soft:#FCE8E0;
   --c1:#16A394; --c2:#4C8DF6;
   --mus:#D3D8E2; --mus-2:#E1E5EC; --hi-1:#22B8A5; --hi-2:#16A394;
   --shadow:0 1px 2px rgba(22,27,45,.04),0 6px 18px rgba(22,27,45,.05);
@@ -16,7 +16,7 @@
   color-scheme:light;
 }
 :root:root[data-theme="dark"]{
-  --bg:#1B1E26; --card:#242833; --ink:#F3F5F9; --ink2:#A3AABB; --ink3:#7D8598; --line:#323846; --pill:#2C313D; --pill-ink:#A3AABB;
+  --bg:#1B1E26; --card:#242833; --ink:#F3F5F9; --ink2:#A9B0C0; --ink3:#8A92A5; --line:#323846; --pill:#2C313D; --pill-ink:#A3AABB;
   --coral:#6FD6C1; --coral-press:#86E0CE; --coral-soft:#21403C; --coral-2:#3E7D72;
   --blue:#7FB2F5; --blue-soft:#243450; --blue-2:#3E5F8E;
   --green:#86CF8E; --green-soft:#22382A; --amber:#F3CB6B; --amber-soft:#3A3220; --danger:#F2A07B; --danger-soft:#3D2A24;
@@ -31,7 +31,7 @@ body{font-feature-settings:"tnum" 1; transition:background-color .4s ease, color
 /* Filled buttons: rounder, and dark text on the light teal at night. */
 .btn,.btn2{border-radius:100px}
 .btn-sm{border-radius:100px}
-.btn,.btn-sm:not(.ghost):not(.alt),.chip.on,.wday.on,.optbtn.on{color:var(--on-fill)}
+.btn,.btn-sm:not(.ghost):not(.alt),.chip.on,.wday.on,.optbtn.on,.daychip.on{color:var(--on-fill)}
 .card{border-radius:20px}
 
 /* Nest shows the four sections as chips above this frame, so the old tab bar hides
@@ -48,3 +48,4 @@ body:has(.actionbar) .timer{bottom:84px}
 .nest-groc{margin-bottom:12px}
 .nest-groc small{margin-top:2px}
 .wday.on .wd-d,.wday.on .wd-n,.wday.on .wd-w{color:var(--on-fill)}
+:root .daychip.on{color:var(--on-fill);}

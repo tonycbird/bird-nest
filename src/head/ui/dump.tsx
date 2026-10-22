@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { once } from "../../lib/once";
 import * as C from "../core/clearhead.js";
 import * as H from "../store";
 import { toast } from "../../lib/toast";
@@ -19,6 +20,11 @@ import { colorFor, taskIcon } from "../../ui/colors";
 
 const DRAFT = "nest-dump-draft";
 const loadDraft = () => { try { return localStorage.getItem(DRAFT) || ""; } catch { return ""; } };
+/** Quick add hands a long, many-things line over to the dump. */
+export function sendToDump(t: string) {
+  const old = loadDraft().trim();
+  saveDraft(old ? old + "\n" + t : t);
+}
 const saveDraft = (t: string) => { try { if (t) localStorage.setItem(DRAFT, t); else localStorage.removeItem(DRAFT); } catch { /* private mode */ } };
 
 const SECTIONS: { d: DumpDest; label: string; icon: IconName; color: string }[] = [
@@ -122,7 +128,7 @@ function SortStep({ d }: { d: ReturnType<typeof useDump> }) {
         if (!list.length) return null;
         return (
           <section key={sec.d} className="hsec dsec">
-            <div className="sec-head" style={{ color: sec.color }}><Icon n={sec.icon} size={16} />{sec.label} · {list.length}</div>
+            <div className="sec-head"><span style={{ color: sec.color, display: "inline-flex" }}><Icon n={sec.icon} size={16} /></span>{sec.label} · {list.length}</div>
             <div className="tlist">
               {list.map((it) => <Row key={it.id} it={it} data={data} onChange={(p) => d.update(it.id, p)} onMove={() => void move(it)} />)}
             </div>
@@ -162,7 +168,7 @@ export function DumpFlow() {
   const sorting = d.items !== null;
   const foot = sorting
     ? <><button className="btn" onClick={() => d.setItems(null)}><I n="chevL" /> Back</button><span className="grow" />
-        <button className="btn primary" disabled={!d.kept.length} onClick={() => void d.putAway()}><I n="tick" /> Put away {d.kept.length || ""}</button></>
+        <button className="btn primary" disabled={!d.kept.length} onClick={() => void once("dump-put", d.putAway)}><I n="tick" /> Put away {d.kept.length || ""}</button></>
     : <>{d.text && <button className="btn" onClick={() => d.setText("")}>Clear</button>}<span className="grow" />
         <button className="btn primary" disabled={!d.found} onClick={d.sort}>Sort{d.found ? ` ${d.found}` : ""} <I n="chevR" /></button></>;
   return (
@@ -183,7 +189,7 @@ export function DumpInline(props: { onDone?: (ids: string[]) => void }) {
         {sorting && <button className="btn sm" onClick={() => d.setItems(null)}><I n="chevL" /> Back</button>}
         <span className="grow" />
         {sorting
-          ? <button className="btn primary" disabled={!d.kept.length} onClick={() => void d.putAway()}><I n="tick" /> Put away {d.kept.length || ""}</button>
+          ? <button className="btn primary" disabled={!d.kept.length} onClick={() => void once("dump-put", d.putAway)}><I n="tick" /> Put away {d.kept.length || ""}</button>
           : <button className="btn primary" disabled={!d.found} onClick={d.sort}>Sort{d.found ? ` ${d.found}` : ""} <I n="chevR" /></button>}
       </div>
     </div>

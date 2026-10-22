@@ -25,7 +25,19 @@ export function dur(m: number): string {
   const h = Math.floor(m / 60), r = Math.round(m % 60);
   return r ? `${h}h ${r}m` : `${h}h`;
 }
-const endMin = (start: string, end?: string | null) => (end ? Math.max(minutes(end), minutes(start)) : minutes(start) + 30);
+/** What comes after this block: the next open one later in the day, else any open one left. */
+function nextOpen(blocks: RiverBlock[], cur: RiverBlock): RiverBlock | null {
+  const open = blocks.filter((x) => x.status === "open" && x.id !== cur.id);
+  return open.find((x) => x.start > cur.start || (x.start === cur.start && blocks.indexOf(x) > blocks.indexOf(cur))) ?? open[0] ?? null;
+}
+
+/** End of a block in minutes. A block that runs past midnight ends "tomorrow" (+24h). */
+const endMin = (start: string, end?: string | null) => {
+  const s = minutes(start);
+  if (!end) return s + 30;
+  const e = minutes(end);
+  return e < s ? e + 1440 : e;
+};
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 function dateParts(key: string) {
@@ -35,18 +47,33 @@ function dateParts(key: string) {
   return { weekday: f({ weekday: "long" }), md: f({ month: "short", day: "numeric" }), letter: f({ weekday: "narrow" }), num: d, dow: t.getUTCDay() };
 }
 
-/** Re-draw every 30 seconds so "now" and "left" stay true. */
+/** Re-draw every 30 seconds (and when the phone wakes) so "now", "left" and "today" stay true. */
 function useClock() {
   const [, tick] = useState(0);
-  useEffect(() => { const iv = window.setInterval(() => tick((n) => n + 1), 30_000); return () => window.clearInterval(iv); }, []);
-  return minutes(nowHHMM());
+  useEffect(() => {
+    const bump = () => tick((n) => n + 1);
+    const iv = window.setInterval(bump, 30_000);
+    const vis = () => { if (document.visibilityState === "visible") bump(); };
+    document.addEventListener("visibilitychange", vis);
+    window.addEventListener("focus", bump);
+    return () => { window.clearInterval(iv); document.removeEventListener("visibilitychange", vis); window.removeEventListener("focus", bump); };
+  }, []);
+  return { nowMin: minutes(nowHHMM()), todayKey: today() };
 }
 
 export default function Today(props: Props) {
   const toast = useToast();
-  const [day, setDay] = useState(today());
-  const isToday = day === today();
-  const nowMin = useClock();
+  const { nowMin, todayKey } = useClock();
+  const [day, setDay] = useState(todayKey);
+  // Past midnight: if Anthony was looking at "today", follow the calendar to the new today.
+  const lastToday = useRef(todayKey);
+  useEffect(() => {
+    if (lastToday.current === todayKey) return;
+    const was = lastToday.current;
+    lastToday.current = todayKey;
+    setDay((d) => (d === was ? todayKey : d));
+  }, [todayKey]);
+  const isToday = day === todayKey;
   const blocks = useLiveQuery(() => loadDay(day), [day], [] as RiverBlock[]);
   const dayRow = useLiveQuery(() => db.days.get(day), [day]);
   // Google Calendar events Claude copied in: dashed, locked rows on the timeline.
@@ -169,7 +196,7 @@ export default function Today(props: Props) {
 
       {sheet && <BlockSheet day={day} block={sheet.block} start={sheet.start} onClose={() => setSheet(null)} />}
       {playingBlock && (
-        <StepPlayer block={playingBlock} nextBlock={blocks.find((x) => x.status === "open" && x.id !== playingBlock.id) ?? null}
+        <StepPlayer block={playingBlock} nextBlock={nextOpen(blocks, playingBlock)}
           onClose={() => setPlaying(null)} onNext={(id) => setPlaying(id)} />
       )}
     </>

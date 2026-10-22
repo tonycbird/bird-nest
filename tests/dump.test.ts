@@ -61,4 +61,28 @@ describe("brain dump shopping words", () => {
     expect(titles("need hot dogs and ice cream")).toEqual(["shop:Hot dogs", "shop:Ice cream"]);
     expect(titles("fix the porch light")).toEqual(["later:Fix the porch light"]);
   });
+
+  test("talks like a phone: curly I’m, 'going to need to', 'this upcoming', an hour estimate, and 'then' keeps the day", () => {
+    const out = sort("I’m going to need to pick up the leaves from Sam’s house this upcoming Tuesday. I’m going to need a tarp and ratchet straps and then take it to the dump after give around one hour of loading and dump trip.");
+    const t = (x: string) => out.find((i) => i.title.startsWith(x))!;
+    expect(t("Pick up the leaves from Sam's house").dest).toBe("date");
+    expect(t("Pick up the leaves").when).toBe("2026-10-27");
+    expect(t("Pick up the leaves").title).toBe("Pick up the leaves from Sam's house");
+    expect(t("Get tarp and ratchet straps").dest).toBe("later");
+    expect(t("Take it to the dump").when).toBe("2026-10-27");
+    expect(t("Take it to the dump").est).toBe(60);
+    expect(out).toHaveLength(3);
+  });
+  test("estimates come out of the title", () => {
+    const [a] = sort("clean the garage, should take about 2 hours");
+    expect(a.title).toBe("Clean the garage");
+    expect(a.est).toBe(120);
+    const [b] = sort("call the bank in 2 hours");
+    expect(b.est).toBeNull(); // "in 2 hours" is when, not how long
+  });
+  test("'I'm going to' a place becomes Go to", () => {
+    expect(titles("I'm going to Costco tomorrow")).toEqual(["date:Go to Costco"]);
+    expect(titles("I'm gonna call dave")).toEqual(["later:Call dave"]);
+  });
 });
+

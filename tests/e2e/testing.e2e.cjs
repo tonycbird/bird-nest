@@ -90,6 +90,39 @@ const SHOTS = process.env.SHOTS;
   assert(await p.locator('.task', { hasText: 'Pay avista' }).count() === 1, 'Undo brings it back');
   await shot('head-after-undo');
 
+  // ---- Debug round fixes ----
+  // A long dictated quick add offers the dump, and the dump sorts it the way it was said.
+  await p.click('[aria-label="Quick add"]'); await p.waitForTimeout(200);
+  await p.fill('textarea.qa-input', 'I\u2019m going to need to pick up the leaves from Sam\u2019s house this upcoming Tuesday. I\u2019m going to need a tarp and ratchet straps and then take it to the dump after give around one hour of loading and dump trip.');
+  await p.waitForTimeout(200);
+  assert(await p.locator('.qa-many').count() === 1, 'quick add notices several things and offers to sort them');
+  await p.click('.qa-many'); await p.waitForTimeout(300);
+  await p.click('.flow-foot >> text=Sort'); await p.waitForTimeout(300);
+  const dumped = await p.locator('input.d-in').evaluateAll((els) => els.map((e) => e.value));
+  assert(dumped.includes("Pick up the leaves from Sam's house") && dumped.includes('Get tarp and ratchet straps') && dumped.includes('Take it to the dump'), 'dictation sorted into 3 things: ' + dumped.join(' | '));
+  await p.click('.flow [aria-label="Close"]'); await p.waitForTimeout(300);
+  await p.evaluate(() => localStorage.removeItem('nest-dump-draft'));
+
+  // Every picker sheet has a ✕.
+  await p.locator('.swipe .task', { hasText: 'Pay avista' }).click(); await p.waitForTimeout(300);
+  await p.locator('.pr-main', { hasText: 'Repeat' }).click(); await p.waitForTimeout(300);
+  assert(await p.locator('.sheet.has-x .sheet-x').count() >= 1, 'picker sheet shows a close ✕');
+  await p.locator('.sheet.has-x .sheet-x').last().click(); await p.waitForTimeout(300);
+  assert(await p.locator('.sheet.has-x').count() === 0 && await p.locator('.sheet.tall').count() === 1, '✕ closes only the picker');
+
+  // Typing in notes, then closing the task without leaving the field first, still saves.
+  await p.click('.notes-empty'); await p.waitForTimeout(150);
+  await p.keyboard.type('Gate code 4411');
+  await p.locator('.scrim').last().click({ position: { x: 10, y: 10 } }); await p.waitForTimeout(500);
+  const notes = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.find((t) => t.title === 'Pay avista')?.notes); }; }); });
+  assert(notes === 'Gate code 4411', 'notes typed before closing the task are saved');
+
+  // Select mode ends when you leave Head (the ＋ comes back).
+  await p.click('[aria-label="Select tasks"]'); await p.waitForTimeout(200);
+  assert(await p.locator('[aria-label="Quick add"]').count() === 0, 'select mode hides ＋ in Head');
+  await p.click('.tabs >> text=Today'); await p.waitForTimeout(300);
+  assert(await p.locator('[aria-label="Quick add"]').count() === 1, 'leaving Head ends select mode');
+
   assert(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.join(' | ') : ''));
   await b.close();
   console.log('\nTesting + Dump e2e: all passed');

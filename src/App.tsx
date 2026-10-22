@@ -68,7 +68,7 @@ export default function App() {
           {T("today", "today", "Today")}
           {T("head", "head", "Head", inbox)}
           <div className="tab-add">
-            {!selecting && <button aria-label="Quick add" onClick={() => openOverlay("quickadd", tab === "today" ? { defaults: { when: C.today() } } : {})}><Icon n="plus" size={26} tone={false} /></button>}
+            {!selecting && <button aria-label="Quick add" onClick={() => openOverlay("quickadd", tab === "today" ? { defaults: { when: C.today() } } : tab === "head" ? {} : { defaults: {} })}><Icon n="plus" size={26} tone={false} /></button>}
           </div>
           {T("body", "body", "Body")}
           {T("ok", "claude", "Claude", pending)}

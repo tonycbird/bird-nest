@@ -7,6 +7,7 @@ import { db, nowISO } from "./db";
 import { CLOUD, supabase } from "./supabase";
 import { createStore } from "../head/useHead";
 import { today, addDays } from "./time";
+import { cleanDeep } from "./text";
 
 /** Phone tables copied to the cloud. Photos stay on the phone; proposals/calendar/mail come down, not up. */
 export const SYNC_TABLES = ["days", "blocks", "steps", "settings", "areas", "projects", "tasks", "templates", "trash", "fit", "reports"] as const;
@@ -24,7 +25,10 @@ const patch = (p: Partial<ReturnType<typeof cloud.get>>) => cloud.set((s) => ({ 
 
 let dirty: Map<string, number> = load();
 let ver = 0;
-let quiet = 0; // > 0 while restoring from the cloud: those writes aren't edits
+/* Writes that come FROM the cloud (a restore) aren't edits, so they aren't marked. Only that transaction is quiet:
+   anything Anthony changes at the same moment still syncs. */
+const QUIET = "__nestQuiet";
+const isQuiet = (tx: unknown) => !!(tx && (tx as Record<string, unknown>)[QUIET]);
 
 function load(): Map<string, number> {
   try { const a = JSON.parse(localStorage.getItem(DIRTY) || "[]") as string[]; return new Map(a.map((k) => [k, 0])); } catch { return new Map(); }
@@ -36,7 +40,7 @@ function save() {
   patch({ pending: dirty.size });
 }
 export function markDirty(tbl: string, id: unknown) {
-  if (quiet || id == null) return;
+  if (id == null) return;
   dirty.set(tbl + SEP + String(id), ++ver);
   save();
   schedule(4000);
@@ -62,9 +66,9 @@ export function installSync() {
   for (const t of SYNC_TABLES) {
     const table = db.table(t);
     const kp = table.schema.primKey.keyPath as string;
-    table.hook("creating", function (pk, obj) { markDirty(t, pk ?? (obj as Record<string, unknown>)[kp]); });
-    table.hook("updating", function (_mods, pk) { markDirty(t, pk); });
-    table.hook("deleting", function (pk) { markDirty(t, pk); });
+    table.hook("creating", function (pk, obj, tx) { if (!isQuiet(tx)) markDirty(t, pk ?? (obj as Record<string, unknown>)[kp]); });
+    table.hook("updating", function (_mods, pk, _obj, tx) { if (!isQuiet(tx)) markDirty(t, pk); });
+    table.hook("deleting", function (pk, _obj, tx) { if (!isQuiet(tx)) markDirty(t, pk); });
   }
   if (!CLOUD) return;
   supabase.auth.onAuthStateChange((_e, s) => void onSession(s));
@@ -81,9 +85,7 @@ async function onSession(s: Session | null) {
   patch({ signedIn: !!s, email: s?.user.email ?? "" });
   if (!s) return;
   if (was !== s.user.id) {
-    // First time on this phone for this account: send everything up once, and tie Claude's token to this account.
-    const key = "nest:pushed-all:" + s.user.id;
-    if (!localStorage.getItem(key)) { await markAll(); try { localStorage.setItem(key, nowISO()); } catch { /* blocked */ } }
+    // Tie Claude's token to this account. (Joining the cloud copy happens in syncNow, before anything is pushed.)
     try { const { data } = await supabase.rpc("nest_claim_gateway"); patch({ claimed: !!data }); } catch { /* offline */ }
   }
   schedule(300);
@@ -104,6 +106,8 @@ export async function syncNow(): Promise<boolean> {
   running = true;
   patch({ busy: true, error: "" });
   try {
+    await ensureJoined(session.user.id);
+    await pullReports(); // before pushing, so Claude's "fixed" notes are never overwritten by an older copy
     await pushDirty(session.user.id);
     await pushDerived(session.user.id);
     await pullClaude();
@@ -118,11 +122,49 @@ export async function syncNow(): Promise<boolean> {
   }
 }
 
+/** First sync for this account on this phone (a new phone, or after a reset): bring the cloud copy down,
+    THEN send everything up. Body's rows (settings, program, logs) come from the cloud when it has them, so
+    the fresh defaults a new phone starts with can't overwrite the real ones. If this fails (offline),
+    nothing is pushed and it tries again next sync. */
+const joined = new Set<string>();
+async function ensureJoined(userId: string) {
+  const key = "nest:pushed-all:" + userId;
+  if (joined.has(userId)) return;
+  let done = false;
+  try { done = !!localStorage.getItem(key); } catch { /* blocked */ }
+  if (!done) {
+    const n = await restoreFromCloud({ cloudWins: ["fit"] });
+    if (n) { const { resetFitCache } = await import("../body/host"); await resetFitCache(); }
+    await markAll();
+    try { localStorage.setItem(key, nowISO()); } catch { /* blocked */ }
+  }
+  joined.add(userId);
+}
+
+/* Rows the cloud refused even on their own (rare: a value Postgres can't store). They're set aside so the
+   rest keep syncing; Settings shows the count. */
+const STUCK = "nest:sync-stuck";
+function noteStuck(key: string, why: string) {
+  try {
+    const m = JSON.parse(localStorage.getItem(STUCK) || "{}") as Record<string, string>;
+    m[key] = why.slice(0, 160);
+    localStorage.setItem(STUCK, JSON.stringify(m));
+  } catch { /* blocked */ }
+}
+export function stuckRows(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(STUCK) || "{}") as Record<string, string>; } catch { return {}; }
+}
+
+/** The cloud refused the CONTENT (Postgres "data exception" 22xxx / "constraint" 23xxx), not the connection. */
+function isDataError(e: { message: string; code?: string }): boolean {
+  return /^2[23]/.test(e.code ?? "") || /unicode|escape sequence|invalid input|malformed|violates|too long|out of range/i.test(e.message);
+}
+
 /** Rows as they are on the phone, minus anything that can't go up (photo blobs). */
 function clean(row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) if (!(v instanceof Blob)) out[k] = v;
-  return out;
+  return cleanDeep(out);
 }
 
 async function pushDirty(userId: string) {
@@ -135,11 +177,20 @@ async function pushDirty(userId: string) {
     const rows = await db.table(t as SyncTable).bulkGet(ids);
     let batch: Record<string, unknown>[] = [];
     let size = 0;
+    const done = (r: Record<string, unknown>) => { const k = t + SEP + r.id; if (dirty.get(k) === snap.get(k)) dirty.delete(k); };
     const send = async () => {
       if (!batch.length) return;
       const { error } = await supabase.from("nest_rows").upsert(batch, { onConflict: "user_id,tbl,id" });
-      if (error) throw new Error(error.message);
-      for (const r of batch) { const k = t + SEP + r.id; if (dirty.get(k) === snap.get(k)) dirty.delete(k); }
+      if (!error) batch.forEach(done);
+      else if (!isDataError(error)) throw new Error(error.message); // offline, signed out, server busy: try again later
+      else {
+        // One bad row shouldn't hold back the rest: send them one at a time and set aside any the cloud refuses.
+        for (const r of batch) {
+          const one = await supabase.from("nest_rows").upsert([r], { onConflict: "user_id,tbl,id" });
+          if (!one.error) done(r);
+          else { noteStuck(t + SEP + r.id, one.error.message); dirty.delete(t + SEP + r.id); }
+        }
+      }
       save();
       batch = []; size = 0;
     };
@@ -197,8 +248,15 @@ async function pushDerived(userId: string) {
 /** Claude's side: proposals, calendar and flagged mail. */
 export async function pullClaude() {
   const { flushOutbox, refreshProposals } = await import("./proposals");
-  await flushOutbox();
-  await refreshProposals();
+  const errors: string[] = [];
+  const part = async (f: () => Promise<void>) => { try { await f(); } catch (e) { errors.push((e as Error).message || String(e)); } };
+  await part(async () => { await flushOutbox(); await refreshProposals(); });
+  await part(pullCalendar);
+  await part(pullMail);
+  if (errors.length) throw new Error(errors.join(" · "));
+}
+
+async function pullCalendar() {
   const from = addDays(today(), -1), to = addDays(today(), 7);
   const cal = await supabase.from("calendar_cache").select("google_id,day,start_time,end_time,title,all_day").gte("day", from).lte("day", to);
   if (cal.error) throw new Error(cal.error.message);
@@ -206,11 +264,16 @@ export async function pullClaude() {
     await db.calendar.clear();
     await db.calendar.bulkPut((cal.data ?? []).map((e) => ({ id: e.google_id + "|" + e.day, day: e.day, start: e.start_time, end: e.end_time, title: e.title, all_day: e.all_day })));
   });
+}
+
+async function pullMail() {
+  const { flushOutbox } = await import("./proposals");
+  await flushOutbox(); // dismissals first, so a dismissed note doesn't come back
+  const dismissed = new Set((await db.outbox.toArray()).filter((o) => o.table === "mail_items").map((o) => o.row_id));
   const mail = await supabase.from("mail_items").select("id,received,sender,subject,ask,due,link,created_at,dismissed_at")
     .is("dismissed_at", null).gte("created_at", new Date(Date.now() - 7 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(60);
   if (mail.error) throw new Error(mail.error.message);
-  await db.transaction("rw", db.mail, async () => { await db.mail.clear(); await db.mail.bulkPut(mail.data ?? []); });
-  await pullReports();
+  await db.transaction("rw", db.mail, async () => { await db.mail.clear(); await db.mail.bulkPut((mail.data ?? []).filter((m) => !dismissed.has(m.id))); });
 }
 
 /** Testing mode: when Claude marks a report fixed (through its door), bring the status down. */
@@ -227,9 +290,13 @@ async function pullReports() {
   }
 }
 
+/** ✕ on a flagged email: gone here now, and queued for the cloud (sent when signed in and online). */
 export async function dismissMail(id: string) {
   await db.mail.delete(id);
-  if (CLOUD && session) void supabase.from("mail_items").update({ dismissed_at: nowISO() }).eq("id", id);
+  if (!CLOUD) return;
+  await db.outbox.put({ op_id: crypto.randomUUID(), table: "mail_items", row_id: id, patch: { dismissed_at: nowISO() }, queued_at: nowISO() });
+  const { flushOutbox } = await import("./proposals");
+  void flushOutbox();
 }
 
 /* ---------- restore from the cloud (a new phone, or after "Reset") ---------- */
@@ -245,27 +312,29 @@ export async function cloudCounts(): Promise<Record<string, number> | null> {
   return out;
 }
 
-/** Adds the cloud copy to this phone (rows already here stay as they are). */
-export async function restoreFromCloud(): Promise<number> {
+/** Adds the cloud copy to this phone. Rows already here stay as they are, except in `cloudWins` tables,
+    where the cloud's version replaces this phone's. Returns how many rows were written. */
+export async function restoreFromCloud(opts: { cloudWins?: string[] } = {}): Promise<number> {
   if (!CLOUD || !session) throw new Error("Sign in first");
   let n = 0;
-  quiet++;
-  try {
-    for (const t of SYNC_TABLES) {
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await supabase.from("nest_rows").select("id,data").eq("tbl", t).is("deleted_at", null).range(from, from + 999);
-        if (error) throw new Error(error.message);
-        if (!data?.length) break;
-        const table = db.table(t);
-        const kp = table.schema.primKey.keyPath as string;
-        const have = new Set((await table.toCollection().primaryKeys()).map(String));
-        const add = data.filter((r) => !have.has(String((r.data as Record<string, unknown>)[kp] ?? r.id))).map((r) => r.data);
-        if (add.length) await table.bulkPut(add);
-        n += add.length;
-        if (data.length < 1000) break;
+  for (const t of SYNC_TABLES) {
+    const wins = opts.cloudWins?.includes(t) ?? false;
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from("nest_rows").select("id,data").eq("tbl", t).is("deleted_at", null)
+        .order("id").range(from, from + 999);
+      if (error) throw new Error(error.message);
+      if (!data?.length) break;
+      const table = db.table(t);
+      const kp = table.schema.primKey.keyPath as string;
+      const have = wins ? new Set<string>() : new Set((await table.toCollection().primaryKeys()).map(String));
+      const add = data.filter((r) => !have.has(String((r.data as Record<string, unknown>)[kp] ?? r.id))).map((r) => r.data);
+      if (add.length) {
+        await db.transaction("rw", table, async (tx) => { (tx as unknown as Record<string, unknown>)[QUIET] = true; await table.bulkPut(add); });
       }
+      n += add.length;
+      if (data.length < 1000) break;
     }
-  } finally { quiet--; }
+  }
   return n;
 }
 

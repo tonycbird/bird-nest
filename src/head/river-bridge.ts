@@ -1,6 +1,7 @@
 /* Head ⇄ River. Plan My Day puts tasks on the River as blocks with steps; finishing a block finishes
    the task (and its checklist). Undo on the block undoes the task too. Groceries become one shopping block. */
 import * as C from "./core/clearhead.js";
+import { cut } from "../lib/text";
 import * as H from "./store";
 import { db, type Kind } from "../lib/db";
 import { addBlock, MAX_STEPS, setBlockDoneHandler, setStepHandler, softDelete, type StepInput, type Undo } from "../lib/river";
@@ -46,14 +47,23 @@ export async function blockForTask(taskId: string, day: string) {
 }
 
 /** One task → one block. Uses the task's own time if it has one. */
+const placing = new Set<string>();
 export async function putTaskOnRiver(taskId: string, day: string = riverToday(), at?: number): Promise<Undo> {
+  // Two quick taps would both pass the "already there?" check below before either block is written.
+  const key = taskId + "|" + day;
+  if (placing.has(key)) return async () => {};
+  placing.add(key);
+  try { return await placeTask(taskId, day, at); } finally { placing.delete(key); }
+}
+
+async function placeTask(taskId: string, day: string, at?: number): Promise<Undo> {
   const t = await db.tasks.get(taskId);
   if (!t) return async () => {};
   if (await blockForTask(taskId, day)) return async () => {};
   const start = t.time && t.when === day ? toMin(t.time) : at ?? (await nextFreeSlot(day));
   const { kind, icon } = await kindAndIcon(t);
   const { id } = await addBlock({
-    day, start: hhmm(start), end: hhmm(start + (t.est || 30)), kind, icon, title: t.title.slice(0, 48),
+    day, start: hhmm(start), end: hhmm(start + (t.est || 30)), kind, icon, title: cut(t.title, 48),
     steps: stepsForTask(t), source_type: "task", source_id: t.id,
   });
   return () => softDelete(id).then(() => {});
@@ -124,10 +134,12 @@ export function installRiverBridge() {
       pending.set(block.id, async () => { for (const u of undos) await u(); });
     }
   }, async (blockId) => {
-    const u = pending.get(blockId);
-    if (u) { pending.delete(blockId); await u(); }
-    // After an undo, the task's checklist matches the River's steps again.
     const b = await db.blocks.get(blockId);
+    // Only an undo that takes the block back out of "done" un-finishes the task. Undoing an edit or a moved
+    // time on a block that's still done leaves the task (and its next repeat) alone.
+    const u = pending.get(blockId);
+    if (u && b && b.status !== "done") { pending.delete(blockId); await u(); }
+    // After an undo, the task's checklist matches the River's steps again.
     if (b?.source_type === "task" && b.source_id) {
       const t = await db.tasks.get(b.source_id);
       const steps = await db.steps.where("block_id").equals(blockId).toArray();

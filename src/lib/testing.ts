@@ -1,4 +1,5 @@
 import { db, nowISO, uid, type Report } from "./db";
+import { cut } from "./text";
 import { appNav, nav } from "../head/useHead";
 import { fitState } from "../body/host";
 import { getMode } from "./theme";
@@ -14,21 +15,22 @@ const trail: { at: string; what: string }[] = [];
 const clock = () => new Date().toLocaleTimeString("en-US", { hour12: false });
 const push = <T,>(list: T[], x: T, max: number) => { list.push(x); if (list.length > max) list.shift(); };
 
-export function noteError(msg: string) { push(errors, { at: clock(), msg: String(msg).slice(0, 400) }, 15); }
+export function noteError(msg: string) { push(errors, { at: clock(), msg: cut(String(msg), 400) }, 15); }
 
 export function installTesting() {
   (window as unknown as { __nestNoteError?: (m: string) => void }).__nestNoteError = noteError;
   addEventListener("error", (e) => noteError((e.message || "Error") + (e.filename ? ` @ ${e.filename.split("/").pop()}:${e.lineno}` : "")));
   addEventListener("unhandledrejection", (e) => { const r = (e as PromiseRejectionEvent).reason; noteError("Promise: " + ((r && (r.stack || r.message)) || r)); });
   const ce = console.error.bind(console);
-  console.error = (...a: unknown[]) => { try { noteError(a.map((x) => (x instanceof Error ? x.message : typeof x === "string" ? x : JSON.stringify(x))).join(" ").slice(0, 400)); } catch { /* never break logging */ } ce(...a); };
+  console.error = (...a: unknown[]) => { try { noteError(a.map((x) => (x instanceof Error ? x.message : typeof x === "string" ? x : JSON.stringify(x))).join(" ").substring(0, 4000)); } catch { /* never break logging */ } ce(...a); };
   // The trail: what was tapped, in order. Only while testing.
   document.addEventListener("click", (e) => {
     if (!on) return;
     const el = (e.target as HTMLElement | null)?.closest?.("button,a,[role=button],input,textarea,select,label") as HTMLElement | null;
     if (!el || el.closest(".tflag, .tsheet")) return;
-    const what = (el.getAttribute("aria-label") || el.textContent || el.getAttribute("placeholder") || el.tagName).replace(/\s+/g, " ").trim().slice(0, 50);
-    push(trail, { at: clock(), what: `${appNav.get().tab}: ${what}` }, 20);
+    const what = (el.getAttribute("aria-label") || el.textContent || el.getAttribute("placeholder") || el.tagName).replace(/\s+/g, " ").trim();
+    const whatShort = cut(what, 50);
+    push(trail, { at: clock(), what: `${appNav.get().tab}: ${whatShort}` }, 20);
   }, true);
 }
 
@@ -38,8 +40,9 @@ export function context(): Record<string, unknown> {
   const seen = new Set<string>();
   const open: string[] = [];
   document.querySelectorAll("[role=dialog], .sheet h2, .flow .ft-title, .player .ph b").forEach((el) => {
-    const t = (el.getAttribute("aria-label") || el.textContent || "").replace(/\s+/g, " ").replace(/^[^\p{L}\p{N}]+/u, "").trim().slice(0, 60);
-    if (t && !seen.has(t)) { seen.add(t); open.push(t); }
+    const t = (el.getAttribute("aria-label") || el.textContent || "").replace(/\s+/g, " ").replace(/^[^\p{L}\p{N}]+/u, "").trim();
+    const tt = cut(t, 60);
+    if (tt && !seen.has(tt)) { seen.add(tt); open.push(tt); }
   });
   const html = document.documentElement;
   return {
@@ -61,12 +64,12 @@ export function context(): Record<string, unknown> {
 export function screenHtml(): { dom: string | null; frame_dom: string | null } {
   const root = document.getElementById("root");
   let dom = root ? root.outerHTML : null;
-  if (dom && dom.length > 250_000) dom = dom.slice(0, 250_000);
+  if (dom && dom.length > 250_000) dom = cut(dom, 250_000);
   let frame_dom: string | null = null;
   if (appNav.get().tab === "body") {
     try {
       const d = (document.querySelector("iframe.bodyframe") as HTMLIFrameElement | null)?.contentDocument;
-      frame_dom = d?.body ? d.body.outerHTML.slice(0, 150_000) : null;
+      frame_dom = d?.body ? cut(d.body.outerHTML, 150_000) : null;
     } catch { frame_dom = null; }
   }
   return { dom, frame_dom };

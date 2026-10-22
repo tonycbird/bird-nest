@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Proposal } from "../lib/db";
-import { approve, decline } from "../lib/apply";
+import { ALREADY, approve, decline } from "../lib/apply";
 import { cloud, dismissMail, syncNow } from "../lib/sync";
 import { CLOUD } from "../lib/supabase";
 import { useToast } from "../lib/toast";
@@ -71,6 +71,7 @@ export default function Approvals() {
   async function act(p: Proposal, yes: boolean) {
     try {
       const undo = yes ? await approve(p) : await decline(p);
+      if (undo === ALREADY) return;
       toast(yes ? (DONE_MSG[p.kind] ?? "✓ Approved") : "✕ Skipped", undo);
     } catch (e) {
       toast("⚠ " + (e as Error).message);
@@ -120,7 +121,7 @@ export default function Approvals() {
           <div className="card">
             {mail.map((m) => (
               <div key={m.id} className="kv">
-                <a href={m.link} target="_blank" rel="noreferrer" style={{ minWidth: 0, color: "inherit" }}>
+                <a href={m.link} target="_blank" rel="noreferrer" style={{ minWidth: 0, color: "inherit", display: "block", padding: "6px 0" }}>
                   <b>{m.ask || m.subject}</b><div className="quiet detail">{m.sender} · {m.subject}</div>
                 </a>
                 <button className="iconbtn" aria-label="Dismiss" onClick={() => void dismissMail(m.id)}><I n="close" /></button>

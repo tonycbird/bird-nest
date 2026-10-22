@@ -258,7 +258,7 @@ export function WaitingView({ data }: ViewProps) {
         const due = !!x.waiting?.followUp && x.waiting.followUp <= t;
         return (
           <div className="wait-side" onClick={(e) => e.stopPropagation()}>
-            <button className={"btn sm" + (due ? " primary" : "")} onClick={() => A.followUp(x)}><I n="arrow" /></button>
+            <button aria-label="Follow up" className={"btn sm" + (due ? " primary" : "")} onClick={() => A.followUp(x)}><I n="arrow" /></button>
             <div className="quiet" style={{ fontSize: 12 }}>{x.waiting?.since ? C.relLabel(x.waiting.since) : ""}</div>
           </div>
         );
@@ -303,7 +303,7 @@ export function TrashView({ data }: ViewProps) {
           <div key={x.id} className="kv">
             <span style={{ minWidth: 0 }}>{x.kind === "tasks" ? "☐" : x.kind === "projects" ? "📁" : "▣"} {name}{n > 0 && <span className="quiet"> +{n}</span>}<div className="quiet" style={{ fontSize: 12 }}>{C.timeAgo(x.deletedAt)}</div></span>
             <span className="row" style={{ gap: 6 }}>
-              <button className="btn sm" onClick={async () => { await H.restoreGroup(x.group); toast("↺ Restored"); }}><I n="undo" /></button>
+              <button aria-label="Restore" className="btn sm" onClick={async () => { await H.restoreGroup(x.group); toast("↺ Restored"); }}><I n="undo" /></button>
               <button className="btn sm" onClick={async () => {
                 if (!(await A.confirm("Delete forever?", undefined, "🗑 Delete", true))) return;
                 for (const y of (items || []).filter((y) => y.group === x.group)) await H.purgeTrashItem(y);

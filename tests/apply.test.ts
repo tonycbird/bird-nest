@@ -34,7 +34,7 @@ describe("✓ on Claude's proposals", () => {
     expect(day[2].source_type).toBe("task");
     expect((await db.days.get(D))?.sentence).toBe("Legs first, then the quote.");
     expect((await db.proposals.get(p.id))?.status).toBe("applied");
-    expect((await db.outbox.toArray()).map((o) => o.patch.status)).toEqual(["applied"]);
+    expect((await db.outbox.toArray()).map((o) => (o.patch as { status?: string }).status)).toEqual(["applied"]);
     await undo();
     day = await loadDay(D);
     expect(day.map((b) => b.title)).toEqual(["Old gym", "Old open"]);

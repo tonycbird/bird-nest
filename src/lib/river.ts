@@ -237,7 +237,10 @@ export async function trash(): Promise<Block[]> {
 export async function setSentence(day: string, sentence: string | null): Promise<void> {
   const t = nowISO();
   const old = await db.days.get(day);
-  await db.days.put({ day, sentence: sentence?.trim() || null, created_at: old?.created_at ?? t, updated_at: t, deleted_at: null });
+  const next = sentence?.trim() || null;
+  if (old && !old.deleted_at && (old.sentence ?? null) === next) return; // nothing changed: don't touch the row
+  // Keep everything else on the day (the night recap lives here too).
+  await db.days.put({ ...(old ?? {}), day, sentence: next, created_at: old?.created_at ?? t, updated_at: t, deleted_at: null });
 }
 
 /** A warm default when Anthony hasn't written one: name the anchor of the day. */

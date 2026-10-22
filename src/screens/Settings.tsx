@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { checkForUpdate } from "../lib/update";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
 import { counts, download, exportAll, markBackedUp, restoreAll, saveJSON, validate, type Backup } from "../lib/backup";
@@ -6,7 +7,7 @@ import { restoreBlock, trash } from "../lib/river";
 import { DEFAULT_TZ } from "../lib/dayKey";
 import { keyLabel } from "../lib/time";
 import { CLOUD } from "../lib/supabase";
-import { cloud, cloudCounts, restoreFromCloud, signOut as cloudSignOut, syncNow } from "../lib/sync";
+import { cloud, cloudCounts, restoreFromCloud, signOut as cloudSignOut, stuckRows, syncNow } from "../lib/sync";
 import SignIn from "./SignIn";
 import { TestingSettings } from "./Testing";
 import { useToast } from "../lib/toast";
@@ -86,7 +87,7 @@ export default function Settings(props: { email: string; online: boolean }) {
         <div className="kv"><span>Stored</span><span className="muted">On this phone</span></div>
         <div className="kv"><span>Blocks · steps</span><span className="muted">{stats.blocks} · {stats.steps}</span></div>
         <div className="kv"><span>Tasks</span><span className="muted">{stats.tasks}</span></div>
-        <div className="kv"><span>Last backup</span><span className="muted" style={stale ? { color: "var(--warn)", fontWeight: 700 } : undefined}>{ago(last)}</span></div>
+        <div className="kv"><span>Last backup</span><span className="muted" style={stale ? { color: "var(--warn-ink)", fontWeight: 700 } : undefined}>{ago(last)}</span></div>
       </div>
       {stale && <p className="quiet" style={{ marginTop: 8 }}>Back up weekly. Save it to Files or iCloud.</p>}
       <div className="stack" style={{ marginTop: 10 }}>
@@ -136,7 +137,7 @@ export default function Settings(props: { email: string; online: boolean }) {
           {bin.slice(0, 30).map((b) => (
             <div key={b.id} className="kv">
               <span>{b.icon} {b.title} <span className="quiet">· {keyLabel(b.day)}</span></span>
-              <button className="btn sm" onClick={async () => { await restoreBlock(b.id); toast("↺ Restored"); }}><I n="undo" /></button>
+              <button aria-label="Restore" className="btn sm" onClick={async () => { await restoreBlock(b.id); toast("↺ Restored"); }}><I n="undo" /></button>
             </div>
           ))}
         </div>
@@ -152,7 +153,7 @@ export default function Settings(props: { email: string; online: boolean }) {
         <div className="kv"><span>Version</span><span className="muted">{__BUILD__}</span></div>
       </div>
       <div className="stack" style={{ marginTop: 10 }}>
-        <button className="btn" onClick={() => location.reload()}><I n="refresh" /> Check for update</button>
+        <button className="btn" onClick={async () => { if (!(await checkForUpdate())) toast("✓ Up to date"); }}><I n="refresh" /> Check for update</button>
 
       </div>
     </>
@@ -181,7 +182,8 @@ function CloudCard() {
           <div className="kv"><span>Claude's door</span><span className="muted">{c.claimed ? "Open" : "Waiting"}</span></div>
           <div className="kv"><span>Last sync</span><span className="muted">{c.busy ? "Syncing…" : since(c.lastSync)}</span></div>
           <div className="kv"><span>Waiting to go up</span><span className="muted">{c.pending}</span></div>
-          {c.error && <div className="kv"><span>Problem</span><span className="muted" style={{ color: "var(--warn)" }}>{c.error}</span></div>}
+          {Object.keys(stuckRows()).length > 0 && <div className="kv"><span>Couldn't go up</span><span className="muted" title={Object.values(stuckRows()).join(" · ")}>{Object.keys(stuckRows()).length} {Object.keys(stuckRows()).length === 1 ? "row" : "rows"}</span></div>}
+          {c.error && <div className="kv"><span>Problem</span><span className="muted" style={{ color: "var(--warn-ink)" }}>{c.error}</span></div>}
         </>}
       </div>
       {!c.signedIn && !connecting && <p className="quiet" style={{ marginTop: 8 }}>Sign in once so Claude can plan your mornings. Nest works the same without it.</p>}
@@ -194,7 +196,7 @@ function CloudCard() {
           <div className="kv"><span>Tasks</span><span className="muted">{counts.tasks}</span></div>
           <div className="kv"><span>Blocks</span><span className="muted">{counts.blocks}</span></div>
           <div className="kv"><span>Fitness docs</span><span className="muted">{counts.fit}</span></div>
-          <button className="btn" style={{ marginTop: 8, width: "100%" }} onClick={async () => { const n = await restoreFromCloud(); toast(`⬇ Added ${n} rows from the cloud`); }}><I n="download" /> Add missing rows to this phone</button>
+          <button className="btn" style={{ marginTop: 8, width: "100%" }} onClick={async () => { try { const n = await restoreFromCloud(); if (n) await resetFitCache(); toast(`⬇ Added ${n} rows from the cloud`); } catch (e) { toast("⚠ " + (e as Error).message); } }}><I n="download" /> Add missing rows to this phone</button>
         </div>}
         {c.signedIn && <button className="btn" onClick={async () => { await cloudSignOut(); toast("⎋ Signed out"); }}><I n="signout" /> Sign out</button>}
       </div>

@@ -2,6 +2,7 @@
    proposal applied. Only Google changes (calendar_book) wait for Claude's applier.
    Every ✓ comes back with an Undo that puts things the way they were. */
 import { db, nowISO, type Kind, type Proposal } from "./db";
+import { cut } from "./text";
 import { addBlock, restoreBlock, setSentence, softDelete, MAX_STEPS, type StepInput, type Undo } from "./river";
 import { decide } from "./proposals";
 import { today } from "./time";
@@ -65,14 +66,14 @@ export async function applyLocal(p: Proposal): Promise<Undo> {
         const kind = (KINDS.includes(b.kind as Kind) ? b.kind : "life") as Kind;
         const st = str(b.source_type);
         const { id } = await addBlock({
-          day, start, end: end && HHMM.test(end) ? end : null, kind, icon: str(b.icon) ?? undefined, title: title.slice(0, 60),
+          day, start, end: end && HHMM.test(end) ? end : null, kind, icon: str(b.icon) ?? undefined, title: cut(title, 60),
           steps: steps(b.steps),
           source_type: st === "task" || st === "workout" || st === "groceries" ? st : null, source_id: str(b.source_id),
         });
         added.push(id);
       }
       const sentence = str(P.sentence);
-      if (sentence) await setSentence(day, sentence.slice(0, 90));
+      if (sentence) await setSentence(day, cut(sentence, 90));
       return async () => {
         for (const id of added) await softDelete(id);
         for (const b of before) await restoreBlock(b.id);
@@ -150,15 +151,32 @@ export async function applyLocal(p: Proposal): Promise<Undo> {
 }
 
 /** ✓: do it here (or leave it for Claude's applier when it needs Google), then record the decision. */
-export async function approve(p: Proposal): Promise<Undo> {
-  if (p.needs_google || !LOCAL_KINDS.has(p.kind)) {
-    return decide(p.id, "approved");
+/** Returned when a ✓/✕ was already handled (a double tap, or a second phone): nothing to undo, nothing to say. */
+export const ALREADY: Undo = async () => {};
+const inFlight = new Set<string>();
+
+/** One decision per card: a second tap while the first is still working, or on a card that's no longer pending, does nothing. */
+async function once(p: Proposal, run: () => Promise<Undo>): Promise<Undo> {
+  if (inFlight.has(p.id)) return ALREADY;
+  inFlight.add(p.id);
+  try {
+    const cur = await db.proposals.get(p.id);
+    if (cur && cur.status !== "pending") return ALREADY;
+    return await run();
+  } finally {
+    inFlight.delete(p.id);
   }
-  const undoChange = await applyLocal(p);
-  const undoStatus = await decide(p.id, "applied");
-  return async () => { await undoChange(); await undoStatus(); };
+}
+
+export async function approve(p: Proposal): Promise<Undo> {
+  return once(p, async () => {
+    if (p.needs_google || !LOCAL_KINDS.has(p.kind)) return decide(p.id, "approved");
+    const undoChange = await applyLocal(p);
+    const undoStatus = await decide(p.id, "applied");
+    return async () => { await undoChange(); await undoStatus(); };
+  });
 }
 
 export async function decline(p: Proposal): Promise<Undo> {
-  return decide(p.id, "declined");
+  return once(p, () => decide(p.id, "declined"));
 }

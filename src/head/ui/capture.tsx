@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as C from "../core/clearhead.js";
 import * as H from "../store";
 import { toast } from "../../lib/toast";
@@ -8,6 +8,8 @@ import { ic, Seg } from "./bits";
 import { openSheet } from "./sheets";
 import { ContextPicker, DatePicker, MovePicker, type MoveResult, type WhenResult } from "./pickers";
 import { I } from "../../ui/Icon";
+import { pieces } from "../dump-sort";
+import { sendToDump } from "./dump";
 
 /* Clearhead's capture (src/ui/capture.js): Quick Add with live parsing, Brain dump, Groceries. */
 
@@ -24,8 +26,9 @@ export function parseCtx(data: HeadData, s: HeadSettings, ignore?: Set<string>) 
 export function defaultsForRoute(data: HeadData): Partial<Task> {
   const r = nav.get();
   if (r.view === "today") return { when: C.today() };
-  if (r.view === "project" && r.id && data.projects.get(r.id)) return { projectId: r.id };
-  if (r.view === "area" && r.id && data.areas.get(r.id)) return { areaId: r.id };
+  // Head's lists may still be loading on the first draw: trust the page you're on until they arrive.
+  if (r.view === "project" && r.id && (!data.projects.size || data.projects.get(r.id))) return { projectId: r.id };
+  if (r.view === "area" && r.id && (!data.areas.size || data.areas.get(r.id))) return { areaId: r.id };
   if (r.view === "someday") return { someday: true };
   return {};
 }
@@ -37,7 +40,7 @@ function destLabel(f: Partial<Task>, data: HeadData) {
   return { text: "Inbox", icon: "📥" };
 }
 
-function Mirror(props: { text: string; tokens: C.ParseToken[] }) {
+const Mirror = forwardRef<HTMLDivElement, { text: string; tokens: C.ParseToken[] }>(function Mirror(props, ref) {
   const parts: React.ReactNode[] = [];
   let i = 0;
   for (const t of props.tokens) {
@@ -46,8 +49,8 @@ function Mirror(props: { text: string; tokens: C.ParseToken[] }) {
     i = t.end;
   }
   parts.push(props.text.slice(i) + " ");
-  return <div className="qa-mirror" aria-hidden="true">{parts}</div>;
-}
+  return <div ref={ref} className="qa-mirror" aria-hidden="true">{parts}</div>;
+});
 
 /* Voice: Web Speech if the phone has it inside the installed app, else the keyboard's mic. */
 type SR = { lang: string; interimResults: boolean; continuous: boolean; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void; onend: () => void; start: () => void; stop: () => void };
@@ -77,7 +80,7 @@ export function useSpeech(onText: (s: string) => void) {
 
 function ModeSwitch(props: { mode: string; onMode: (m: string) => void; hasGroceries: boolean }) {
   const opts = [{ id: "task", name: "Task" }, { id: "dump", name: "Dump" }];
-  if (props.hasGroceries) opts.push({ id: "grocery", name: "🛒" });
+  if (props.hasGroceries) opts.push({ id: "grocery", name: "Grocery" });
   return <Seg label="Capture" value={props.mode} onChange={props.onMode} options={opts} />;
 }
 
@@ -91,6 +94,13 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
   const [base, setBase] = useState<Partial<Task>>(defaults);
   const [ignore, setIgnore] = useState<Set<string>>(new Set());
   const ta = useRef<HTMLTextAreaElement>(null);
+  const mirror = useRef<HTMLDivElement>(null);
+  // Grow with what's typed (a long dictation stays readable) and keep the colored marks lined up with the words.
+  useLayoutEffect(() => {
+    const el = ta.current; if (!el) return;
+    el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px";
+    if (mirror.current) mirror.current.scrollTop = el.scrollTop;
+  }, [text]);
   const file = useRef<HTMLInputElement>(null);
   const groceryArea = C.areaList(data).find((a) => a.listMode === "groceries");
   const parsed = useMemo(() => C.parseQuickAdd(text, parseCtx(data, s, ignore)), [text, ignore, data, s]);
@@ -154,8 +164,9 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
         <button className="iconbtn" aria-label="Close" onClick={closeOverlay}><I n="close" /></button>
       </div>
       <div className="qa-wrap">
-        <Mirror text={text} tokens={parsed.tokens} />
+        <Mirror ref={mirror} text={text} tokens={parsed.tokens} />
         <textarea ref={ta} className="qa-input" rows={2} value={text} aria-label="New task" placeholder="What's on your mind?"
+          onScroll={(e) => { if (mirror.current) mirror.current.scrollTop = e.currentTarget.scrollTop; }}
           onChange={(e) => setText(e.target.value.replace(/\n/g, " "))}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); void save(); } }} />
       </div>
@@ -172,6 +183,11 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
           {extra.important && <span className="chip tok important"><I n="flag" /><button aria-label="Remove" onClick={() => setExtra({ ...extra, important: undefined })}><I n="close" /></button></span>}
         </div>
       )}
+      {manyThings(text) && (
+        <button className="linkbtn qa-many" onClick={() => { sendToDump(text.trim()); setText(""); openOverlay("dump"); }}>
+          <I n="layers" /> Looks like a few things · Sort them
+        </button>
+      )}
       {!text && <div className="qa-hint detail">tomorrow · due fri · +Project · ^Area · @errands · ~30m · ! · every monday</div>}
       <div className="qa-tools">
         <button className="chip" onClick={pickMove} aria-label={"Destination: " + dest.text}>{dest.icon} {dest.text}</button>
@@ -181,7 +197,7 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
         <button className={"iconbtn" + (fields.important ? " on" : "")} aria-label="Important" onClick={() => setExtra({ ...extra, important: !fields.important || undefined })}><I n="flag" /></button>
         <button className="iconbtn" aria-label="Photo" onClick={() => file.current?.click()}><I n="camera" /></button>
         {speech.supported && <button className={"iconbtn" + (speech.on ? " rec" : "")} aria-label={speech.on ? "Stop" : "Speak"} onClick={speech.on ? speech.stop : speech.start}><I n="mic" /></button>}
-        <button className="btn primary sm" disabled={!text.trim()} onClick={save}><I n="tick" /></button>
+        <button aria-label="Save" className="btn primary sm" disabled={!text.trim()} onClick={save}><I n="tick" /></button>
         <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
       </div>
     </div>
@@ -216,7 +232,7 @@ export function GroceryAdd(props: { onMode: (m: string) => void; area?: Area }) 
       <div className="row">
         <input ref={inp} autoFocus className="field" placeholder="Milk, eggs, 2x4s…" value={text} aria-label="Add to shopping list"
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} />
-        <button className="btn primary" onClick={add} disabled={!text.trim()}><I n="plus" /></button>
+        <button aria-label="Add" className="btn primary" onClick={add} disabled={!text.trim()}><I n="plus" /></button>
       </div>
       <div className="qa-hint detail">Commas for several.</div>
       <div style={{ marginTop: 10 }}>
@@ -233,4 +249,10 @@ export function GroceryAdd(props: { onMode: (m: string) => void; area?: Area }) 
       </div>
     </div>
   );
+}
+
+/** More than one thing in a quick add ("…Tuesday. I'll need a tarp and then…"): offer the dump instead. */
+function manyThings(text: string): boolean {
+  const t = text.trim();
+  return t.length > 40 && pieces(t).length >= 2;
 }

@@ -17,9 +17,16 @@ export async function refreshProposals(): Promise<void> {
     .order("created_at", { ascending: false })
     .limit(150);
   if (error) throw error;
-  await db.transaction("rw", db.proposals, async () => {
+  await db.transaction("rw", db.proposals, db.outbox, async () => {
+    // A ✓ tapped while this was loading is newer than what came down: keep the phone's copy of that card.
+    const queued = new Set((await db.outbox.toArray()).filter((o) => o.table === "proposals").map((o) => o.row_id));
+    const local = new Map((await db.proposals.toArray()).map((p) => [p.id, p]));
+    const rows = ((data ?? []) as Proposal[]).map((r) => {
+      const l = local.get(r.id);
+      return l && (queued.has(r.id) || (l.updated_at ?? "") > (r.updated_at ?? "")) ? l : r;
+    });
     await db.proposals.clear();
-    await db.proposals.bulkPut((data ?? []) as Proposal[]);
+    await db.proposals.bulkPut(rows);
   });
 }
 
@@ -46,9 +53,12 @@ export async function flushOutbox(): Promise<void> {
   if (!CLOUD || flushing || !navigator.onLine) return;
   flushing = true;
   try {
+    // Signed out, an update quietly changes nothing. Keep the decisions until there's someone to send them as.
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth.session) return;
     const ops = await db.outbox.orderBy("queued_at").toArray();
     for (const op of ops) {
-      const { error } = await supabase.from(op.table).update(op.patch).eq("id", op.row_id);
+      const { error } = await supabase.from(op.table).update(op.patch).eq("id", op.row_id).select("id");
       if (error) {
         // A rule the server won't allow (e.g. undoing "applied") will never pass: drop it rather than block the queue.
         if (/Only status|can only approve/i.test(error.message)) { await db.outbox.delete(op.op_id); continue; }

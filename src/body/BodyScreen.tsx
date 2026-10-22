@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { reloadFresh } from "../lib/update";
 import { appNav, goTab } from "../head/useHead";
 import { toast } from "../lib/toast";
 import { fitApi, fitState, setFrame, type FitPlan } from "./host";
@@ -18,8 +19,11 @@ export default function BodyScreen() {
   const head = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const measure = () => {
+      // Stop above the tab bar AND the raised ＋, so Body's own bottom buttons (Start, Log) never sit under them.
       const tabs = document.querySelector(".tabs") as HTMLElement | null;
-      setSlot(Math.round(head.current?.getBoundingClientRect().bottom ?? 0), tabs?.offsetHeight ?? 0);
+      const add = document.querySelector(".tab-add button") as HTMLElement | null;
+      const edge = Math.min(tabs?.getBoundingClientRect().top ?? innerHeight, add?.getBoundingClientRect().top ?? innerHeight);
+      setSlot(Math.round(head.current?.getBoundingClientRect().bottom ?? 0), Math.max(0, Math.round(innerHeight - edge) + 4));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -46,7 +50,7 @@ export default function BodyScreen() {
       <div className="card body-err">
         <p><strong>Body didn't load.</strong></p>
         {st.error && <p className="quiet" style={{ marginTop: 4 }}>{st.error}</p>}
-        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => location.reload()}><I n="refresh" /> Reload</button>
+        <button className="btn primary" style={{ marginTop: 10 }} onClick={() => reloadFresh()}><I n="refresh" /> Reload</button>
       </div>
     )}
     </>

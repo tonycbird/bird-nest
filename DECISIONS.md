@@ -46,3 +46,10 @@
 | 2026-10-22 | Reports sync as nest_rows (tbl reports); Claude reads/marks them through `nest_reports()` | Same token, same pattern as the gateway; status comes back down to the phone. |
 | 2026-10-22 | Every sheet closes by swipe-down / grab bar (one global handler) | In the installed iPhone app there's no back button; no screen may trap Anthony. |
 | 2026-10-22 | Brain dump sorts on the phone into six places, then Anthony confirms | Dump is for emptying your head fast; sorting must be instant and offline, and nothing is saved until he says "Put away". |
+| 2026-10-22 | Updates wait for a calm moment (app in background, or a Reload tap) instead of auto-reloading | Auto-update could reload mid-workout or mid-dump. Backgrounding the app, Reload, Check for update and the rescue screen all still pick up a fix, so a stuck screen can still be fixed. |
+| 2026-10-22 | A phone's first sync for an account brings the cloud copy down first; Body (`fit`) rows come from the cloud | A new phone starts with Body defaults; pushing them would overwrite the real settings and program. Other tables keep "phone wins". |
+| 2026-10-22 | Rows the cloud refuses are set aside (Settings can show them), not retried forever | One bad character used to stop every sync after it. Text is also cleaned (half emoji, NUL) on the way up. |
+| 2026-10-22 | Claude's door tries each item on its own (0004) | One bad date from a scheduled task shouldn't throw away the rest of that night's work. |
+| 2026-10-22 | Restoring a backup leaves Claude's suggestions alone | They belong to the cloud; old ones could be ✓'d twice. |
+| 2026-10-22 | Every sheet also gets a ✕; touch areas grow with invisible rings, not bigger buttons | Swipe-to-close isn't discoverable; bigger hit areas keep the airy look. |
+| 2026-10-22 | Muted text darkened in light mode (ink-3 #767D8F, accent text #0F8577, warn text #C05128) | The audit found small labels under 3:1 on Mist. Fills keep the original colors. |

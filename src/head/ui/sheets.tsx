@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { createStore } from "../useHead";
+import { Icon } from "../../ui/Icon";
 
 /* Promise-based sheets, like Clearhead's openSheet(): `const r = await openSheet(DatePicker, {...})`.
    undefined = cancelled. Sheets stack, so a picker can open over the task detail. */
@@ -16,6 +17,7 @@ export function openSheet<R = unknown>(C: (p: any) => ReactNode, props: object =
   return new Promise((resolve) => {
     const id = ++n;
     const finish: Done = (v) => {
+      try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch { /* fine */ }
       stack.set((s) => s.filter((e) => e.id !== id));
       resolve(v as R | undefined);
     };
@@ -38,7 +40,8 @@ export function SheetHost() {
         const C = e.C as (p: Record<string, unknown>) => ReactNode;
         return (
           <div key={e.id} className="scrim" style={{ zIndex: 40 + i * 2 }} onClick={() => e.resolve(undefined)}>
-            <div className="sheet" onClick={(ev) => ev.stopPropagation()}>
+            <div className="sheet has-x" onClick={(ev) => ev.stopPropagation()}>
+              <button className="sheet-x" aria-label="Close" onClick={() => e.resolve(undefined)}><Icon n="close" size={18} tone={false} /></button>
               <C {...e.props} done={e.resolve} />
             </div>
           </div>

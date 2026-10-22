@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { nowStep, toggleStep, type RiverBlock } from "../lib/river";
 import { I, Icon } from "../ui/Icon";
 import { blockLook } from "../ui/colors";
@@ -12,12 +12,28 @@ export default function StepPlayer(props: { block: RiverBlock; nextBlock: RiverB
   const last = [...b.steps].reverse().find((s) => s.done_at);
 
   useEffect(() => {
-    // Keep the screen awake during a workout where the browser allows it.
-    let lock: { release: () => Promise<void> } | null = null;
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
-    nav.wakeLock?.request("screen").then((l) => { lock = l; }).catch(() => {});
-    return () => { void lock?.release().catch(() => {}); };
+    // Keep the screen awake during a workout where the browser allows it. The phone drops the lock when the
+    // app goes to the background, so ask again on the way back; and never leave one behind after closing.
+    type Lock = { release: () => Promise<void> };
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<Lock> } };
+    let lock: Lock | null = null;
+    let alive = true;
+    const ask = () => {
+      if (!nav.wakeLock || document.visibilityState !== "visible") return;
+      nav.wakeLock.request("screen").then((l) => { if (alive) lock = l; else void l.release().catch(() => {}); }).catch(() => {});
+    };
+    ask();
+    document.addEventListener("visibilitychange", ask);
+    return () => { alive = false; document.removeEventListener("visibilitychange", ask); void lock?.release().catch(() => {}); };
   }, []);
+
+  // One tap, one step: a quick double tap must not tick the step and then un-tick it.
+  const ticking = useRef<string | null>(null);
+  const tick = (id: string) => {
+    if (ticking.current === id) return;
+    ticking.current = id;
+    void toggleStep(id).finally(() => window.setTimeout(() => { if (ticking.current === id) ticking.current = null; }, 350));
+  };
 
   const look = blockLook(b);
   const style = { ["--k" as string]: look.color };
@@ -41,9 +57,9 @@ export default function StepPlayer(props: { block: RiverBlock; nextBlock: RiverB
             {cur.value && <div className="pval">{cur.value}</div>}
             {after && <div className="pnext">Then: {after.label}</div>}
           </div>
-          <button className="pbig" aria-label="Done with this step" onClick={() => void toggleStep(cur.id)}><Icon n="tick" size={58} tone={false} /></button>
+          <button className="pbig" aria-label="Done with this step" onClick={() => tick(cur.id)}><Icon n="tick" size={58} tone={false} /></button>
           <div className="pfoot">
-            <button className="btn sm" disabled={!last} onClick={() => last && void toggleStep(last.id)}><I n="chevL" /> Back</button>
+            <button className="btn sm" disabled={!last} onClick={() => last && tick(last.id)}><I n="chevL" /> Back</button>
             <span className="quiet">{b.doneCount}/{b.steps.length}</span>
           </div>
         </>

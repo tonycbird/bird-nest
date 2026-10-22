@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as C from "../core/clearhead.js";
 import type { Area, Project, RepeatRule, Tod, Waiting } from "../types";
 import { useHeadData, useHeadSettings } from "../useHead";
-import { ic, Seg } from "./bits";
+import { ic, NumField, Seg } from "./bits";
 import { SheetFrame, type SheetProps } from "./sheets";
 import { I } from "../../ui/Icon";
 import { ICONS } from "../../ui/icons";
@@ -66,10 +66,10 @@ export function DatePicker(p: SheetProps & { title?: string; value: string | nul
   return (
     <SheetFrame title={p.title || (mode === "due" ? "⚑ Deadline" : "📅 When")}
       foot={<>
-        {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(mode === "due" ? { due: null } : { when: null, tod: null, someday: false })}><I n="close" /> Clear</button>}
+        {p.value && <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={() => p.done(mode === "due" ? { due: null } : { when: null, tod: null, someday: false })}><I n="close" /> Clear</button>}
         <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
       </>}>
-      <input className="field sm" autoFocus placeholder="fri · oct 20 · in 3 days" value={typed}
+      <input className="field sm" autoFocus placeholder="fri · nov 2 · in 3 days" value={typed}
         onChange={(e) => setTyped(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && parsed) pick(parsed.date, parsed.tod ? { tod: parsed.tod as Tod } : {}); }} />
       {typed && (
@@ -164,7 +164,7 @@ export function ContextPicker(p: SheetProps & { value: string[] }) {
       <div className="chips">{all.map((c) => <button key={c} className={"chip" + (sel.includes(c) ? " on" : "")} onClick={() => toggle(c)}>{c}</button>)}</div>
       <div className="row" style={{ marginTop: 10 }}>
         <input className="field sm" placeholder="New context" value={extra} onChange={(e) => setExtra(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addExtra()} />
-        <button className="btn sm" onClick={addExtra}><I n="plus" /></button>
+        <button aria-label="Add" className="btn sm" onClick={addExtra}><I n="plus" /></button>
       </div>
     </SheetFrame>
   );
@@ -176,7 +176,7 @@ export function EstimatePicker(p: SheetProps & { value: number | null }) {
   const parsed = typed ? C.parseEstimate(typed.trim().replace(/\s+/g, "")) ?? C.parseDuration(typed) : null;
   return (
     <SheetFrame title="⏱ Estimate" foot={<>
-      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}><I n="close" /> Clear</button>}
+      {p.value && <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={() => p.done(null)}><I n="close" /> Clear</button>}
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
     </>}>
       <div className="chips">{C.ESTIMATES.map((m) => <button key={m} className={"chip" + (p.value === m ? " on" : "")} onClick={() => p.done(m)}>{C.fmtMinutes(m)}</button>)}</div>
@@ -227,7 +227,7 @@ export function RepeatEditor(p: SheetProps & { value: RepeatRule | null; base?: 
   const cap = (x: string) => x[0].toUpperCase() + x.slice(1);
   return (
     <SheetFrame title="↻ Repeat" foot={<>
-      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}><I n="close" /> Stop</button>}
+      {p.value && <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={() => p.done(null)}><I n="close" /> Stop</button>}
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
       <button className="btn primary" onClick={() => p.done(rule)}><I n="tick" /> Save</button>
     </>}>
@@ -238,7 +238,7 @@ export function RepeatEditor(p: SheetProps & { value: RepeatRule | null; base?: 
       </div>
       <div className="row" style={{ marginTop: 12 }}>
         <span>{freq === "after" ? "Again" : "Every"}</span>
-        <input className="field sm" style={{ width: 76 }} type="number" min={1} inputMode="numeric" value={interval} onChange={(e) => setIntervalN(Math.max(1, Number(e.target.value) || 1))} />
+        <NumField className="field sm" style={{ width: 76 }} aria-label="How often" value={interval} onChange={setIntervalN} />
         {freq === "after" ? (
           <>
             <select className="field sm" style={{ width: "auto" }} value={unit} onChange={(e) => setUnit(e.target.value as typeof unit)}>
@@ -289,7 +289,7 @@ export function WaitingPicker(p: SheetProps & { value: Waiting | null }) {
   const [followUp, setFollowUp] = useState(p.value?.followUp ?? C.addDays(t, 3));
   return (
     <SheetFrame title="⏳ Waiting for" foot={<>
-      {p.value && <button className="btn" style={{ color: "var(--warn)" }} onClick={() => p.done(null)}><I n="close" /> Not waiting</button>}
+      {p.value && <button className="btn" style={{ color: "var(--warn-ink)" }} onClick={() => p.done(null)}><I n="close" /> Not waiting</button>}
       <button className="btn" onClick={() => p.done(undefined)}>Cancel</button>
       <button className="btn primary" disabled={!who.trim()} onClick={() => p.done({ who: who.trim(), since, followUp })}><I n="tick" /> Save</button>
     </>}>

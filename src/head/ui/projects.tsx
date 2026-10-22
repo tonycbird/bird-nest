@@ -116,7 +116,7 @@ export function ProjectView({ data, id }: ViewProps & { id: string }) {
     p.status !== "done" ? { text: "Complete project", icon: "✓", run: () => completeProjectFlow(p, open.length) } : { text: "Reopen", icon: "↺", run: () => H.updateProject(id, { status: "active", completedAt: null }) },
     ...(p.status === "active" ? [{ text: "Put on hold", icon: "⏸", run: () => H.updateProject(id, { status: "hold" }) }] : p.status !== "done" ? [{ text: "Make active", icon: "▶", run: () => H.updateProject(id, { status: "active" }) }] : []),
     ...(p.status !== "someday" && p.status !== "done" ? [{ text: "Move to Someday", icon: "💤", run: () => H.updateProject(id, { status: "someday" }) }] : []),
-    { text: "Archive", icon: "📦", run: async () => { await H.updateProject(id, { status: "archived" }); go("projects"); toast("📦 Archived"); } },
+    { text: "Archive", icon: "📦", run: async () => { const u = await H.updateProject(id, { status: "archived" }); go("projects"); toast("📦 Archived", u); } },
     { text: "Delete project", icon: "🗑", danger: true, run: async () => {
       if (await A.confirm(`Delete “${p.name}”?`, `It and its ${all.length} tasks go to Recently deleted for 30 days.`, "🗑 Delete", true)) {
         const u = await H.deleteProject(id); go("projects"); toast("🗑 Deleted", u);
@@ -133,7 +133,7 @@ export function ProjectView({ data, id }: ViewProps & { id: string }) {
     <>
       <PageHead kicker={(a ? ic(a.icon) + " " + a.name : "📁 Project") + (p.status !== "active" ? " · " + (C.PROJECT_STATUSES.find((x) => x.id === p.status)?.name ?? "") : "")}
         title={<span className="row" style={{ gap: 10 }}><Ring pct={st.pct} size={28} />{p.name}</span>}
-        sub={<>{p.start && <span><I n="play" /> {C.relLabel(p.start)} </span>}{p.deadline && <span style={C.diffDays(C.today(), p.deadline) <= 7 ? { color: "var(--warn)" } : undefined}><I n="flag" /> {C.longLabel(p.deadline)}</span>}</>}
+        sub={<>{p.start && <span><I n="play" /> {C.relLabel(p.start)} </span>}{p.deadline && <span style={C.diffDays(C.today(), p.deadline) <= 7 ? { color: "var(--warn-ink)" } : undefined}><I n="flag" /> {C.longLabel(p.deadline)}</span>}</>}
         right={<>
           <button className="iconbtn" aria-label="Ramble" onClick={() => openOverlay("ramble", { focus: { kind: "project", id } })}><I n="talk" /></button>
           <button className="iconbtn" aria-label="Project options" onClick={menu}><I n="more" /></button>
@@ -149,7 +149,7 @@ export function ProjectView({ data, id }: ViewProps & { id: string }) {
         : <div className="nextup"><div className="stalled"><I n="pause" /> No next step</div>
           <div className="row" style={{ marginTop: 6 }}>
             <input className="field sm" placeholder="The very next step?" value={nextDraft} onChange={(e) => setNextDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void addNext()} />
-            <button className="btn sm primary" disabled={!nextDraft.trim()} onClick={addNext}><I n="plus" /></button>
+            <button aria-label="Add next action" className="btn sm primary" disabled={!nextDraft.trim()} onClick={addNext}><I n="plus" /></button>
           </div></div>)}
       {secs.map((sec) => {
         const ts = inSec(sec.id);
@@ -256,7 +256,7 @@ export function GroceryList({ area, data }: { area: Area } & Pick<ViewProps, "da
     <div>
       <div className="row">
         <input className="field" placeholder="Milk, 2x4s, diapers" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} aria-label="Add to list" />
-        <button className="btn primary" disabled={!text.trim()} onClick={add}><I n="plus" /></button>
+        <button aria-label="Add" className="btn primary" disabled={!text.trim()} onClick={add}><I n="plus" /></button>
       </div>
       <div className="row" style={{ justifyContent: "space-between", margin: "10px 0" }}>
         <Seg label="Group by" value={by} onChange={setBy} options={[{ id: "aisle", name: "Aisle" }, { id: "store", name: "Store" }]} />

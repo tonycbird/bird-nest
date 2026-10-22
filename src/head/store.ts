@@ -252,6 +252,7 @@ export async function completeTask(id: string): Promise<Undo> {
     next.history = [{ at: now, what: "repeated from previous" }];
     nextId = next.id;
     await put("tasks", next);
+    await patch("tasks", id, { repeatNextId: nextId });
   }
   return async () => {
     await patch("tasks", id, { status: "open", doneAt: null, updatedAt: Date.now() });
@@ -262,8 +263,15 @@ export async function completeTask(id: string): Promise<Undo> {
 export async function uncompleteTask(id: string): Promise<Undo> {
   const t = await db.tasks.get(id);
   if (!t) return noop;
-  await patch("tasks", id, { status: "open", doneAt: null, updatedAt: Date.now(), history: withHistory(t, "reopened") });
-  return () => patch("tasks", id, { status: "done", doneAt: t.doneAt });
+  await patch("tasks", id, { status: "open", doneAt: null, updatedAt: Date.now(), history: withHistory(t, "reopened"), repeatNextId: null });
+  // Reopening a repeating task takes back the next copy it made (if that copy is still untouched and open),
+  // so finishing it again doesn't leave two.
+  const copy = t.repeatNextId ? await db.tasks.get(t.repeatNextId) : undefined;
+  if (copy && C.isOpen(copy)) await remove("tasks", copy.id);
+  return async () => {
+    await patch("tasks", id, { status: "done", doneAt: t.doneAt, repeatNextId: t.repeatNextId ?? null });
+    if (copy && C.isOpen(copy)) await put("tasks", copy);
+  };
 }
 
 export async function deleteTask(id: string): Promise<Undo> {
@@ -309,7 +317,19 @@ export async function restoreGroup(group: string): Promise<void> {
   const rank = { areas: 0, projects: 1, tasks: 2 } as const;
   items.sort((a, b) => rank[a.kind] - rank[b.kind]);
   for (const x of items) {
-    await put(x.kind, x.item as { id: string });
+    let item = x.item as unknown as Record<string, unknown> & { id: string };
+    // A task or project whose list is gone (deleted separately) would come back invisible: send it to the Inbox instead.
+    if (x.kind === "tasks" || x.kind === "projects") {
+      const fix: Record<string, unknown> = {};
+      if (item.projectId && !(await db.projects.get(item.projectId as string))) { fix.projectId = null; fix.sectionId = null; }
+      if (item.areaId && !(await db.areas.get(item.areaId as string))) fix.areaId = null;
+      if (item.sectionId && !fix.projectId && item.projectId) {
+        const p = await db.projects.get(item.projectId as string);
+        if (p && !(p.sections || []).some((sct) => sct.id === item.sectionId)) fix.sectionId = null;
+      }
+      item = { ...item, ...fix };
+    }
+    await put(x.kind, item);
     await db.trash.delete(x.id);
   }
 }

@@ -36,6 +36,15 @@ describe("Head store (Clearhead rules on Dexie)", () => {
     expect((await db.tasks.get(t.id))!.reschedules).toBe(1);
   });
 
+  it("reopening a finished repeating task takes back its next copy (no doubles)", async () => {
+    const t = await H.createTask({ title: "Trash out", when: "2026-10-14", repeat: { freq: "week", interval: 1, days: [3], anchor: "2026-10-14" } });
+    await H.completeTask(t.id);
+    await H.uncompleteTask(t.id);
+    await H.completeTask(t.id);
+    const open = (await db.tasks.toArray()).filter((x) => x.title === "Trash out" && x.status === "open");
+    expect(open).toHaveLength(1);
+  });
+
   it("completing a repeating task makes the next one, and undo removes it", async () => {
     const t = await H.createTask({ title: "Trash out", when: "2026-10-14", repeat: { freq: "week", interval: 1, days: [3], anchor: "2026-10-14" } });
     const undo = await H.completeTask(t.id);

@@ -12,6 +12,8 @@ export function BulkBar() {
   const ids = m.ids;
   const dis = !ids.length;
   const run = (fn: () => Promise<unknown>) => async () => { await fn(); clearMulti(); };
+  // A picker that was closed without choosing keeps the selection.
+  const pick = (fn: () => Promise<unknown>) => async () => { if ((await fn()) !== undefined) clearMulti(); };
   const top = async () => {
     const all = await db.tasks.toArray();
     const min = Math.min(...all.map((t) => t.todayOrder ?? t.order ?? 0), Date.now());
@@ -26,9 +28,9 @@ export function BulkBar() {
     <div className="bulkbar" role="toolbar" aria-label="Selected tasks">
       <span className="b-count">{ids.length}</span>
       <button className="iconbtn" disabled={dis} aria-label="Done" onClick={run(() => A.completeMany(ids))}><I n="tick" /></button>
-      <button className="iconbtn" disabled={dis} aria-label="When" onClick={run(() => A.schedule(ids))}><I n="calendar" /></button>
-      <button className="iconbtn" disabled={dis} aria-label="Move" onClick={run(() => A.move(ids))}><I n="arrow" /></button>
-      <button className="iconbtn" disabled={dis} aria-label="Tag" onClick={run(() => A.setContexts(ids))}>@</button>
+      <button className="iconbtn" disabled={dis} aria-label="When" onClick={pick(() => A.schedule(ids))}><I n="calendar" /></button>
+      <button className="iconbtn" disabled={dis} aria-label="Move" onClick={pick(() => A.move(ids))}><I n="arrow" /></button>
+      <button className="iconbtn" disabled={dis} aria-label="Tag" onClick={pick(() => A.setContexts(ids))}>@</button>
       <button className="iconbtn" disabled={dis} aria-label="Flag" onClick={run(() => A.toggleImportant(ids))}><I n="flag" /></button>
       <button className="iconbtn" disabled={dis} aria-label="To the top" onClick={run(top)}>⤒</button>
       <button className="iconbtn" disabled={dis} aria-label="Delete" onClick={run(() => A.remove(ids))}><I n="trash" /></button>

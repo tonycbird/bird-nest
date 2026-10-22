@@ -105,11 +105,11 @@ export function HeadSettingsView() {
       </div>
       <div className="lbl">@ Contexts</div>
       <div className="chips">
-        {(s.contexts || []).map((c) => <span key={c} className="chip">{c}<button aria-label={"Remove " + c} onClick={() => H.saveSettings({ contexts: s.contexts.filter((x) => x !== c) })}><I n="close" /></button></span>)}
+        {(s.contexts || []).map((c) => <span key={c} className="chip tok">{c}<button aria-label={"Remove " + c} onClick={() => H.saveSettings({ contexts: s.contexts.filter((x) => x !== c) })}><I n="close" /></button></span>)}
       </div>
       <div className="row" style={{ marginTop: 8 }}>
         <input className="field sm" placeholder="@New" value={newCtx} onChange={(e) => setNewCtx(e.target.value)} />
-        <button className="btn sm" onClick={() => { const v = newCtx.trim(); if (!v) return; const n = v.startsWith("@") ? v : "@" + v; void H.saveSettings({ contexts: [...new Set([...(s.contexts || []), n])] }); setNewCtx(""); }}><I n="plus" /></button>
+        <button aria-label="Add context" className="btn sm" onClick={() => { const v = newCtx.trim(); if (!v) return; const n = v.startsWith("@") ? v : "@" + v; void H.saveSettings({ contexts: [...new Set([...(s.contexts || []), n])] }); setNewCtx(""); }}><I n="plus" /></button>
       </div>
       <div className="lbl"><I n="later" /> Rhythm</div>
       <div className="card">
@@ -168,6 +168,7 @@ export default function HeadScreen() {
   const r = nav.use();
   const m = multi.use();
   useEffect(() => { clearMulti(); }, [r.view, r.id]);
+  useEffect(() => () => clearMulti(), []); // leaving Head ends Select, or ＋ stays hidden on every tab
   const [bypass, setBypass] = useState<string | null>(null);
   useEffect(() => { void H.purgeOldTrash(); }, []);
   if (!ready) return null;

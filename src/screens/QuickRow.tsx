@@ -31,7 +31,7 @@ export default function QuickRow({ day, pending, onApprovals }: { day: string; p
       const icon = taskIcon(t.title, area?.icon);
       items.push({ key: t.id, icon, color: colorFor(icon, "head"), label: shortLabel(t.title), aria: t.title, run: () => openTask(t.id) });
     }
-    if (overdue.length) items.push({ key: "late", icon: "warn", color: "var(--warn)", label: `${overdue.length} late`, run: () => { go("today"); goTab("head"); } });
+    if (overdue.length) items.push({ key: "late", icon: "warn", color: "var(--warn-ink)", label: `${overdue.length} late`, run: () => { go("today"); goTab("head"); } });
     const inbox = C.selectInbox(data).length;
     if (inbox) items.push({ key: "inbox", icon: "inbox", color: colorFor("inbox"), label: `${inbox} to sort`, run: () => openOverlay("process") });
     if (s.lastPlan !== C.today() && (main.length || overdue.length || inbox)) items.push({ key: "plan", icon: "morning", color: colorFor("morning"), label: "Plan", run: () => openOverlay("plan") });
@@ -56,17 +56,15 @@ export default function QuickRow({ day, pending, onApprovals }: { day: string; p
 function useBodyPlan(day: string): { plan: FitPlan; label: string; done: () => void } | null {
   const { ready, ver } = fitState.use();
   const [plan, setPlan] = useState<FitPlan | null>(null);
-  const [missing, setMissing] = useState(0);
   useEffect(() => {
-    let live = true;
     const api = fitApi();
     if (!ready || !api) { setPlan(null); return; }
     let p: FitPlan | null = null;
     try { p = api.plan(day); } catch { p = null; }
     setPlan(p);
-    if (p) void missingFromRiver(p).then((m) => { if (live) setMissing(m.length); });
-    return () => { live = false; };
   }, [ready, ver, day]);
+  // Live: the circle goes away when the plan is on the River, and comes back if that's undone.
+  const missing = useLiveQuery(async () => (plan ? (await missingFromRiver(plan)).length : 0), [plan], 0);
   if (!plan || !plan.blocks.length || !missing) return null;
-  return { plan, label: plan.workout ? shortLabel(plan.workout) : "Stretch", done: () => setMissing(0) };
+  return { plan, label: plan.workout ? shortLabel(plan.workout) : "Stretch", done: () => {} };
 }

@@ -84,5 +84,6 @@ export const ICONS = {
   "gift": { g: "home", t: "<rect x=\"4\" y=\"10\" width=\"16\" height=\"10.5\" rx=\"1.5\"/>", l: "<rect x=\"3\" y=\"7\" width=\"18\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"11\" width=\"16\" height=\"9.5\" rx=\"1.5\"/><path d=\"M12 7v13.5M12 7c-1.5-3.5-5.5-3.5-5.5-1.2C6.5 7 9 7 12 7c3 0 5.5 0 5.5-1.2 0-2.3-4-2.3-5.5 1.2z\"/>" },
   "laptop": { g: "head", t: "<rect x=\"5\" y=\"5\" width=\"14\" height=\"10\" rx=\"1.5\"/>", l: "<rect x=\"5\" y=\"5\" width=\"14\" height=\"10\" rx=\"1.5\"/><path d=\"M2.5 18.5h19\"/>" },
   "paw": { g: "home", t: "<ellipse cx=\"12\" cy=\"16\" rx=\"4\" ry=\"3.5\"/>", l: "<ellipse cx=\"12\" cy=\"16\" rx=\"4\" ry=\"3.5\"/><circle cx=\"6\" cy=\"11\" r=\"1.7\"/><circle cx=\"9.5\" cy=\"7\" r=\"1.7\"/><circle cx=\"14.5\" cy=\"7\" r=\"1.7\"/><circle cx=\"18\" cy=\"11\" r=\"1.7\"/>" },
+  "weekend": { g: "rest", t: "<rect x=\"6\" y=\"10\" width=\"12\" height=\"5.5\" rx=\"1.5\"/>", l: "<path d=\"M5.5 11V8.5A2.5 2.5 0 0 1 8 6h8a2.5 2.5 0 0 1 2.5 2.5V11\"/><path d=\"M3.5 13a2 2 0 0 1 4 0v2.5h9V13a2 2 0 0 1 4 0v5.5h-17zM6 18.5V20.5M18 18.5V20.5\"/>" },
 } satisfies Record<string, Glyph>;
 export type IconName = keyof typeof ICONS;

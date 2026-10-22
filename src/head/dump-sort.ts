@@ -47,14 +47,28 @@ const isShopList = (s: string) => SHOP_LEAD.test(s) || (words(s) <= 4 && !VERB_S
 
 /** Break a dump into separate thoughts. */
 export function pieces(text: string): string[] {
-  const t = (text || "").replace(/\r/g, "")
+  return linkedPieces(text).map((x) => x.text);
+}
+
+/* iPhone typing and dictation use curly quotes (I’m, Gayle’s). Straighten them first so every rule sees the same text. */
+const straight = (s: string) => s.replace(/[\u2018\u2019\u02BC]/g, "'").replace(/[\u201C\u201D]/g, '"');
+const LINK = /^(?:and then|then i|then|after that)$/i;
+
+/** pieces(), plus whether each one was joined to the one before by "and then" / "after that". */
+function linkedPieces(text: string): { text: string; linked: boolean }[] {
+  const t = straight(text || "").replace(/\r/g, "")
     .replace(/^[ \t]*(?:[-•*·]|\d+[.)])\s+/gm, "\n")
     .replace(ABBR, (_m, a: string) => a + DOT)
     .replace(C.FILLER, " ")
     .replace(/[ \t]+/g, " ");
-  const out: string[] = [];
+  const out: { text: string; linked: boolean }[] = [];
+  const CONNECT_KEEP = new RegExp("(" + CONNECT.source + ")", "i");
   for (const sentence of t.split(/[!?;\n]+\s*|\.(?=\s|$)\s*/)) {
-    for (const clause of sentence.split(CONNECT)) {
+    const bits = sentence.split(CONNECT_KEEP);
+    for (let bi = 0; bi < bits.length; bi += 2) {
+      const clause = bits[bi];
+      const linked = bi > 0 && LINK.test((bits[bi - 1] || "").trim());
+      let first = true;
       // Talking runs things together with commas: split on every comma, then glue list items back on
       // ("out of milk, eggs, and diapers" stays one shopping list; "call mom, dad and grandma" stays one call).
       let cur = "";
@@ -66,16 +80,23 @@ export function pieces(text: string): string[] {
         const curCore = cur.replace(/^(?:and|so|also|then|plus)\s+/i, "");
         if (plain && words(item) <= 4 && isShopList(curCore) && isShop(item)) cur += ", " + item;
         else if (plain && words(item) <= 6 && VERB_START.test(curCore) && / and /i.test(" " + part + " ") && !SHOP_LEAD.test(item) && !SHOP_WORDS.test(item) && !C.MATERIAL_WORDS.test(item)) cur += ", " + part;
-        else { if (cur) out.push(cur); cur = part; }
+        else { if (cur) { out.push({ text: cur, linked: linked && first }); first = false; } cur = part; }
       }
-      if (cur) out.push(cur);
+      if (cur) out.push({ text: cur, linked: linked && first });
     }
   }
-  return out.map((s) => s.replace(new RegExp(DOT, "g"), ".").replace(/^[,\s]+|[,\s]+$/g, "").trim()).filter((s) => s.length > 1);
+  return out.map((x) => ({ ...x, text: x.text.replace(new RegExp(DOT, "g"), ".").replace(/^[,\s]+|[,\s]+$/g, "").trim() })).filter((x) => x.text.length > 1);
 }
+
+/* How people actually talk: "I'm going to need to…", "I'm gonna have to…". */
+const VERB_WORDS = [...C.VERBS].join("|");
+const GOING = new RegExp(String.raw`^(?:i'?m|i am|we'?re|we are)\s+(?:going to|gonna)\s+(?=(?:need|have|${VERB_WORDS})\b)`, "i");
+const GOING_PLACE = /^(?:i'?m|i am|we'?re|we are)\s+(?:going to|gonna)\s+(?:go\s+to\s+|go\s+)?/i;
 
 function stripLeads(p: string): { text: string; action: boolean } {
   let action = false, changed = true;
+  if (GOING.test(p)) { p = p.replace(GOING, ""); action = true; }
+  else if (GOING_PLACE.test(p)) { p = p.replace(GOING_PLACE, "go to "); action = true; }
   while (changed) {
     changed = false;
     for (const l of C.LEADS) {
@@ -109,6 +130,21 @@ function guessHome(title: string, data: HeadData): { areaId: string | null; proj
   return { areaId: null, projectId: null };
 }
 
+/* "give around one hour", "about 2 hours", "takes 30 minutes", "for an hour and a half" → an estimate, out of the title. */
+const NUM: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, ten: 10, fifteen: 15, twenty: 20, thirty: 30, forty: 40, "forty-five": 45, ninety: 90 };
+const EST = /\b(?:(?:give(?: it)?|allow|plan(?: on| for)?|budget|takes?|taking|it'?ll take|will take|should take|for)\s+)?(?:(?:around|about|roughly|maybe|like|probably|approximately)\s+)(half an?|an?|one|two|three|four|five|six|ten|fifteen|twenty|thirty|forty(?:-five)?|ninety|\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b(?:\s+and a half)?(?:\s+(?:of|for)\s+[^,.]*)?|\b(?:give(?: it)?|allow|plan(?: on| for)?|budget|takes?|it'?ll take|will take|should take)\s+(half an?|an?|one|two|three|four|five|six|ten|fifteen|twenty|thirty|forty(?:-five)?|ninety|\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b(?:\s+and a half)?(?:\s+(?:of|for)\s+[^,.]*)?/i;
+function takeEstimate(p: string): { text: string; est: number | null } {
+  const m = p.match(EST);
+  if (!m) return { text: p, est: null };
+  const nRaw = (m[1] ?? m[3] ?? "").toLowerCase(), unit = (m[2] ?? m[4] ?? "").toLowerCase();
+  const half = /^half/.test(nRaw) ? 0.5 : 0;
+  const n = half || (NUM[nRaw] ?? parseFloat(nRaw));
+  if (!n || Number.isNaN(n)) return { text: p, est: null };
+  const extra = /and a half/i.test(m[0]) ? 0.5 : 0;
+  const mins = Math.round(unit.startsWith("h") ? (n + extra) * 60 : n);
+  return { text: (p.slice(0, m.index) + " " + p.slice((m.index ?? 0) + m[0].length)).replace(/\s+/g, " ").trim(), est: mins > 0 && mins <= 12 * 60 ? mins : null };
+}
+
 let n = 0;
 const nid = () => `d${Date.now().toString(36)}${(n++).toString(36)}`;
 
@@ -124,7 +160,8 @@ export function sortDump(text: string, data: HeadData, s: HeadSettings): DumpIte
   const base = (title: string, dest: DumpDest): DumpItem => ({ id: nid(), title, dest, keep: true, when: null, due: null, time: null, tod: null, est: null, contexts: [], areaId: null, projectId: null });
   const add = (it: DumpItem) => { const k = it.dest + "|" + it.title.toLowerCase(); if (!it.title || seen.has(k)) return; seen.add(k); out.push(it); };
 
-  for (const raw of pieces(text)) {
+  let lastWhen: string | null = null;
+  for (const { text: raw, linked } of linkedPieces(text)) {
     // Feelings and observations stay together as thoughts, unless they carry a "need to".
     if (THOUGHT.test(raw) && !MUST.test(raw)) { add(base(C.cap4(raw.replace(/[.\s]+$/, "")), "thought")); continue; }
     let p = raw, idea = false;
@@ -142,20 +179,34 @@ export function sortDump(text: string, data: HeadData, s: HeadSettings): DumpIte
       continue;
     }
     if (sm && list.length === 1 && isShop(list[0])) { add(base(C.cap4(list[0]), "shop")); continue; }
+    // "need a tarp and ratchet straps" isn't groceries: it's a thing to get.
+    if (sm && /^(?:need|we need|i need)\b/i.test(p)) p = "get " + sm[1];
+    const est = takeEstimate(p);
+    p = est.text;
+    // "…, should take about 2 hours" on its own: that's how long the thing before it takes.
+    if (est.est && !/[a-z]{3,}/i.test(p.replace(/\b(?:it|that|this|take|takes|should|will|probably|maybe|about|around|so)\b/gi, ""))) {
+      const prev = out[out.length - 1];
+      if (prev && prev.dest !== "shop" && prev.dest !== "thought" && prev.est == null) prev.est = est.est;
+      continue;
+    }
 
     p = p.replace(/\bby\s+(?=(?:mon|tue|wed|thu|fri|sat|sun|tomorrow|tonight|next|this|the\s+\d|end of|\d|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)/i, "due ");
     const parsed = C.parseQuickAdd(p, ctx);
     const f = parsed.fields;
-    const title = C.cap4((parsed.title || p).replace(/(?:\s+(?:by|on|before|due|at|for|this|next|in))+$/i, "").replace(/[.\s]+$/, "").slice(0, 120));
+    const title = C.cap4((parsed.title || p).replace(/(?:\s+(?:by|on|before|due|at|for|this|next|in|upcoming|coming|after|then|and))+$/i, "").replace(/[.\s]+$/, "").slice(0, 120));
     if (title.length < 3) continue;
     const home = f.projectId || f.areaId ? { projectId: f.projectId ?? null, areaId: f.areaId ?? null } : guessHome(title, data);
-    const dest: DumpDest = idea ? "someday" : f.when && f.when <= today ? "today" : f.when || f.due ? "date" : "later";
+    // "…on Tuesday, and then take it to the dump": a step joined by "then" happens the same day.
+    let when = (f.when as string | undefined) ?? null;
+    if (!when && !f.due && !idea && linked && lastWhen) when = lastWhen;
+    const dest: DumpDest = idea ? "someday" : when && when <= today ? "today" : when || f.due ? "date" : "later";
     add({
       ...base(title, dest),
-      when: dest === "today" ? today : (f.when as string | undefined) ?? null, due: (f.due as string | undefined) ?? null,
-      time: (f.time as string | undefined) ?? null, tod: (f.tod as string | undefined) ?? null, est: (f.est as number | undefined) ?? null,
+      when: dest === "today" ? today : when, due: (f.due as string | undefined) ?? null,
+      time: (f.time as string | undefined) ?? null, tod: (f.tod as string | undefined) ?? null, est: (f.est as number | undefined) ?? est.est,
       contexts: (f.contexts as string[] | undefined) ?? [], ...home,
     });
+    if (when) lastWhen = when;
   }
   return out;
 }
