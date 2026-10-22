@@ -30,3 +30,9 @@ Proposal payloads the app understands:
 - `weekly_review`: `{"prompts":["…"],"start":"HH:MM"}`.
 
 Style rules for anything Anthony reads: steps are 6 words or fewer, 2 to 7 steps a block. Symbols first. Warm, no guilt, no streak talk. One win first.
+
+## Testing mode reports (Anthony's ⚑ flag)
+Reports live in `nest_rows` (tbl `reports`) and come through their own door, `nest_reports(token, action, args)`
+(migration 0003): `list` (args `{"status":"open|fixed|later|all","full":true}`) and `mark` (args `{"items":[{"id","status":"fixed|later|open","note"}]}`).
+In a coding session: `node claude/tools/reports.mjs list`, `pull <dir>` (saves the screen HTML + photo to redraw), `mark <id> fixed "what changed"`.
+The note shows on Anthony's phone under the report.

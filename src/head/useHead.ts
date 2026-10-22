@@ -45,7 +45,19 @@ export const nav = createStore<{ view: HeadView; id: string | null; selected: st
   view: "today", id: null, selected: null, overlay: null,
 });
 
-export const go = (view: HeadView, id: string | null = null) => nav.set((s) => ({ ...s, view, id, overlay: null }));
+/* Drill-down screens (a project, an area, settings, trash) remember where you came from, so they get a back button. */
+const LIST_VIEWS = new Set<HeadView>(["inbox", "today", "upcoming", "anytime", "someday", "waiting", "logbook", "projects", "search"]);
+let trail: { view: HeadView; id: string | null }[] = [];
+export const go = (view: HeadView, id: string | null = null) => nav.set((s) => {
+  if (LIST_VIEWS.has(view)) trail = [];
+  else if (s.view !== view || s.id !== id) trail = [...trail, { view: s.view, id: s.id }].slice(-10);
+  return { ...s, view, id, overlay: null };
+});
+export const backFrom = (): { view: HeadView; id: string | null } | null => trail[trail.length - 1] ?? null;
+export const goBack = () => {
+  const b = trail.pop();
+  nav.set((s) => ({ ...s, view: b?.view ?? "today", id: b?.id ?? null, overlay: null }));
+};
 export const openTask = (id: string) => nav.set((s) => ({ ...s, selected: id }));
 export const closeTask = () => nav.set((s) => ({ ...s, selected: null }));
 export const openOverlay = (name: string, props: Record<string, unknown> = {}) => nav.set((s) => ({ ...s, overlay: { name, props } }));

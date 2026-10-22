@@ -6,7 +6,7 @@ import type { Task } from "../types";
 import { closeOverlay, go, goTab, openOverlay, openTask, useHeadData, useHeadSettings } from "../useHead";
 import { Check, Empty, ic, Ring, Seg, TaskRow } from "./bits";
 import * as A from "./actions";
-import { BrainDump } from "./capture";
+import { DumpInline } from "./dump";
 import { openSheet } from "./sheets";
 import { DatePicker, MovePicker, WaitingPicker, type MoveResult, type WhenResult } from "./pickers";
 import { putTasksOnRiver, blockForTask } from "../river-bridge";
@@ -309,7 +309,7 @@ export function WeeklyReview() {
       </>);
   }
   if (step === 5) {
-    return shell("Still on your mind?", "Out of your head. Each line → Inbox.", <BrainDump standalone onDone={() => go2(6)} />, <><Grow /><button className="btn" onClick={() => go2(6)}>Nothing more <I n="chevR" /></button></>);
+    return shell("Still on your mind?", "Out of your head. Nest sorts it.", <DumpInline onDone={() => go2(6)} />, <><Grow /><button className="btn" onClick={() => go2(6)}>Nothing more <I n="chevR" /></button></>);
   }
   const from = C.parseYmd(C.addDays(t, -6)).setHours(0, 0, 0, 0);
   const done = C.completedBetween(data, from, Date.now() + 1).filter((x) => !x.grocery);
@@ -364,7 +364,7 @@ export function Shutdown() {
       </FlowShell>
     );
   }
-  if (step === 1) return <FlowShell title="⏻ Shutdown" step={1} steps={4} onBack={() => setStep(0)} foot={<><Grow /><button className="btn" onClick={() => setStep(2)}>Nothing else <I n="chevR" /></button></>}><h2>Empty your head</h2><p className="lede">Write it down so you can be home.</p><BrainDump standalone onDone={() => setStep(2)} /></FlowShell>;
+  if (step === 1) return <FlowShell title="⏻ Shutdown" step={1} steps={4} onBack={() => setStep(0)} foot={<><Grow /><button className="btn" onClick={() => setStep(2)}>Nothing else <I n="chevR" /></button></>}><h2>Empty your head</h2><p className="lede">Write it down so you can be home. Nest sorts it.</p><DumpInline onDone={() => setStep(2)} /></FlowShell>;
   if (step === 2) return <FlowShell title="⏻ Shutdown" step={2} steps={4} onBack={() => setStep(1)} foot={<><Grow /><button className="btn primary" onClick={() => setStep(3)}>Looks good <I n="chevR" /></button></>}><DayPlanner date={tomorrow} /></FlowShell>;
   return (
     <FlowShell title="⏻ Shutdown" step={3} steps={4} onBack={() => setStep(2)}>

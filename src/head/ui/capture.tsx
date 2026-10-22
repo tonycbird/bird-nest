@@ -141,9 +141,11 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
     const r = await openSheet<string[]>(ContextPicker, { value: fields.contexts || [] });
     if (r !== undefined) setExtra({ ...extra, contexts: r });
   };
-  const onMode = (m: string) => (m === "dump" ? setMode("dump") : setMode(m));
+  // Dump has its own full screen (src/head/ui/dump.tsx).
+  const onMode = (m: string) => (m === "dump" ? openOverlay("dump") : setMode(m));
+  useEffect(() => { if (mode === "dump") openOverlay("dump"); }, [mode]);
 
-  if (mode === "dump") return <BrainDump onMode={setMode} hasGroceries={!!groceryArea} />;
+  if (mode === "dump") return null;
   if (mode === "grocery") return <GroceryAdd onMode={onMode} area={groceryArea} />;
   return (
     <div className="qa">
@@ -181,42 +183,6 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
         {speech.supported && <button className={"iconbtn" + (speech.on ? " rec" : "")} aria-label={speech.on ? "Stop" : "Speak"} onClick={speech.on ? speech.stop : speech.start}><I n="mic" /></button>}
         <button className="btn primary sm" disabled={!text.trim()} onClick={save}><I n="tick" /></button>
         <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); }} />
-      </div>
-    </div>
-  );
-}
-
-export function BrainDump(props: { onMode?: (m: string) => void; hasGroceries?: boolean; onDone?: (ids: string[]) => void; standalone?: boolean }) {
-  const { data } = useHeadData();
-  const s = useHeadSettings();
-  const [text, setText] = useState("");
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  const save = async () => {
-    const ctx = parseCtx(data, s);
-    const ids: string[] = [];
-    for (const l of lines) {
-      const p = C.parseQuickAdd(l, ctx);
-      ids.push((await H.createTask({ ...p.fields, title: p.title || l })).id);
-    }
-    toast(`📥 ${ids.length} to Inbox`, async () => { for (const id of ids) await H.deleteTask(id); });
-    if (props.onDone) props.onDone(ids);
-    else closeOverlay();
-  };
-  return (
-    <div className="qa">
-      {!props.standalone && (
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-          <ModeSwitch mode="dump" onMode={props.onMode || (() => {})} hasGroceries={!!props.hasGroceries} />
-          <button className="iconbtn" aria-label="Close" onClick={closeOverlay}><I n="close" /></button>
-        </div>
-      )}
-      <textarea className="dump" autoFocus aria-label="Brain dump" value={text} onChange={(e) => setText(e.target.value)}
-        placeholder={"One thing per line\nCall Smith about the vanity\nGreek reading ch. 4 due fri\nBuy furnace filter @errands"} />
-      <div className="qa-hint detail">Each line <I n="arrow" /> Inbox. Dates and @tags work. The keyboard mic works well here.</div>
-      {!props.standalone && <button className="linkbtn" onClick={() => openOverlay("ramble")}><I n="talk" /> Ramble about one thing instead</button>}
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="quiet" style={{ flex: 1 }}>{lines.length ? `${lines.length} item${lines.length === 1 ? "" : "s"}` : ""}</span>
-        <button className="btn primary" disabled={!lines.length} onClick={save}><I n="inbox" /> Add</button>
       </div>
     </div>
   );

@@ -42,3 +42,7 @@
 | 2026-10-21 | Nest draws its own icons; emoji are swapped at render time | Anthony asked for no emoji icons. A JSX runtime swap catches old saved data and Claude's plans too. |
 | 2026-10-21 | Less is more: show the minimum, expand on tap | Anthony's standing design rule. Steps hide behind "2/5 ⌄"; details behind Settings → Show details. |
 | 2026-10-21 | Font: Plus Jakarta Sans (one family) | Clean, round, reads well at small sizes. Bundled for offline. |
+| 2026-10-22 | Bugs are reported from inside the app (Testing mode), not with an admin account | A report captures the screen, taps and errors at the moment it happens; an admin account would only split the data. |
+| 2026-10-22 | Reports sync as nest_rows (tbl reports); Claude reads/marks them through `nest_reports()` | Same token, same pattern as the gateway; status comes back down to the phone. |
+| 2026-10-22 | Every sheet closes by swipe-down / grab bar (one global handler) | In the installed iPhone app there's no back button; no screen may trap Anthony. |
+| 2026-10-22 | Brain dump sorts on the phone into six places, then Anthony confirms | Dump is for emptying your head fast; sorting must be instant and offline, and nothing is saved until he says "Put away". |

@@ -9,7 +9,7 @@ import { createStore } from "../head/useHead";
 import { today, addDays } from "./time";
 
 /** Phone tables copied to the cloud. Photos stay on the phone; proposals/calendar/mail come down, not up. */
-export const SYNC_TABLES = ["days", "blocks", "steps", "settings", "areas", "projects", "tasks", "templates", "trash", "fit"] as const;
+export const SYNC_TABLES = ["days", "blocks", "steps", "settings", "areas", "projects", "tasks", "templates", "trash", "fit", "reports"] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];
 
 const DIRTY = "nest:dirty";
@@ -210,6 +210,21 @@ export async function pullClaude() {
     .is("dismissed_at", null).gte("created_at", new Date(Date.now() - 7 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(60);
   if (mail.error) throw new Error(mail.error.message);
   await db.transaction("rw", db.mail, async () => { await db.mail.clear(); await db.mail.bulkPut(mail.data ?? []); });
+  await pullReports();
+}
+
+/** Testing mode: when Claude marks a report fixed (through its door), bring the status down. */
+async function pullReports() {
+  if (!(await db.reports.count())) return;
+  const r = await supabase.from("nest_rows").select("id,status:data->>status,fix_note:data->>fix_note,fixed_at:data->>fixed_at")
+    .eq("tbl", "reports").is("deleted_at", null).limit(300);
+  if (r.error) throw new Error(r.error.message);
+  for (const row of (r.data ?? []) as { id: string; status: string | null; fix_note: string | null; fixed_at: string | null }[]) {
+    const local = await db.reports.get(row.id);
+    if (!local || !row.fixed_at || row.fixed_at <= (local.status_at ?? "")) continue;
+    if (local.status === row.status && local.fix_note === row.fix_note) continue;
+    await db.reports.update(row.id, { status: (row.status as "open" | "fixed" | "later") ?? local.status, fix_note: row.fix_note, fixed_at: row.fixed_at, status_at: row.fixed_at });
+  }
 }
 
 export async function dismissMail(id: string) {

@@ -4,7 +4,7 @@ import * as H from "./store";
 import { toast } from "../lib/toast";
 import { saveBlob } from "../lib/backup";
 import type { HeadView } from "./useHead";
-import { closeOverlay, go, nav, openOverlay, useHeadData, useHeadSettings } from "./useHead";
+import { backFrom, closeOverlay, go, goBack, nav, openOverlay, useHeadData, useHeadSettings } from "./useHead";
 import { AnytimeView, InboxView, LogbookView, SearchView, SomedayView, TodayView, TrashView, UpcomingView, WaitingView } from "./ui/views";
 import { AreaView, GroceryList, ProjectsView, ProjectView } from "./ui/projects";
 import { DetailHost } from "./ui/detail";
@@ -12,6 +12,7 @@ import { SheetHost } from "./ui/sheets";
 import { QuickAdd } from "./ui/capture";
 import { Focus, PlanDay, PlanMyDay, ProcessInbox, QuietScreen, Shutdown, Templates, WeeklyReview, WhatNow } from "./ui/flows";
 import { Ramble } from "./ui/ramble";
+import { DumpFlow } from "./ui/dump";
 import { Empty, ic, PageHead } from "./ui/bits";
 import * as A from "./ui/actions";
 import { BulkBar } from "./ui/bulk";
@@ -51,8 +52,20 @@ function NavChips() {
   );
 }
 
+const DRILL = new Set(["project", "area", "groceries", "settings", "trash"]);
+const VIEW_NAME: Record<string, string> = { inbox: "Inbox", today: "Today", upcoming: "Ahead", anytime: "Anytime", someday: "Someday", waiting: "Waiting", logbook: "Done", projects: "Projects", search: "Find", settings: "Settings", trash: "Recently deleted" };
+
+/** A way back from a project, an area, settings or trash. */
+function BackLink() {
+  const { data } = useHeadData();
+  nav.use();
+  const b = backFrom();
+  const name = !b ? "Today" : b.view === "project" ? data.projects.get(b.id ?? "")?.name ?? "Project" : b.view === "area" ? data.areas.get(b.id ?? "")?.name ?? "Area" : VIEW_NAME[b.view] ?? "Back";
+  return <button className="hback" onClick={goBack}><Icon n="chevL" size={18} tone={false} />{name}</button>;
+}
+
 function Rituals() {
-  const r: [string, IconName, string][] = [["process", "sort", "Process"], ["plan", "morning", "Plan"], ["whatnow", "compass", "Now"], ["ramble", "talk", "Ramble"], ["review", "calendar", "Review"], ["shutdown", "shutdown", "Shutdown"]];
+  const r: [string, IconName, string][] = [["dump", "head", "Dump"], ["process", "sort", "Process"], ["plan", "morning", "Plan"], ["whatnow", "compass", "Now"], ["ramble", "talk", "Ramble"], ["review", "calendar", "Review"], ["shutdown", "shutdown", "Shutdown"]];
   return (
     <div className="rituals">
       {r.map(([k, i, l]) => <button key={k} className="chip" onClick={() => openOverlay(k)}><Icon n={i} size={17} />{l}</button>)}
@@ -192,6 +205,7 @@ export default function HeadScreen() {
         <>
           {noAreas && r.view !== "settings" && <FirstRun />}
           {(r.view === "today" || r.view === "inbox") && <Rituals />}
+          {DRILL.has(r.view) && <BackLink />}
           {body}
         </>
       )}
@@ -223,6 +237,7 @@ export function HeadOverlays() {
       case "whatnow": flow = <WhatNow />; break;
       case "templates": flow = <Templates {...p} />; break;
       case "ramble": flow = <Ramble {...p} />; break;
+      case "dump": flow = <DumpFlow />; break;
     }
   }
   return (

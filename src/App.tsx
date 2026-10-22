@@ -13,6 +13,8 @@ import { appNav, goTab, multi, openOverlay, type AppTab } from "./head/useHead";
 import * as C from "./head/core/clearhead.js";
 import BodyScreen, { BodyFrame, TimerPill } from "./body/BodyScreen";
 import { Icon, type IconName } from "./ui/Icon";
+import { TestFlag } from "./screens/Testing";
+import { setTestingOn } from "./lib/testing";
 
 export default function App() {
   const c = cloud.use();
@@ -20,6 +22,8 @@ export default function App() {
   const selecting = multi.use().on;
   const [online, setOnline] = useState(navigator.onLine);
   const details = useSetting<boolean>("details", false);
+  const testing = useSetting<boolean>("testing", false);
+  useEffect(() => { setTestingOn(testing); }, [testing]);
   const pending = useLiveQuery(() => db.proposals.where("status").equals("pending").count(), [], 0);
   const inbox = useLiveQuery(() => db.tasks.filter((t) => t.status === "open" && !t.areaId && !t.projectId && !t.list && !t.someday).count(), [], 0);
 
@@ -73,6 +77,7 @@ export default function App() {
         <TimerPill />
         <HeadOverlays />
         <UpdateToast />
+        {testing && <TestFlag />}
       </div>
     </ToastProvider>
   );

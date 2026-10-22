@@ -146,7 +146,10 @@ export function installFitHost() {
     downloads,
     addGroceries,
     ready: () => { try { localStorage.removeItem("nest:body-loading"); } catch { /* storage blocked */ } patch({ ready: true, error: "", ver: fitState.get().ver + 1 }); },
-    error: (msg: string) => { if (!fitState.get().ready) patch({ error: String(msg).slice(0, 200) }); },
+    error: (msg: string) => {
+      (window as unknown as { __nestNoteError?: (m: string) => void }).__nestNoteError?.("Body: " + msg);
+      if (!fitState.get().ready) patch({ error: String(msg).slice(0, 200) });
+    },
     changed: () => {
       window.clearTimeout(changedT);
       changedT = window.setTimeout(() => { patch({ ver: fitState.get().ver + 1 }); listeners.forEach((f) => f()); }, 400);

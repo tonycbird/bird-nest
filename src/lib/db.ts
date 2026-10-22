@@ -49,6 +49,22 @@ export interface CalEvent { id: string; day: string; start: string | null; end: 
 /** Mail Claude flagged: a summary line and a link, never the body. */
 export interface MailItem { id: string; received: string | null; sender: string | null; subject: string | null; ask: string | null; due: string | null; link: string; created_at: string; dismissed_at: string | null }
 
+/** Testing mode: what went wrong, with the screen it happened on. Synced so Claude can read and fix it. */
+export interface Report extends Row {
+  kind: "design" | "stuck" | "bug" | "idea";
+  text: string;
+  photo: string | null;                  // small JPEG data URL from Photos
+  ctx: Record<string, unknown>;          // tab, screen, open sheets, look, version, phone
+  errors: { at: string; msg: string }[]; // errors the app caught before the report
+  trail: { at: string; what: string }[]; // the last taps
+  dom: string | null;                    // the screen's HTML, so it can be redrawn
+  frame_dom: string | null;              // the Body frame's HTML, when on Body
+  status: "open" | "fixed" | "later";
+  status_at: string | null;
+  fix_note: string | null;
+  fixed_at: string | null;
+}
+
 export interface OutboxOp { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string; }
 
 export class NestDB extends Dexie {
@@ -70,6 +86,7 @@ export class NestDB extends Dexie {
   // Phase 4: copies of what Claude wrote (calendar, flagged mail). Pulled from the cloud, never pushed.
   calendar!: Table<CalEvent, string>;
   mail!: Table<MailItem, string>;
+  reports!: Table<Report, string>;
   constructor(name = "bird-nest") {
     super(name);
     this.version(1).stores({ proposals: "id, status, created_at", outbox: "op_id, queued_at" });
@@ -91,6 +108,7 @@ export class NestDB extends Dexie {
     });
     this.version(4).stores({ fit: "key, updated_at" });
     this.version(5).stores({ calendar: "id, day", mail: "id, created_at" });
+    this.version(6).stores({ reports: "id, created_at, status" });
   }
 }
 export const db = new NestDB();

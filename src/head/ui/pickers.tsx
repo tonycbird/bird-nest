@@ -5,6 +5,7 @@ import { useHeadData, useHeadSettings } from "../useHead";
 import { ic, Seg } from "./bits";
 import { SheetFrame, type SheetProps } from "./sheets";
 import { I } from "../../ui/Icon";
+import { ICONS } from "../../ui/icons";
 
 /* Clearhead's pickers (src/ui/pickers.js), rebuilt as Bird sheets. Same choices, same results. */
 
@@ -404,7 +405,7 @@ export function MenuSheet(p: SheetProps & { title: string; items: (MenuItem | "-
       <div className="menu">
         {p.items.map((it, i) => it === "-"
           ? <div key={i} style={{ height: 6 }} />
-          : <button key={i} className={it.danger ? "danger" : ""} onClick={() => p.done(i)}><span>{it.icon ?? "•"}</span>{it.text}</button>)}
+          : <button key={i} className={it.danger ? "danger" : ""} onClick={() => p.done(i)}>{it.icon && it.icon in ICONS ? <I n={it.icon} /> : <span>{it.icon ?? ""}</span>}{it.text}</button>)}
       </div>
     </SheetFrame>
   );

@@ -16,6 +16,11 @@ export const PROJECT_STATUSES: { id: Project["status"]; name: string }[];
 export const DEFAULT_SETTINGS: any;
 export const SEED_AREAS: { name: string; color: string; icon: string; listMode?: "groceries" }[];
 export const GROCERY_CATS: { id: string; name: string; words: string }[];
+export const VERBS: Set<string>;
+export const LEADS: string[];
+export const FILLER: RegExp;
+export const MATERIAL_WORDS: RegExp;
+export function cap4(s: string): string;
 export const BUILTIN_TEMPLATES: Template[];
 
 export function setNow(d: Date | null): void;

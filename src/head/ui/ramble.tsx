@@ -49,7 +49,7 @@ function Pick({ onPick }: { onPick: (f: Focus) => void }) {
         {projects.slice(0, ql ? 8 : 6).map((p) => <button key={p.id} onClick={() => onPick({ kind: "project", id: p.id })}><span><Ring pct={C.projectStats(data, p).pct} size={20} /></span>{p.name}<span className="side">{p.areaId ? data.areas.get(p.areaId)?.name : ""}</span></button>)}
         {tasks.map((t) => <button key={t.id} onClick={() => onPick({ kind: "task", id: t.id })}><span>○</span>{t.title}<span className="side">{(C.homeOf(t, data).project || C.homeOf(t, data).area)?.name || "Inbox"}</span></button>)}
       </div>
-      <div className="row" style={{ justifyContent: "center", marginTop: 16 }}><button className="linkbtn" onClick={() => openOverlay("quickadd", { mode: "dump" })}>Dump everything instead</button></div>
+      <div className="row" style={{ justifyContent: "center", marginTop: 16 }}><button className="linkbtn" onClick={() => openOverlay("dump")}>Dump everything instead</button></div>
     </>
   );
 }
@@ -57,7 +57,7 @@ function Pick({ onPick }: { onPick: (f: Focus) => void }) {
 /* Continuous dictation where the phone supports it; otherwise the keyboard mic. */
 type SRResult = { isFinal: boolean; 0: { transcript: string } };
 type SR = { lang: string; continuous: boolean; interimResults: boolean; onresult: (e: { resultIndex: number; results: ArrayLike<SRResult> }) => void; onerror: () => void; onend: () => void; start: () => void; stop: () => void };
-function useDictation(onFinal: (s: string) => void) {
+export function useDictation(onFinal: (s: string) => void) {
   const w = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR };
   const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
   const [on, setOn] = useState(false);

@@ -1,5 +1,20 @@
 # Progress
 
+## Now: Testing mode + new Brain dump · built Oct 22
+
+### Setup (Anthony, once)
+1. Supabase → SQL editor: paste `supabase/migrations/0003_reports.sql` → Run. (Lets Claude read and close your reports.)
+2. Push "Testing mode + Brain dump" with GitHub Desktop.
+3. iPhone: ⚙ → Testing → turn on **Testing mode**.
+
+- [x] Testing mode: a draggable flag on every screen (above sheets and full-screen flows). Tap → Looks wrong / Stuck / Broken / Idea, a sentence, optional screenshot from Photos
+- [x] Each report saves the screen (HTML), the tab and open sheets, the last 20 taps, any errors caught, the look and version. Syncs to the cloud; Claude reads it with `node claude/tools/reports.mjs` and marks it fixed with a note that shows on the phone
+- [x] "Stuck" saves and gets you out (reloads to Today; data is safe). "Stuck? Back to Today" on the report sheet too
+- [x] Settings → Testing: the switch, the reports list (Open / Fixed / Later), Copy open reports (to paste into a chat)
+- [x] No more trapped screens: every bottom sheet closes with a swipe down or a tap on its grab bar; Head projects, areas, settings and trash have a back link
+- [x] Brain dump rewritten: one full screen to empty your head (type or talk, run-on is fine), then Nest separates it into Today / Coming up / No date yet / Shopping / Someday / Thoughts; tap a name to fix, → to move, uncheck to leave out, Put away. Draft is kept if the app closes. Also inside Shutdown and Weekly review
+- [x] Tests: 101 unit, SQL tests for the reports door, new e2e `testing.e2e.cjs` (dump + testing + sheet close)
+
 ## Now: Design overhaul · built Oct 21, waiting on the phone check
 
 Picked on the design canvas: **G** (Bloom timeline + Flow's task circles), colors **Follow the sun**, Nest's own icons.
