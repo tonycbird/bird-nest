@@ -19,9 +19,10 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Notifier"] }],
   "vars": {
-    // Public half of the push key (safe to share). The private half is the VAPID_PRIVATE secret,
-    // set once in the Cloudflare dashboard. Without it, buzzing just says "not set up yet".
-    "VAPID_PUBLIC": "BKZwSlQVDtjTGOIi94ZgiuoNEfRF3gxNpaZXqXXb25BhMSFzXc20WTrT4vPvIcIWFnXplUQK--f3y8HpKfZP6Ps",
+    // Public half of the push key (safe to share). The private half is the VAPID_PRIVATE *secret*
+    // (Type: Secret, not Variable), set once in the Cloudflare dashboard and never in this file.
+    // Without it, buzzing just says "not set up yet". (Key replaced Oct 28: the first private key was shown as a plain variable.)
+    "VAPID_PUBLIC": "BHATYj-o0ufRsu9UCBjyDe75zHUXxeczATN3IskSjsRDuXzBc4HW1rY65YKnDN3k0POCzDKCdBUd-6QYf24c75c",
     "VAPID_SUBJECT": "https://bird-nest.tonyc-bird.workers.dev"
   }
 }
