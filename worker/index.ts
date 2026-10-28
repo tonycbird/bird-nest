@@ -3,7 +3,7 @@
    Each phone gets its own Notifier (a Durable Object) that keeps its push address and a short
    list of buzzes to send, and wakes itself with an alarm at the exact second one is due. */
 import { DurableObject } from "cloudflare:workers";
-import { pushHostOk, sendPush, type PushSub, type Vapid } from "./webpush";
+import { pushHostOk, sendPush, vapidPairOk, whyNot, type PushSub, type Vapid } from "./webpush";
 
 export interface Env {
   ASSETS: Fetcher;
@@ -16,7 +16,7 @@ export interface Env {
 
 export interface Item { id: string; at: number; title: string; body?: string; tag?: string; url?: string; ttl?: number }
 type Reply = Record<string, string | number | boolean | null>;
-interface State { sub: PushSub | null; keyHash: string; items: Item[]; sent: number; lastStatus: number; lastAt: number }
+interface State { sub: PushSub | null; keyHash: string; items: Item[]; sent: number; lastStatus: number; lastAt: number; lastWhy?: string }
 
 const MAX_ITEMS = 40;
 const LATE_MS = 90_000; // a buzz more than this late is dropped, not sent
@@ -91,13 +91,20 @@ export class Notifier extends DurableObject<Env> {
     if (op === "test") {
       const v = this.vapid();
       if (!v || !s.sub) return { status: 503, body: { error: "not ready" } };
-      const r = await sendPush(s.sub, { title: "Nest", body: "Buzzing works.", tag: "test" }, v, 60);
-      s.lastStatus = r.status; s.lastAt = now;
-      if (r.status === 404 || r.status === 410) s.sub = null;
+      let ok = false, status = 0, why = "";
+      try {
+        const r = await sendPush(s.sub, { title: "Nest", body: "Buzzing works.", tag: "test" }, v, 60);
+        ok = r.ok; status = r.status;
+        if (!ok) why = await whyNot(r);
+        if (status === 404 || status === 410) s.sub = null;
+      } catch (e) {
+        why = "error " + String((e as Error)?.message ?? e).slice(0, 80);
+      }
+      s.lastStatus = status; s.lastAt = now; s.lastWhy = why;
       await this.save(s);
-      return { status: r.ok ? 200 : 502, body: { ok: r.ok, status: r.status } };
+      return { status: ok ? 200 : 502, body: { ok, status, why } };
     }
-    if (op === "status") return { status: 200, body: { ok: true, subscribed: !!s.sub, count: s.items.length, next: s.items[0]?.at ?? null, sent: s.sent, lastStatus: s.lastStatus } };
+    if (op === "status") return { status: 200, body: { ok: true, subscribed: !!s.sub, count: s.items.length, next: s.items[0]?.at ?? null, sent: s.sent, lastStatus: s.lastStatus, lastWhy: s.lastWhy ?? "" } };
     if (op === "off") {
       await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.deleteAll();
@@ -120,10 +127,10 @@ export class Notifier extends DurableObject<Env> {
         try {
           const r = await sendPush(sub, { title: it.title, body: it.body, tag: it.tag, url: it.url }, v, it.ttl);
           s.lastStatus = r.status; s.lastAt = now;
-          if (r.ok) s.sent++;
+          if (r.ok) { s.sent++; s.lastWhy = ""; } else s.lastWhy = await whyNot(r);
           if (r.status === 404 || r.status === 410) { s.sub = null; s.items = []; break; } // the phone dropped this address
-        } catch {
-          s.lastStatus = -1;
+        } catch (e) {
+          s.lastStatus = -1; s.lastWhy = "error " + String((e as Error)?.message ?? e).slice(0, 80);
         }
       }
     }
@@ -139,7 +146,10 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     if (url.pathname === "/api/push/key") {
-      return json({ key: env.VAPID_PUBLIC || null, ready: !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE) });
+      const ready = !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE);
+      // pair: do the public key here and the secret in Cloudflare belong together?
+      const pair = ready ? await vapidPairOk({ publicKey: env.VAPID_PUBLIC!, privateKey: env.VAPID_PRIVATE!, subject: "" }) : false;
+      return json({ key: env.VAPID_PUBLIC || null, ready, pair });
     }
     const m = url.pathname.match(/^\/api\/push\/(subscribe|schedule|cancel|test|status|off)$/);
     if (!m) return json({ error: "not found" }, 404);
@@ -151,7 +161,11 @@ export default {
     const device = String(body.device ?? ""), key = String(body.key ?? "");
     if (!DEVICE.test(device) || !KEY.test(key)) return json({ error: "bad device" }, 400);
     const stub = env.NOTIFIER.get(env.NOTIFIER.idFromName(device));
-    const r = await stub.handle(m[1], key, body);
-    return json(r.body, r.status);
+    try {
+      const r = await stub.handle(m[1], key, body);
+      return json(r.body, r.status);
+    } catch (e) {
+      return json({ ok: false, why: "error " + String((e as Error)?.message ?? e).slice(0, 120) }, 500);
+    }
   },
 };

@@ -2,7 +2,8 @@
    Each phone has its own id and key (kept on the phone, never synced), and its own helper on Cloudflare. */
 import { useSyncExternalStore } from "react";
 
-export interface PushPrefs { device: string; key: string; on: boolean; rest: boolean; shutdown: boolean }
+/** subKey: the helper's public key this phone subscribed with (a new key needs a new subscription). */
+export interface PushPrefs { device: string; key: string; on: boolean; rest: boolean; shutdown: boolean; subKey?: string }
 const LS = "nest:push";
 
 function rand(n: number): string {
@@ -58,10 +59,12 @@ async function api(op: string, body: Record<string, unknown> = {}): Promise<{ ok
   }
 }
 
-/** Is the helper on Cloudflare ready (its secret key set)? null = can't tell (offline). */
-export async function helperReady(): Promise<boolean | null> {
-  try { const k = (await (await fetch("/api/push/key", { cache: "no-store" })).json()) as { ready?: boolean }; return !!k.ready; }
-  catch { return null; }
+/** Is the helper on Cloudflare ready? "nokey" = secret not set, "mismatch" = secret from another key, null = offline. */
+export async function helperReady(): Promise<"ok" | "nokey" | "mismatch" | null> {
+  try {
+    const k = (await (await fetch("/api/push/key", { cache: "no-store" })).json()) as { ready?: boolean; pair?: boolean };
+    return !k.ready ? "nokey" : k.pair === false ? "mismatch" : "ok";
+  } catch { return null; }
 }
 
 const swReady = () => Promise.race([
@@ -80,7 +83,10 @@ async function subscription(publicKey: string): Promise<PushSubscription | null>
   const reg = await swReady();
   if (!reg) return null;
   let sub = await reg.pushManager.getSubscription();
-  if (sub && !sameKey(sub, publicKey)) { await sub.unsubscribe().catch(() => false); sub = null; }
+  // A subscription made with another key (or before Nest kept track) can't receive anything: start a new one.
+  // (iPhones don't always say which key a subscription has, so Nest remembers it.)
+  const stale = !prefs.subKey || prefs.subKey !== publicKey || !sameKey(sub ?? ({} as PushSubscription), publicKey);
+  if (sub && stale) { await sub.unsubscribe().catch(() => false); sub = null; }
   return sub ?? reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(publicKey) });
 }
 
@@ -102,7 +108,7 @@ export async function turnOnPush(): Promise<TurnOnResult> {
   } catch {
     return "failed";
   }
-  setPushPrefs({ on: true });
+  setPushPrefs({ on: true, subKey: k.key });
   return "ok";
 }
 
@@ -112,8 +118,12 @@ export async function turnOffPush(): Promise<void> {
   await api("off");
 }
 
-export async function testPush(): Promise<boolean> {
-  return (await api("test")).ok;
+/** Send a test buzz now. `why` says what went wrong (e.g. "403 BadJwtToken"). */
+export async function testPush(): Promise<{ ok: boolean; why: string }> {
+  const r = await api("test");
+  if (r.ok) return { ok: true, why: "" };
+  if (r.status === 0) return { ok: false, why: "no connection" };
+  return { ok: false, why: String(r.data?.why || r.data?.error || r.status).slice(0, 60) };
 }
 
 export interface Buzz { id: string; at: number; title: string; body?: string; tag?: string; url?: string; ttl?: number }
@@ -139,5 +149,5 @@ export async function refreshPush(): Promise<void> {
   let sub: PushSubscription | null = null;
   try { sub = await subscription(key); }
   catch { setPushPrefs({ on: false }); return; } // the iPhone dropped it and won't re-add without a tap: Settings shows "Turn on" again
-  if (sub) await api("subscribe", { sub: sub.toJSON() });
+  if (sub) { const r = await api("subscribe", { sub: sub.toJSON() }); if (r.ok && prefs.subKey !== key) setPushPrefs({ subKey: key }); }
 }

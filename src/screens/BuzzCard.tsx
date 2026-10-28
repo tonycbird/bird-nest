@@ -18,7 +18,7 @@ export function BuzzCard() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [why, setWhy] = useState("");
-  const [ready, setReady] = useState<boolean | null>(null);
+  const [ready, setReady] = useState<"ok" | "nokey" | "mismatch" | null>(null);
   const support = pushSupport();
   useEffect(() => { if (p.on) void helperReady().then(setReady); }, [p.on]);
 
@@ -44,9 +44,10 @@ export function BuzzCard() {
         {support === "ok" && p.on && <>
           <label className="kv"><span><I n="timer" /> Rest timer done</span><input type="checkbox" checked={p.rest} onChange={(e) => setPushPrefs({ rest: e.target.checked })} /></label>
           <label className="kv"><span><I n="shutdown" /> Shutdown · {shortTime(head.shutdownTime)}</span><input type="checkbox" checked={p.shutdown} onChange={(e) => setPushPrefs({ shutdown: e.target.checked })} /></label>
-          {ready === false && <p className="quiet" style={{ marginTop: 8, color: "var(--warn-ink)" }}>Almost: the Cloudflare key isn't in yet.</p>}
+          {ready === "nokey" && <p className="quiet" style={{ marginTop: 8, color: "var(--warn-ink)" }}>Almost: the Cloudflare key isn't in yet.</p>}
+          {ready === "mismatch" && <p className="quiet" style={{ marginTop: 8, color: "var(--warn-ink)" }}>The Cloudflare key doesn't match. Paste it again from cloudflare-push-secret.txt.</p>}
           <div className="sheet-actions" style={{ marginTop: 10 }}>
-            <button className="btn" onClick={async () => toast((await testPush()) ? "🔔 Sent. Lock your phone to see it." : "⚠ Couldn't send")}><I n="bell" /> Test</button>
+            <button className="btn" onClick={async () => { const r = await testPush(); toast(r.ok ? "🔔 Sent. Lock your phone to see it." : `⚠ Couldn't send · ${r.why}`); if (!r.ok) void helperReady().then(setReady); }}><I n="bell" /> Test</button>
             <button className="btn" onClick={async () => { await turnOffPush(); toast("Buzzing off"); }}><I n="quiet" /> Turn off</button>
           </div>
         </>}

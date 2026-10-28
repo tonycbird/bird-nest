@@ -62,6 +62,27 @@ async function vapidSigner(v: Vapid): Promise<CryptoKey> {
   return crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
 }
 
+/** Do the two halves of the key belong together? (A pasted secret from an old key won't.) */
+export async function vapidPairOk(v: Vapid): Promise<boolean> {
+  try {
+    const signer = await vapidSigner(v);
+    const pub = await crypto.subtle.importKey("raw", b64uDecode(v.publicKey), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    const msg = bytes("nest");
+    const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, signer, msg);
+    return await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, sig, msg);
+  } catch {
+    return false;
+  }
+}
+
+/** A short reason from a push service's "no" (Apple sends {"reason":"BadJwtToken"}). */
+export async function whyNot(r: Response): Promise<string> {
+  const t = (await r.text().catch(() => "")).slice(0, 300);
+  let reason = "";
+  try { reason = String((JSON.parse(t) as { reason?: string }).reason ?? ""); } catch { reason = t.replace(/\s+/g, " ").trim().slice(0, 60); }
+  return `${r.status}${reason ? " " + reason : ""}`;
+}
+
 /** The Authorization header that tells the push service this message is from Nest. Good for 1 hour. */
 export async function vapidAuth(endpoint: string, v: Vapid, now = Date.now()): Promise<string> {
   const aud = new URL(endpoint).origin;

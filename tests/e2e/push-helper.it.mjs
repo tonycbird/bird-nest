@@ -19,11 +19,11 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log("✓", m); } else { fail++; console.log("✗", m); } };
 
 const got = [];
-let mode = 201;
+let mode = 201, reply = "";
 const srv = http.createServer((req, res) => {
   const chunks = [];
   req.on("data", (c) => chunks.push(c));
-  req.on("end", () => { got.push({ t: Date.now(), path: req.url, headers: req.headers, body: Buffer.concat(chunks) }); res.writeHead(mode); res.end(); });
+  req.on("end", () => { got.push({ t: Date.now(), path: req.url, headers: req.headers, body: Buffer.concat(chunks) }); res.writeHead(mode); res.end(reply); });
 });
 await new Promise((r) => srv.listen(9911, "127.0.0.1", r));
 
@@ -56,7 +56,7 @@ function checkVapid(h) {
 
 try {
   const k = await (await fetch(`${BASE}/api/push/key`)).json();
-  ok(k.key === keys.pub && k.ready === true, "/api/push/key gives the public key and ready");
+  ok(k.key === keys.pub && k.ready === true && k.pair === true, "/api/push/key gives the public key, ready, and the two halves match");
   const home = await fetch(`${BASE}/today`);
   ok(home.status === 200 && (await home.text()).includes("<div id=\"root\""), "other paths still open the app");
 
@@ -69,7 +69,7 @@ try {
   // test push now
   const t0 = Date.now();
   const tr = await post("test");
-  ok(tr.status === 200 && tr.body.ok, "test push sent");
+  ok(tr.status === 200 && tr.body.ok && tr.body.why === "", "test push sent");
   await sleep(300);
   const m1 = got.shift();
   ok(m1 && m1.path === "/push/abc", "test push arrived");
@@ -117,6 +117,11 @@ try {
   const bad = await post("schedule", { items: [{ id: "far", at: Date.now() + 30 * day, title: "x" }, { id: "past", at: Date.now() - 10 * 60e3, title: "x" }, { id: "", at: Date.now() + 5000, title: "x" }] });
   ok(bad.body.count === 2, "far-future, long-past and blank items are ignored");
 
+  // a refused push says why (Apple answers {"reason": ...})
+  mode = 403; reply = '{"reason":"BadJwtToken"}';
+  const tw = await post("test");
+  ok(tw.status === 502 && tw.body.ok === false && tw.body.why === "403 BadJwtToken", "a refused test says why: " + tw.body.why);
+  got.length = 0; mode = 201; reply = "";
   // a dead address (410) is dropped
   await post("cancel", { prefix: "shutdown:" });
   mode = 410;
