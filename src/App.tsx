@@ -15,6 +15,7 @@ import BodyScreen, { BodyFrame, TimerPill } from "./body/BodyScreen";
 import { Icon, type IconName } from "./ui/Icon";
 import { TestFlag } from "./screens/Testing";
 import { setTestingOn } from "./lib/testing";
+import { startBuzz } from "./lib/buzz";
 
 export default function App() {
   const c = cloud.use();
@@ -41,6 +42,20 @@ export default function App() {
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
+  // Buzzes: plan them (rest timer, shutdown), and open the right place when one is tapped.
+  useEffect(() => {
+    startBuzz();
+    const open = (href: string) => {
+      const what = new URL(href, location.origin).searchParams.get("open");
+      if (what === "body") goTab("body");
+      else if (what === "shutdown") { goTab("head"); openOverlay("shutdown"); }
+    };
+    if (location.search.includes("open=")) { open(location.href); history.replaceState(null, "", location.pathname); }
+    const msg = (e: MessageEvent) => { const d = e.data as { type?: string; url?: string } | null; if (d?.type === "nest-open" && d.url) open(d.url); };
+    navigator.serviceWorker?.addEventListener("message", msg);
+    return () => navigator.serviceWorker?.removeEventListener("message", msg);
+  }, []);
+
   // Scroll to top when switching tabs.
   useEffect(() => { window.scrollTo(0, 0); }, [tab]);
 
@@ -57,7 +72,7 @@ export default function App() {
   return (
     <ToastProvider>
       <div className="app">
-        <main className="main">
+        <main className="main" key={tab}>
           {tab === "today" && <Today pending={pending} online={online} onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}
           {tab === "head" && <HeadScreen />}
           {tab === "body" && <BodyScreen />}

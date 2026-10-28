@@ -21,7 +21,7 @@ export function Check(props: { on: boolean; onToggle: (v: boolean) => void; impo
   return (
     <button type="button" className={"ck" + (props.on ? " on" : "") + (props.square ? " sq" : "") + (props.important ? " imp" : "")}
       aria-pressed={props.on} aria-label={props.label ?? (props.on ? "Mark not done" : "Complete")}
-      onClick={(e) => { e.stopPropagation(); props.onToggle(!props.on); }}>
+      onClick={(e) => { e.stopPropagation(); if (!props.on) e.currentTarget.setAttribute("data-pop", ""); props.onToggle(!props.on); }}>
       {props.on ? "✓" : ""}
     </button>
   );
@@ -78,7 +78,7 @@ export function metaFor(t: Task, data: HeadData, opts: { showWhen?: boolean; sho
   const { showWhen = true, showHome = true } = opts;
   const out: string[] = [];
   const td = C.today();
-  if (showWhen && t.when && !t.someday) out.push((t.when < td ? "⚠ " : "📅 ") + C.relLabel(t.when) + (t.time ? " " + C.fmtTime(t.time) : t.tod && t.tod !== "morning" ? " · " + t.tod : ""));
+  if (showWhen && t.when && !t.someday) out.push((t.when < td ? "⏰ " : "📅 ") + C.relLabel(t.when) + (t.time ? " " + C.fmtTime(t.time) : t.tod && t.tod !== "morning" ? " · " + t.tod : ""));
   if (t.due) out.push((t.due <= td ? "🚩 " : "⚑ ") + C.relLabel(t.due));
   if (t.repeat) out.push("↻");
   if (t.waiting) out.push("⏳ " + t.waiting.who);

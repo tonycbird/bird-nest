@@ -1,5 +1,30 @@
 # Progress
 
+## Phase 5 — Polish · built Oct 28 (phone check next)
+Buzzing on a locked phone, warmer words, small motion, and a speed check.
+
+### Setup (Anthony, once)
+1. Push "Phase 5 polish" with GitHub Desktop, and wait for Cloudflare → bird-nest → Deployments to show it finished. (Before this push the site is "static assets only", and Cloudflare won't take a secret.)
+2. Cloudflare → Workers & Pages → **bird-nest** → Settings → Variables and Secrets → **Add** → Type **Secret**, name `VAPID_PRIVATE`, value = the one line in `supabase/local/cloudflare-push-secret.txt` on the Mac → Deploy. (The public half is already in `wrangler.jsonc`.)
+3. On the iPhone, open Nest from the Home Screen → Settings → Buzz → **Turn on buzzing** → Allow → **Test**, then lock the phone.
+
+### Done
+- [x] Buzz (Settings): rest timer done and shutdown, even with the phone locked. A small helper on Cloudflare (`worker/`, one Durable Object per phone) holds the phone's push address and wakes with an alarm on the exact second. Free plan
+- [x] Rest timer: plans the buzz when rest starts, moves it on ±15, cancels it on skip. Warm-up timers buzz too ("Walk done — go"); holds don't. Tapping it opens Body
+- [x] Shutdown: once each evening at the shutdown time, not on off days, not after you've shut down. Tapping it opens Shutdown
+- [x] Push is locked end to end (aes128gcm) and signed (VAPID); the helper only talks to real push services; each phone has its own id and key
+- [x] Words: no screen has a paragraph (the audit crawler now checks: over 16 words or 3 sentences); long task titles show two lines in lists
+- [x] Voice: "1 earlier", not "1 late"; a clock, not a warning sign; "Skipped", not "Missed"; "Was due", not "Late"; "Make up a workout"; empty Today says "A clear day"; empty groceries say "All stocked"
+- [x] Motion: screens ease in, checks pop when you tap them (not when a list just draws), buttons press in. Off when the iPhone asks for less motion
+- [x] Speed: warm open draws Today in ~80 ms (Chromium, full speed) and ~350 ms with the CPU slowed 10×; Body loads 1.5 s later so Today paints first
+- [x] Tests: 148 unit (web push checked against node:crypto, buzz plans), Buzz e2e (stubbed iPhone push), helper integration test under `wrangler dev` with a fake push service (26 checks, decrypted with http_ece), audit crawler clean
+
+### Phone check (done when)
+- [ ] Test buzz arrives on the locked iPhone
+- [ ] Rest buzz arrives on time with the phone locked at the gym; skip cancels it
+- [ ] Shutdown buzz arrives at the shutdown time; tapping opens Shutdown
+- [ ] 7 days on Nest only, without opening the old apps
+
 ## Brain dump, rebuilt for project rants · Oct 22
 Rant about your jobs and your week, out loud or typed, one long run-on is fine. Nest splits it, writes each thing as a short task, files it, and offers new projects. All on the phone, offline.
 
@@ -147,7 +172,7 @@ Built Oct 15, 2026.
 - [x] Groceries merge into one list
 
 ### Not done in Phase 3 (and why)
-- Sound/vibration when rest ends while the phone is locked → needs push (Phase 5). On unlock it shows "Rest done — go"
+- Sound/vibration when rest ends while the phone is locked → done in Phase 5 (Settings → Buzz)
 - Two-way grocery ticks (Head ✓ → Fitness ✓) → one list lives in Head now; say if you want the Fitness checkboxes to follow
 - River ticks on lifts don't log sets (they need reps and weight) → use 🏋 Log
 
@@ -181,7 +206,7 @@ Built overnight Oct 15, 2026 (night shift, in Claude's cloud workspace; copied i
 - Claude's smarter ramble sort → Phase 4 (scheduled task proposal). On-device sort works now
 - Drag-to-reorder → use ☑ select → ⤒ to the top for now
 - Command palette (keyboard) and the 3-screen onboarding → low value on a phone; say if you want them
-- Evening shutdown reminder notification → Phase 5 (push). The Shutdown nudge shows in Head after shutdown time
+- Evening shutdown reminder notification → done in Phase 5 (Settings → Buzz)
 
 ### Phase 2 done-check (from BUILD.md)
 - [x] Every Clearhead box ticked (except the Phase 4 items above)

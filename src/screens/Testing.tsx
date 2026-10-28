@@ -113,7 +113,7 @@ export function TestingSettings() {
       <div className="lbl">Testing</div>
       <div className="card">
         <label className="kv"><span>Testing mode</span><input type="checkbox" checked={on} onChange={(e) => void setSetting("testing", e.target.checked)} /></label>
-        <p className="quiet" style={{ marginTop: 6 }}>Puts a flag on every screen. Tap it when something looks wrong or you're stuck. Drag it out of the way.</p>
+        <p className="quiet" style={{ marginTop: 6 }}>A flag on every screen. Tap it when something's off.</p>
       </div>
       {reports.length > 0 && (
         <>

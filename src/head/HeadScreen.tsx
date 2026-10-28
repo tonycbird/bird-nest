@@ -98,7 +98,7 @@ export function HeadSettingsView() {
       <PageHead kicker="⚙ Head" title="Settings" />
       <div className="lbl"><I n="upload" /> Clearhead</div>
       <div className="card">
-        <p className="quiet">In Clearhead: Settings <I n="arrow" /> Export JSON. Then pick that file here. Safe to run twice.</p>
+        <p className="quiet">Clearhead <I n="arrow" /> Settings <I n="arrow" /> Export JSON, then pick it here.</p>
         <button className="btn primary" style={{ marginTop: 10 }} onClick={() => file.current?.click()}><I n="upload" /> Import Clearhead backup</button>
         <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => void importFile(e.target.files?.[0])} />
         {result && <pre className="importres">{result}</pre>}
@@ -207,7 +207,7 @@ export default function HeadScreen() {
           {noAreas && r.view !== "settings" && <FirstRun />}
           {(r.view === "today" || r.view === "inbox") && <Rituals />}
           {DRILL.has(r.view) && <BackLink />}
-          {body}
+          <div className="view-in" key={r.view + (r.id ?? "")}>{body}</div>
         </>
       )}
       <BulkBar />

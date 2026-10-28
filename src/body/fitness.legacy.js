@@ -3288,8 +3288,8 @@ ACT.recapGrocery = d => { UI.gweek = d.d; UI.seg.meals = 'grocery'; goTab('meals
 VIEWS.recap = v => {
   const R = weekRecap(v.mon), cur = mondayOf(today()), end = addDays(v.mon, 6);
   const back = UI.tab === 'meals' ? 'Meals' : UI.tab === 'settings' ? 'Settings' : 'Workout';
-  const stateTxt = { done: 'Done', missed: 'Missed', left: 'Still to do' };
-  const liftRows = R.lifts.length ? R.lifts.map(x => `<div class="rc-row ${x.state}"><span class="rc-day">${DOW_SHORT[dow(x.d)]}</span><span class="rc-n">${esc(workoutById(x.w) ? workoutById(x.w).name : x.w)}${x.done ? `<small>${x.sets} sets</small>` : ''}</span>${x.state === 'done' ? `<span class="rc-ok">${ic('check', 16)}</span>` : pill(stateTxt[x.state], x.state === 'missed' ? 'coral' : '')}</div>`).join('') : '<p class="fine">No workouts this week.</p>';
+  const stateTxt = { done: 'Done', missed: 'Skipped', left: 'Still to do' };
+  const liftRows = R.lifts.length ? R.lifts.map(x => `<div class="rc-row ${x.state}"><span class="rc-day">${DOW_SHORT[dow(x.d)]}</span><span class="rc-n">${esc(workoutById(x.w) ? workoutById(x.w).name : x.w)}${x.done ? `<small>${x.sets} sets</small>` : ''}</span>${x.state === 'done' ? `<span class="rc-ok">${ic('check', 16)}</span>` : pill(stateTxt[x.state], '')}</div>`).join('') : '<p class="fine">No workouts this week.</p>';
   const prRows = R.prs.map(p => { const ex = EX[p.id]; const val = p.m.kind === 'sec' ? `${p.set.r}s hold` : p.m.kind === 'reps' ? `${p.set.r} reps` : `${fmtW(p.set.w)} × ${p.set.r}`; return `<div class="prrow">${ic('trophy', 18)}<div class="prrow-b"><b>${esc(ex.name)}</b><span>${val}</span></div><span class="fine">${DOW_SHORT[dow(p.date)]}</span></div>`; }).join('');
   const volDelta = R.llbs ? Math.round((R.lbs - R.llbs) / R.llbs * 100) : null;
   const mealsLabel = R.mdays.length === 7 ? 'Mon–Sun' : R.mdays.length ? `Mon–${DOW_SHORT[dow(R.mdays[R.mdays.length - 1])]}` : '';
@@ -4602,7 +4602,7 @@ function todayContent() {
     const when = mp ? (mp.day === t ? 'today' : DOW_LONG[dow(mp.day)]) : '';
     const how = !mp ? 'No open day this week without stacking the same muscles.'
       : `Best fit: <b>${when}</b>${mp.shifts ? ` · next ${mp.shifts === 1 ? 'workout slides' : mp.shifts + ' slide'} a day` : ''}`;
-    missHTML = `<div class="card note-card"><div class="lbl">${ic('calendar', 15)} Missed ${esc(mw.short)} · ${DOW_SHORT[dow(miss.date)]}</div><p class="fine">${how}</p>
+    missHTML = `<div class="card note-card"><div class="lbl">${ic('calendar', 15)} ${esc(mw.short)} from ${DOW_SHORT[dow(miss.date)]}</div><p class="fine">${how}</p>
       <div class="btnrow"><button class="btn2" data-a="${mp ? 'moveSheet' : 'skipMissed'}" data-d="${miss.date}">${mp ? 'Move…' : 'Skip it'}</button>${mp ? `<button class="btn" data-a="pushBack" data-d="${miss.date}">Fit it in${when === 'today' ? ' today' : ''}</button>` : `<button class="btn" data-a="moveSheet" data-d="${miss.date}">Move…</button>`}</div></div>`;
   }
   let flow = '';

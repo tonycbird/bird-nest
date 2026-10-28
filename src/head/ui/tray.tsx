@@ -34,7 +34,7 @@ export function HeadTray({ day }: { day: string }) {
         </div>
       ))}
       <div className="chips" style={{ marginTop: 8 }}>
-        {overdue.length > 0 && <button className="chip" onClick={() => { go("today"); goTab("head"); }}><I n="warn" /> {overdue.length} from earlier</button>}
+        {overdue.length > 0 && <button className="chip" onClick={() => { go("today"); goTab("head"); }}><I n="later" /> {overdue.length} from earlier</button>}
         {inbox > 0 && <button className="chip" onClick={() => openOverlay("process")}><I n="inbox" /> {inbox} to sort</button>}
       </div>
     </section>

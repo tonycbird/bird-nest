@@ -14,6 +14,7 @@ import { fitApi } from "../body/host";
 import { goTab, openTask, useHeadSettings } from "../head/useHead";
 import { placeTimedTasks } from "../head/river-bridge";
 import { acceptEvent, acceptedOn } from "../lib/calendar-accept";
+import { justDone, markJustDone } from "../lib/motion";
 import { I, Icon } from "../ui/Icon";
 import { blockLook, colorFor, taskIcon } from "../ui/colors";
 
@@ -165,7 +166,7 @@ export default function Today(props: Props) {
 
       {blocks.length === 0 ? (
         <div className="empty" style={rows.length ? { paddingTop: 28 } : undefined}>
-          {rows.length === 0 && <><div className="big"><Icon n="nest" size={38} /></div><h2>Nothing planned</h2><p className="detail">Add a block, or start from a sample.</p></>}
+          {rows.length === 0 && <><div className="big"><Icon n="nest" size={38} /></div><h2>A clear day</h2><p className="detail">Add a block, or start from a sample.</p></>}
           <div className="stack" style={{ marginTop: 18, maxWidth: 280, marginInline: "auto" }}>
             <button className="btn primary" onClick={() => setSheet({})}><I n="plus" tone={false} /> Block</button>
             <button className="btn" onClick={async () => toast("📋 Copied", await copyDay(addDays(day, -1), day))}><I n="copy" /> Copy yesterday</button>
@@ -278,11 +279,11 @@ function BlockRow(props: { b: RiverBlock; isNow: boolean; isToday: boolean; nowM
   }
   const sub = done ? "" : skipped ? "Skipped" : [b.doneCount > 0 && n ? `${b.doneCount}/${n}` : "", b.end ? dur(e - s) : n ? `${n} steps` : ""].filter(Boolean).join(" · ");
 
-  async function finish() { toast("✓ Done", await completeBlock(b.id)); }
-  async function tick(id: string) { const r = await toggleStep(id); if (r.blockDone) toast("✓ Block done", r.undo); }
+  async function finish() { markJustDone(b.id); toast("✓ Done", await completeBlock(b.id)); }
+  async function tick(id: string) { markJustDone(b.id); const r = await toggleStep(id); if (r.blockDone) toast("✓ Block done", r.undo); }
 
   const ring = done
-    ? <span className="ring on" aria-label="Done"><Icon n="tick" size={16} tone={false} /></span>
+    ? <span className="ring on" aria-label="Done" data-pop={justDone(b.id) ? "" : undefined}><Icon n="tick" size={16} tone={false} /></span>
     : <button className="ring" aria-label={`Mark ${b.title} done`} onClick={finish} />;
 
   return (

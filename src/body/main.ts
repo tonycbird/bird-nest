@@ -11,7 +11,7 @@ let host: Host = null;
 try { host = window.parent !== window ? ((window.parent as unknown as { __nestFit?: Host }).__nestFit ?? null) : null; } catch { host = null; }
 
 // The old app asked its host for "db" and "downloads" (window.nest.use, renamed from the artifact API
-// in fitness.legacy.js — the only edit to that file). Nest answers instead.
+// in fitness.legacy.js). Nest answers instead. The only other edits there are a few words (Phase 5: "Skipped", not "Missed").
 (window as unknown as { nest: unknown }).nest = {
   use: async (name: string) => (host ? (name === "db" ? host.db : name === "downloads" ? host.downloads : null) : null),
 };

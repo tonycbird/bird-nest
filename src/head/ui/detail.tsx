@@ -238,7 +238,7 @@ export function TaskDetail({ task: t }: { task: Task }) {
       <div className="props">
         <Prop icon={t.someday ? "💤" : "📅"} label="When" value={whenLabel} placeholder="Anytime" hot={t.when === td}
           onClick={() => A.schedule(t.id)} onClear={() => H.updateTask(t.id, { when: null, tod: null, time: null, someday: false })} />
-        <Prop icon="⚑" label="Deadline" value={t.due ? C.longLabel(t.due) + (C.diffDays(td, t.due) < 0 ? " · late" : "") : null} placeholder="None" hot={!!t.due && C.diffDays(td, t.due) <= 1}
+        <Prop icon="⚑" label="Deadline" value={t.due ? C.longLabel(t.due) + (C.diffDays(td, t.due) < 0 ? " · passed" : "") : null} placeholder="None" hot={!!t.due && C.diffDays(td, t.due) <= 1}
           onClick={() => A.setDue(t.id)} onClear={() => H.updateTask(t.id, { due: null })} />
         <Prop icon="↻" label="Repeat" value={t.repeat ? C.describeRule(t.repeat) : null} placeholder="No" onClick={() => A.setRepeat(t.id)} onClear={() => H.updateTask(t.id, { repeat: null })} />
         <Prop icon={project ? "📁" : area ? ic(area.icon) : "📥"} label="List" value={project ? `${project.name}${section ? " › " + section.name : ""}` : area ? area.name : null} placeholder="Inbox" onClick={() => A.move(t.id)} />

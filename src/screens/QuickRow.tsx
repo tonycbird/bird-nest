@@ -31,7 +31,7 @@ export default function QuickRow({ day, pending, onApprovals }: { day: string; p
       const icon = taskIcon(t.title, area?.icon);
       items.push({ key: t.id, icon, color: colorFor(icon, "head"), label: shortLabel(t.title), aria: t.title, run: () => openTask(t.id) });
     }
-    if (overdue.length) items.push({ key: "late", icon: "warn", color: "var(--warn-ink)", label: `${overdue.length} late`, run: () => { go("today"); goTab("head"); } });
+    if (overdue.length) items.push({ key: "late", icon: "later", color: "var(--c-head)", label: `${overdue.length} earlier`, run: () => { go("today"); goTab("head"); } });
     const inbox = C.selectInbox(data).length;
     if (inbox) items.push({ key: "inbox", icon: "inbox", color: colorFor("inbox"), label: `${inbox} to sort`, run: () => openOverlay("process") });
     if (s.lastPlan !== C.today() && (main.length || overdue.length || inbox)) items.push({ key: "plan", icon: "morning", color: colorFor("morning"), label: "Plan", run: () => openOverlay("plan") });

@@ -103,7 +103,7 @@ export function TodayView({ data, s }: ViewProps) {
       {overdue.length > 0 && (
         <section className="hsec over">
           <div className="sec-head" role="button" onClick={() => setOpenOver(!overOpen)}>
-            <span><I n="warn" /></span><span className="grow">From earlier · {overdue.length}</span>
+            <span><I n="later" /></span><span className="grow">From earlier · {overdue.length}</span>
             <button className="btn sm" onClick={async (e) => {
               e.stopPropagation();
               const us: H.Undo[] = [];

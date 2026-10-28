@@ -292,3 +292,18 @@ html.quiet .detail{display:none !important;}
 /* The toast moves out of the way: above the rest-timer pill, and to the top inside the step player. */
 body:has(.timer-pill) .toast{bottom:calc(152px + env(safe-area-inset-bottom,0px));}
 body:has(.player) .toast{bottom:auto; top:calc(72px + env(safe-area-inset-top,0px));}
+
+/* ---------- Motion (Phase 5): small and quick, never in the way. Off when the iPhone asks for less motion. ---------- */
+@keyframes enter{from{opacity:0; transform:translateY(6px)}}
+@keyframes pop{0%{transform:scale(.72)} 55%{transform:scale(1.14)} 100%{transform:scale(1)}}
+.main, .view-in{animation:enter .22s cubic-bezier(.2,.8,.2,1);}
+.ck, .ring{transition:background-color .18s ease, border-color .18s ease;}
+.ck.on[data-pop], .ring.on[data-pop]{animation:pop .36s cubic-bezier(.3,1.5,.5,1);}
+.btn, .chip, .qc, .tab, .seg button, .iconbtn{transition:transform .12s ease, background-color .18s ease, color .18s ease;}
+.btn:active, .chip:active, .qc:active, .iconbtn:active{transform:scale(.96);}
+.tab:active svg{transform:scale(.9);}
+.tab svg{transition:transform .18s ease;}
+.tab.on svg{transform:translateY(-1px);}
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
+}

@@ -10,6 +10,7 @@ import { CLOUD } from "../lib/supabase";
 import { cloud, cloudCounts, restoreFromCloud, signOut as cloudSignOut, stuckRows, syncNow } from "../lib/sync";
 import SignIn from "./SignIn";
 import { TestingSettings } from "./Testing";
+import { BuzzCard } from "./BuzzCard";
 import { useToast } from "../lib/toast";
 import { go, goTab } from "../head/useHead";
 import { getMode, setMode, onTheme, resolve, sunLabel, type ThemeMode } from "../lib/theme";
@@ -80,6 +81,7 @@ export default function Settings(props: { email: string; online: boolean }) {
       </header>
 
       <Look />
+      <BuzzCard />
       <TestingSettings />
 
       <div className="lbl">Your data</div>

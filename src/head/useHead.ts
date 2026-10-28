@@ -34,6 +34,8 @@ export function createStore<T>(initial: T) {
       subs.forEach((f) => f());
     },
     use: (): T => useSyncExternalStore((cb) => { subs.add(cb); return () => subs.delete(cb); }, () => state, () => state),
+    /** For code outside React: called after every change. Returns the unsubscribe. */
+    subscribe: (cb: () => void): (() => void) => { subs.add(cb); return () => { subs.delete(cb); }; },
   };
 }
 

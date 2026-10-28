@@ -106,6 +106,20 @@ function checks() {
   const em = []; let n;
   while ((n = tw.nextNode())) { if (/\p{Extended_Pictographic}/u.test(n.textContent) && n.parentElement && vis(n.parentElement) && !/^[✓✕→←↑↓×·•…⋯]+$/.test(n.textContent.trim())) em.push(n.textContent.trim().slice(0, 30)); }
   if (em.length) out.push({ kind: 'emoji', msg: `${em.length} raw emoji on screen`, detail: [...new Set(em)].slice(0, 5).join(' | ') });
+  // 7) Words (Phase 5): no paragraphs, no nagging. Only Nest's own words: what you typed doesn't count.
+  const isBlock = (e) => /^(block|flex|grid|table|list-item)$/.test(getComputedStyle(e).display);
+  const mine = (e) => e.closest('input, textarea, [contenteditable], .notes, .t-notes, .note-body, .d-in, .report-text, .trow, .lightbox, .qa-mirror');
+  const paras = [], nags = [];
+  for (const el of [...scope.querySelectorAll('p, div, span, small, li, label, h2, h3')].filter(vis)) {
+    if (!isBlock(el) || mine(el) || [...el.children].some(isBlock) || getComputedStyle(el).webkitLineClamp !== 'none') continue;
+    const text = (el.innerText || '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    const words = text.split(' ').length, sentences = (text.match(/[.!?](\s|$)/g) || []).length;
+    if (words > 16 || sentences > 2) paras.push(`${words}w: "${text.slice(0, 90)}"`);
+    if (/\b(missed|overdue|failed|you forgot|forgot to|fell behind|behind on|should have|you didn'?t|lazy|don'?t forget|you need to|must)\b/i.test(text)) nags.push(`"${text.slice(0, 90)}"`);
+  }
+  if (paras.length) out.push({ kind: 'paragraph', msg: `${paras.length} block(s) of text too long`, detail: [...new Set(paras)].join(' | ') });
+  if (nags.length) out.push({ kind: 'voice', msg: `${nags.length} naggy line(s)`, detail: [...new Set(nags)].join(' | ') });
   return out;
 }
 

@@ -36,7 +36,9 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: "/index.html",
         // Supabase calls are never cached by the service worker; Dexie is the offline copy.
-        navigateFallbackDenylist: [/^\/auth/, /^\/body/],
+        navigateFallbackDenylist: [/^\/auth/, /^\/body/, /^\/api\//],
+        // Buzzes from the helper (worker/) arrive here: public/push-sw.js.
+        importScripts: ["push-sw.js"],
         // The Fitness script carries its exercise, stretch and food libraries, so it's big.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }

@@ -33,7 +33,7 @@ function title(p: Proposal): string {
   if (p.kind === "grocery") return `Groceries · ${list(P.items).length}`;
   if (p.kind === "rollover") return "Move to tomorrow";
   if (p.kind === "recap") return "Today's recap";
-  if (p.kind === "makeup") return "Make up the missed workout";
+  if (p.kind === "makeup") return "Make up a workout";
   if (p.kind === "weekly_review") return "Weekly review";
   if (p.kind === "ramble_split") return `Tasks from a ramble · ${list(P.tasks).length}`;
   return p.kind.replace(/_/g, " ");

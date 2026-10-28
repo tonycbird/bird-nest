@@ -114,7 +114,7 @@ type Dump = ReturnType<typeof useDump>;
 function WriteStep({ d, bare }: { d: Dump; bare?: boolean }) {
   return (
     <>
-      {!bare && <><h2>Empty your head</h2><p className="lede">Type or talk. Run-on is fine. Nest sorts it into tasks, days and projects.</p></>}
+      {!bare && <><h2>Empty your head</h2><p className="lede">Type or talk, run-on is fine. Nest sorts it.</p></>}
       <textarea className="dump" autoFocus aria-label="Brain dump" value={d.text} onChange={(e) => d.setText(e.target.value)}
         placeholder={"for the smith job pick up trim tomorrow then install it thursday, call dave about the quote because he wasn't sure on paint, out of milk and diapers, greek reading due friday…"} />
       {d.dict.interim && <p className="quiet" style={{ marginTop: 6 }}>{d.dict.interim}…</p>}
@@ -163,7 +163,7 @@ function SortStep({ d }: { d: Dump }) {
   return (
     <>
       <h2>{d.kept.length} {d.kept.length === 1 ? "thing" : "things"}</h2>
-      <p className="lede">Tap a name to fix it. <I n="arrow" /> moves it. Uncheck to leave it out.</p>
+      <p className="lede">Tap to fix · <I n="arrow" /> to move · uncheck to skip</p>
       {offered.map((pr) => {
         const steps = items.filter((i) => i.newProject === pr.key);
         return (

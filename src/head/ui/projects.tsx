@@ -32,7 +32,7 @@ function ProjectCard({ p, data }: { p: Project } & Pick<ViewProps, "data">) {
       <div className="row"><Ring pct={st.pct} size={28} /><b className="grow">{p.name}</b></div>
       {a && <div className="quiet">{ic(a.icon)} {a.name}</div>}
       <div className="pc-next">{next ? <><span className="quiet">Next <I n="chevR" /></span> {next.title}</> : <span className="stalled"><I n="pause" /> No next step</span>}</div>
-      {p.deadline && <span className={"pill" + (dd! <= 7 ? " warn" : "")}><I n="flag" /> {dd! < 0 ? "Late" : C.relLabel(p.deadline)}</span>}
+      {p.deadline && <span className={"pill" + (dd! <= 7 ? " warn" : "")}><I n="flag" /> {dd! < 0 ? "Was due" : C.relLabel(p.deadline)}</span>}
     </button>
   );
 }
@@ -269,7 +269,7 @@ export function GroceryList({ area, data }: { area: Area } & Pick<ViewProps, "da
           }}><I n="home" /></button>}
         </div>
       </div>
-      {!open.length && !checked.length && <Empty icon="🛒" title="List is empty" />}
+      {!open.length && !checked.length && <Empty icon="🛒" title="All stocked" />}
       {groups.map((g) => <section key={g.key} className="hsec"><div className="sec-head"><span className="grow">{g.name}</span><span className="quiet">{g.ts.length}</span></div>{g.ts.map(row)}</section>)}
       {checked.length > 0 && <section className="hsec"><div className="sec-head"><span className="grow quiet"><I n="groceries" /> In the cart</span></div>{checked.map(row)}</section>}
     </div>

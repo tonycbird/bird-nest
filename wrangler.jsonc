@@ -1,11 +1,27 @@
-// Cloudflare deploy settings. Bird Nest is a static app: the build makes dist/, Cloudflare serves it.
-// The name must match the project name in the Cloudflare dashboard.
+// Cloudflare deploy settings. The build makes dist/ and Cloudflare serves it as plain files.
+// The only code that runs on Cloudflare is the small helper in worker/ (it answers /api/* and
+// sends the phone its buzzes). The name must match the project name in the Cloudflare dashboard.
 {
   "name": "bird-nest",
+  "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
   "assets": {
     "directory": "./dist",
-    // Any unknown path opens the app (it's a single-page app).
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    // Any unknown path opens the app (it's a single-page app)...
+    "not_found_handling": "single-page-application",
+    // ...except /api/*, which goes to the helper.
+    "run_worker_first": ["/api/*"]
+  },
+  // One small Notifier per phone: its push address and the buzzes waiting to go out.
+  "durable_objects": {
+    "bindings": [{ "name": "NOTIFIER", "class_name": "Notifier" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Notifier"] }],
+  "vars": {
+    // Public half of the push key (safe to share). The private half is the VAPID_PRIVATE secret,
+    // set once in the Cloudflare dashboard. Without it, buzzing just says "not set up yet".
+    "VAPID_PUBLIC": "BKZwSlQVDtjTGOIi94ZgiuoNEfRF3gxNpaZXqXXb25BhMSFzXc20WTrT4vPvIcIWFnXplUQK--f3y8HpKfZP6Ps",
+    "VAPID_SUBJECT": "https://bird-nest.tonyc-bird.workers.dev"
   }
 }
