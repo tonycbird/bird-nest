@@ -35,6 +35,7 @@ const WORDS: [RegExp, IconName][] = [
   [/\b(pay|bill|invoice|rent|avista|insurance|tax|taxes)\b/i, "bill"],
   [/\b(budget|bank|deposit|money)\b/i, "coin"],
   [/\b(grocer|groceries|winco|costco|walmart|safeway|fred meyer|shopping|store)\b/i, "groceries"],
+  [/\b(?:coffee|cafe|latte|espresso|starbucks|dutch bros)\b|\bcafé/i, "coffee"],
   [/\b(email|e-mail|mail|reply|respond)\b/i, "mail"],
   [/\b(quote|estimate|bid|proposal|contract)\b/i, "doc"],
   [/\b(fix|repair|install|replace|build|paint|patch|wire|wiring|hvac|plumb)/i, "job"],

@@ -59,3 +59,4 @@
 | 2026-10-22 | A Head task with a day and a time shows on that day's River by itself, once | Anthony chose "River + Head" for timed things; Google Calendar is untouched. Removing the block keeps it off. |
 | 2026-10-22 | Calendar items on Today are suggestions; hold one to accept it | Most shared-calendar items (sabbaticals, other people's days off) aren't his. Faded and small until held; a timed one becomes a River block, an all-day one a task that day. Deleting it un-accepts. |
 | 2026-10-22 | New app icon: a white monoline B on the teal gradient | Anthony passed on four concepts and asked for a B. Same teal as before, so it still reads as Nest. |
+| 2026-10-22 | A coffee icon (people green) for anything with coffee, café, Starbucks or Dutch Bros in it | Anthony has a lot of coffee meetings. It wins over the plain calendar icon; "out of coffee" still goes to the shopping list. The block picker swaps the map pin for it to keep three even rows. |

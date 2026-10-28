@@ -8,6 +8,7 @@ import { addBlock, MAX_STEPS, setBlockDoneHandler, setStepHandler, softDelete, t
 import { minutes as toMin, nowHHMM, today as riverToday } from "../lib/time";
 import type { Task } from "./types";
 import { ic } from "./ui/bits";
+import { taskIcon } from "../ui/colors";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const hhmm = (m: number) => `${pad(Math.floor(Math.min(m, 23 * 60 + 45) / 60))}:${pad(Math.min(m, 23 * 60 + 45) % 60)}`;
@@ -27,6 +28,7 @@ async function kindAndIcon(t: Task): Promise<{ kind: Kind; icon: string }> {
   const data = await H.loadData();
   const area = C.areaOfTask(t, data);
   if (t.grocery || area?.listMode === "groceries") return { kind: "life", icon: "🛒" };
+  if (taskIcon(t.title) === "coffee") return { kind: "life", icon: "coffee" }; // coffee meetings look like coffee
   if (area && /handyman|business/i.test(area.name)) return { kind: "life", icon: "🔨" };
   if (area && /family|home/i.test(area.name)) return { kind: "life", icon: ic(area.icon) };
   return { kind: "head", icon: area ? ic(area.icon) : "🧠" };

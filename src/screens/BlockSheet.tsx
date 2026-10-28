@@ -13,7 +13,7 @@ const KINDS: { k: Kind; label: string }[] = [
 const PICK: IconName[] = [
   "lift", "warmup", "stretch", "timer", "meal", "sleep", "morning", "study",
   "head", "doc", "job", "briefcase", "laptop", "mail", "call", "person",
-  "home", "groceries", "drive", "place", "bill", "coin", "church", "heart",
+  "home", "groceries", "drive", "coffee", "bill", "coin", "church", "heart",
 ];
 
 function roundUp(hhmm: string): string {

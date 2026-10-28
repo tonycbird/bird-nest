@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, test } from "vitest";
 import * as C from "../src/head/core/clearhead.js";
 import { planDump, type DumpItem } from "../src/head/dump-sort";
 import type { HeadData } from "../src/head/types";
+import { taskIcon } from "../src/ui/colors";
+import { iconName } from "../src/ui/glyphs";
 
 /* Rants the way Anthony talks, against his real lists. Thu Oct 22, 2026, 9:00 AM. */
 beforeAll(() => { C.setNow(new Date(2026, 9, 22, 9, 0)); });
@@ -212,6 +214,28 @@ describe("dictation: one long run-on, no commas", () => {
     expect(find(items, "Sermon notes").due).toBe("2026-10-24");
     expect(find(items, "Meet with Pastor Mike").time).toBe("12:00");
     expect(items).toHaveLength(2);
+  });
+});
+
+describe("coffee meetings", () => {
+  test("they get the coffee icon and keep short titles", () => {
+    const a = find(plan("Coffee with Mark Tuesday at 9").items, "Coffee with Mark");
+    expect(a.when).toBe("2026-10-27");
+    expect(a.time).toBe("09:00");
+    expect(taskIcon(a.title)).toBe("coffee");
+    expect(taskIcon(find(plan("Meet Jon for coffee at 2 tomorrow").items, "Meet Jon for coffee").title)).toBe("coffee");
+    expect(taskIcon("Starbucks with Aaron")).toBe("coffee");
+    expect(taskIcon("Café with Dave")).toBe("coffee");
+    expect(taskIcon("Dentist appointment")).toBe("calendar");
+    expect(iconName("☕")).toBe("coffee");
+  });
+  test("what the meetup is for goes in the notes", () => {
+    const it = find(plan("coffee meeting with the Hendersons next week to go over the deck").items, "Coffee meeting");
+    expect(it.title).toBe("Coffee meeting with the Hendersons");
+    expect(it.notes).toMatch(/go over the deck/);
+  });
+  test("out of coffee is still shopping", () => {
+    expect(find(plan("We're out of coffee").items, "Coffee").dest).toBe("shop");
   });
 });
 

@@ -15,7 +15,7 @@ import { goTab, openTask, useHeadSettings } from "../head/useHead";
 import { placeTimedTasks } from "../head/river-bridge";
 import { acceptEvent, acceptedOn } from "../lib/calendar-accept";
 import { I, Icon } from "../ui/Icon";
-import { blockLook, colorFor } from "../ui/colors";
+import { blockLook, colorFor, taskIcon } from "../ui/colors";
 
 interface Props { pending: number; online: boolean; onSettings: () => void; onApprovals: () => void; }
 
@@ -393,7 +393,7 @@ function CalLine({ e, onAccept, onTap }: { e: CalEvent; onAccept: () => void; on
     <div className={"tr calline" + (holding ? " holding" : "")} role="button" tabIndex={0} aria-label={`${e.title}, from your calendar. Hold to add it to your day`}
       onKeyDown={(k) => { if (k.key === "Enter") onAccept(); }} {...handlers}>
       <div className="tr-time">{shortTime(e.start)}</div>
-      <div className="cl-dot"><Icon n="calendar" size={13} tone={false} /></div>
+      <div className="cl-dot"><Icon n={taskIcon(e.title, "calendar")} size={13} tone={false} /></div>
       <div className="cl-body"><span className="cl-fill" /><span className="cl-t">{e.title}</span>{en && en > s ? <span className="cl-d">{dur(en - s)}</span> : null}</div>
     </div>
   );

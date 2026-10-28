@@ -73,7 +73,7 @@ Picked on the design canvas: **G** (Bloom timeline + Flow's task circles), color
 
 - [x] Two looks: **Mist** (light, airy) from sunrise to sunset, **Dusk** (soft slate) at night. Sun times worked out on the phone for Coeur d'Alene. ⚙ → Look: Follow the sun / Light / Dark
 - [x] One color per life area everywhere: body teal, stretch sky, warm-up peach, head violet, money gold, people green, home pink, rest indigo, calendar gray
-- [x] 83 Nest icons drawn for the app (`src/ui/icons.ts`). Any emoji that reaches the screen (old blocks, Claude's plans, toasts, areas) is swapped for a Nest icon by the JSX runtime (`src/jsx`)
+- [x] 85 Nest icons drawn for the app (`src/ui/icons.ts`); "coffee" added Oct 22 for coffee meetings (task words, River blocks, calendar lines, block picker in place of the map pin). Any emoji that reaches the screen (old blocks, Claude's plans, toasts, areas) is swapped for a Nest icon by the JSX runtime (`src/jsx`)
 - [x] Font: Plus Jakarta Sans (bundled, works offline)
 - [x] Today: big date, week tiles with color bars (swipe for other weeks), task circles (Claude, today's workout, Head tasks, late, to sort, Plan), pill timeline, now card with the current step + Start, "2/5 ⌄" opens all steps, free gaps, small faded calendar lines
 - [x] Tab bar: Today · Head · ＋ · Body · Claude

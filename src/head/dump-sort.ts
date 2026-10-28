@@ -276,6 +276,9 @@ const PHRASES: [RegExp, string][] = [
 ];
 /* Why and when-if words: they matter, but in the notes, not the title. */
 const REASON = /\s+(?:because|cause|'cause|cuz|since|so that|so i can|so we can|so he can|so she can|so they can|so it can|in order to|that way|which|otherwise|just in case|in case)\b/i;
+/* "Coffee with Mark to go over the deck": for a meetup, the purpose is notes. */
+const MEETUP = /\b(?:coffee|lunch|breakfast|dinner|drinks|meet|meeting|starbucks|dutch bros)\b/i;
+const PURPOSE = /\s+to\s+(?:go over|talk about|talk through|talk|discuss|catch up|plan|review|look at|figure out)\b/i;
 const COND = /\s+(?:once|as soon as|whenever|if|unless|until|when)\s+(?!(?:mon|tue|wed|thu|fri|sat|sun)\w*\b|tomorrow\b|today\b|tonight\b|next\b|lunch\b|dinner\b|breakfast\b)/i;
 const BREAKS = new Set(["at", "in", "on", "for", "with", "from", "to", "about", "under", "near", "by", "so", "and", "while", "during", "over", "into", "before", "after"]);
 const PARTICLES = new Set(["up", "off", "out", "down", "back", "over", "in", "away", "together", "through"]);
@@ -800,6 +803,8 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
     let moved = false;
     const r = isMsg ? null : title.match(REASON) ?? (/\?$/.test(title) ? null : title.match(COND));
     if (r && r.index! >= 6) { title = title.slice(0, r.index).trim(); moved = true; }
+    const pur = !isMsg && MEETUP.test(title) ? title.match(PURPOSE) : null;
+    if (pur && pur.index! >= 6) { title = title.slice(0, pur.index).trim(); moved = true; }
     title = title.replace(FILL_MID, "").replace(/\s+/g, " ").trim();
     for (const [re, to] of PHRASES) title = title.replace(re, to);
     // "for the Jon Wolfe project" in the title is said by the project chip already.

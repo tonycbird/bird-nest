@@ -6,7 +6,7 @@ export const EMOJI: Record<string, IconName> = {
   "→": "arrow", "➤": "arrow", "↪": "arrow", "⤼": "skip", "↻": "refresh", "🔁": "swap", "⇄": "swap", "↺": "undo",
   "⬆": "upload", "⬇": "download", "＋": "plus", "⋯": "more", "…": "more", "‹": "chevL", "›": "chevR", "▶": "play",
   "⏸": "pause", "ⓘ": "info", "⚙": "settings", "⎋": "signout", "🔑": "key", "🔍": "search", "☁": "sync", "📶": "sync",
-  "☀": "today", "🌅": "morning", "🌙": "sleep", "💤": "sleep", "🛏": "sleep", "🛋": "weekend", "🏡": "home", "☕": "pause", "📆": "calendar", "🧺": "groceries", "⏻": "shutdown", "🔕": "quiet", "📵": "quiet", "🧭": "compass",
+  "☀": "today", "🌅": "morning", "🌙": "sleep", "💤": "sleep", "🛏": "sleep", "🛋": "weekend", "🏡": "home", "☕": "coffee", "📆": "calendar", "🧺": "groceries", "⏻": "shutdown", "🔕": "quiet", "📵": "quiet", "🧭": "compass",
   "🧠": "head", "📥": "inbox", "⭐": "star", "📅": "calendar", "🗓": "calendar", "🗂": "layers", "📁": "project", "▣": "project",
   "⏳": "waiting", "✦": "sort", "🗣": "talk", "💬": "talk", "🎙": "mic", "📷": "camera", "✏": "edit", "✎": "edit", "📋": "copy",
   "⚑": "flag", "🚩": "flag", "🎯": "target", "⚡": "bolt", "🔋": "bolt", "⏱": "timer", "⏰": "later", "🕓": "later", "🕘": "later",
