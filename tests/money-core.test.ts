@@ -2,7 +2,8 @@
 import { describe, expect, test } from "vitest";
 import * as bird from "../claude/tools/money.mjs";
 import {
-  SKIP, buildSetup, hintEnvelope, learnMerchants, merchantKey, nestSummary, planFor, ruleFor, sortOf, storeKeyFor, summarize, tidyPayee,
+  SKIP, buildSetup, hintEnvelope, isBankAdjustment, keywordEnvelope, learnMerchants, makeCtx, matchHistory, merchantKey, mixedFor, nestSummary, payPeriod, paydays,
+  planFor, ruleFor, sortOf, storeKeyFor, summarize, tidyPayee,
 } from "../src/lib/money-core.js";
 
 /* Made-up household (no real numbers), the same shapes as Bird Budgeting and Plaid. */
@@ -127,7 +128,7 @@ describe("the summary from Nest's own data", () => {
 
 describe("the one-time move from Bird Budgeting", () => {
   const bb = {
-    categories: [{ id: "groceries", name: "Groceries", group: "food", order: 0 }, { id: "gas", name: "Household Gas", group: "housing", order: 3 }, { id: "chase", name: "Chase Card", group: "debtsave" }, { id: "x", name: "Debt (split up)", group: "debtsave", archived: true }],
+    categories: [{ id: "groceries", name: "Groceries", group: "food", order: 0, keywords: ["Walmart", "winco"] }, { id: "gas", name: "Household Gas", group: "housing", order: 3 }, { id: "chase", name: "Chase Card", group: "debtsave", target: 90, priority: "payoff" }, { id: "x", name: "Debt (split up)", group: "debtsave", archived: true }],
     groups: [{ id: "g1", name: "Salt and Light", isIncome: false }],
     budgets: [{ id: "2026-08", allocations: { groceries: 400 } }, { id: "2026-09", allocations: { groceries: 450 } }, { id: "2026-10", allocations: { groceries: 500, nope: 5 }, carryover: {} }],
     recurring: [
@@ -137,11 +138,14 @@ describe("the one-time move from Bird Budgeting", () => {
       { id: "c2", type: "expense", name: "Chase Prime Visa", amount: 172.65, dueDay: 7, cadence: "monthly", categoryId: "chase" },
       { id: "p", type: "income", name: "Pay", amount: 1500, cadence: "biweekly", anchorDate: "2026-04-03" },
     ],
-    billMarks: [{ recurringId: "a2", month: "2026-10", kind: "manual" }],
+    billMarks: [{ recurringId: "a2", month: "2026-10", kind: "linked", txnId: "av" }],
     labelRules: [{ key: "winco foods", categoryId: "groceries" }, { key: "anchored coffee", categoryId: "" }],
     transactions: [
       { payee: "Fred Meyer", categoryId: "groceries" }, { bankPayee: "Point Of Sale Withdrawal Fred Meyer", payee: "Fred Meyer", categoryId: "groceries" },
       { payee: "Venmo Tommy Greene", categoryId: "groceries" }, { payee: "WinCo Foods", categoryId: "gas" },
+      { id: "av", date: "2026-10-03", amount: -31.91, payee: "Payment to Avista", categoryId: "gas" },
+      { date: "2026-10-01", amount: -1500, payee: "Rent" },
+      { date: "2026-09-02", amount: -20, payee: "Walmart", categoryId: "groceries" }, { date: "2026-09-09", amount: -30, payee: "Walmart", categoryId: "gas" },
     ],
   };
   const s = buildSetup(bb, "2026-10-29T00:00:00Z");
@@ -156,9 +160,118 @@ describe("the one-time move from Bird Budgeting", () => {
     expect(s.bills.map((b) => b.id).sort()).toEqual(["a2", "c2", "p"]);
   });
   test("store rules: its saved labels with an envelope, then what the ledger agrees on (never Venmo)", () => {
-    expect(s.labels).toEqual([{ key: "winco foods", categoryId: "groceries" }, { key: "fred meyer", categoryId: "groceries" }]);
+    // Walmart (filed two ways) and Venmo are never learned; "Payment to Avista" is a store and is.
+    expect(s.labels).toEqual([{ key: "winco foods", categoryId: "groceries" }, { key: "fred meyer", categoryId: "groceries" }, { key: "payment to avista", categoryId: "gas" }]);
   });
-  test("no transactions are copied", () => {
-    expect(JSON.stringify(s)).not.toMatch(/Tommy|Point Of Sale/);
+  test("history: date, cents, envelope and a short name only (never the bank's full text)", () => {
+    expect(s.history).toContainEqual(["2026-10-01", -150000, "", "Rent"]);
+    expect(JSON.stringify(s.history)).not.toMatch(/Point Of Sale/);
+    expect(s.history.every((h) => h.length === 4 && h[3].length <= 28)).toBe(true);
+  });
+  test("keywords, target and priority come along; a linked paid mark becomes the payment it found", () => {
+    expect(s.envelopes[0].keywords).toEqual(["walmart", "winco"]);
+    expect(s.envelopes[2]).toMatchObject({ target: 90, priority: "payoff" });
+    expect(s.marks).toEqual([{ billId: "a2", month: "2026-10", kind: "manual", amount: 31.91, date: "2026-10-03" }]);
+  });
+  test("a store filed more than one way is listed as mixed, with his picks", () => {
+    expect(s.mixed).toEqual({ walmart: { groceries: 1, gas: 1 } });
+  });
+});
+
+describe("sorting guards (no wrong envelopes)", () => {
+  const env = [
+    { key: "fees", name: "Overdraft Fees", group: "debtsave", order: 0, archived: false },
+    { key: "electric", name: "Electric", group: "housing", order: 0, archived: false, keywords: ["avista"] },
+    { key: "rent", name: "Mortgage / Rent", group: "housing", order: 1, archived: false, keywords: ["rent"] },
+    { key: "fuel", name: "Fuel", group: "transport", order: 0, archived: false, keywords: ["shell"] },
+    { key: "groceries", name: "Groceries", group: "food", order: 0, archived: false, keywords: ["walmart"] },
+    { key: "petty", name: "Petty Cash", group: "income", order: 0, archived: false, keywords: ["venmo"] },
+  ];
+  const ctx = makeCtx({ envelopes: env, labels: [{ key: "avista", categoryId: "electric" }], mixed: { walmart: { groceries: 3, household: 12 } } });
+  const t = (o) => ({ id: "x", account_id: "a", month: "2026-10", date: "2026-10-05", amount: -10, merchant: "", name: "", hint: "", ...o });
+  test("a bank fee goes to the fee envelope, never to the store it names", () => {
+    expect(isBankAdjustment("Overdraft Fee For 08/05 $34.95 Point Of Sale Withdrawal AVISTA")).toBe(true);
+    expect(sortOf(t({ merchant: "Avista", name: "Overdraft Fee For 08/05 $34.95 Point Of Sale Withdrawal 2735 AVISTA" }), ctx)).toEqual({ cat: "fees", how: "rule" });
+    expect(sortOf(t({ merchant: "Avista", hint: "BANK_FEES_INSUFFICIENT_FUNDS" }), ctx).cat).toBe("fees");
+    expect(sortOf(t({ merchant: "Avista", name: "AVISTA UTILITIES" }), ctx).cat).toBe("electric");
+  });
+  test("keywords match whole words: 'rent' doesn't catch Current, 'shell' does catch SHELL OIL", () => {
+    expect(keywordEnvelope(["Current Inc"], env)).toBe(null);
+    expect(sortOf(t({ merchant: "SHELL OIL 57444" }), ctx).cat).toBe("fuel");
+  });
+  test("spending never sorts itself into an income envelope (Venmo stays to sort)", () => {
+    expect(sortOf(t({ merchant: "Venmo", amount: -40 }), ctx).cat).toBe(null);
+    expect(sortOf(t({ merchant: "Venmo", amount: 40 }), ctx).cat).toBe("petty");
+  });
+  test("a store he files more than one way is asked, even with a keyword", () => {
+    expect(mixedFor({ merchant: "Walmart Supercenter", name: "" }, ctx.mixed)).toEqual({ groceries: 3, household: 12 });
+    expect(sortOf(t({ merchant: "Walmart Supercenter" }), ctx)).toEqual({ cat: null, how: null });
+  });
+});
+
+describe("Bird Budgeting's history onto the bank's copy", () => {
+  const hist = [
+    { date: "2026-10-02", cents: -167000, cat: "rent", name: "Rent" },
+    { date: "2026-10-03", cents: -3191, cat: "gas", name: "Avista" },
+    { date: "2026-10-04", cents: -1000, cat: "dining", name: "Coffee" },
+    { date: "2026-10-04", cents: -1000, cat: "fuel", name: "Gas" },
+    { date: "2026-10-06", cents: -2500, cat: "gifts", name: "Cash gift" },
+  ];
+  const bank = [
+    { id: "b1", date: "2026-10-02", amount: -1670 }, { id: "b2", date: "2026-10-05", amount: -31.91 },
+    { id: "b3", date: "2026-10-04", amount: -10 }, { id: "b4", date: "2026-10-04", amount: -10 },
+    { id: "b5", date: "2026-10-05", amount: -77.7 }, { id: "p", date: "2026-10-03", amount: -31.91, pending: true },
+  ];
+  const m = matchHistory(hist, bank);
+  test("same cents within 3 days, closest first; pending rows are never matched", () => {
+    expect(m.pairs.map((p) => p.txn + ":" + p.cat)).toEqual(["b1:rent", "b2:gas", "b3:dining", "b4:fuel"]);
+  });
+  test("what doesn't line up is listed, both ways, over the dates both have", () => {
+    expect(m.matched).toBe(4);
+    expect(m.total).toBe(5);
+    expect(m.onlyBird.map((e) => e.name)).toEqual(["Cash gift"]);
+    expect(m.onlyBank.map((t) => t.id)).toEqual(["b5"]);
+  });
+});
+
+describe("this paycheck", () => {
+  const pay = [
+    { id: "a", type: "income", name: "Anthony", amount: 1573.7, variesBy: 100, dueDay: 0, cadence: "biweekly", dueMonth: null, anchorDate: "2026-04-03", categoryId: "" },
+    { id: "b", type: "income", name: "Abigail", amount: 402.82, dueDay: 0, cadence: "biweekly", dueMonth: null, anchorDate: "2026-04-03", categoryId: "" },
+  ];
+  const bills = [...pay,
+    { id: "rent", type: "expense", name: "Mortgage / Rent", amount: 1670, dueDay: 2, cadence: "", dueMonth: null, anchorDate: "", categoryId: "rent" },
+    { id: "net", type: "expense", name: "Internet", amount: 65, dueDay: 28, cadence: "", dueMonth: null, anchorDate: "", categoryId: "internet" },
+    { id: "visa", type: "expense", name: "Visa Platinum", amount: 500, dueDay: 11, cadence: "", dueMonth: null, anchorDate: "", categoryId: "visa" },
+    { id: "water", type: "expense", name: "Water", amount: 165.83, dueDay: 11, cadence: "", dueMonth: null, anchorDate: "", categoryId: "water" },
+  ];
+  test("paydays: both paychecks on the same Friday add up", () => {
+    expect(paydays(bills, "2026-10-01", "2026-10-31")).toEqual([
+      { date: "2026-10-02", amount: 1976.52, upside: 100 }, { date: "2026-10-16", amount: 1976.52, upside: 100 }, { date: "2026-10-30", amount: 1976.52, upside: 100 }]);
+  });
+  const sorted = [
+    { id: "pay", date: "2026-10-16", amount: 1976.52, cat: "income", hint: "" },
+    { id: "net", date: "2026-10-28", amount: -65, cat: "internet" },
+    { id: "g", date: "2026-10-20", amount: -152.36, cat: "groceries" },
+    { id: "u", date: "2026-10-22", amount: -20, cat: null },
+    { id: "s", date: "2026-10-23", amount: -300, cat: SKIP },
+  ];
+  const p = payPeriod({ bills, income: new Set(["income"]), optional: new Set(["visa"]) }, "2026-10-27", sorted, (r) => r.id === "net");
+  test("from payday to the day before the next: in, its bills, everything else spent, left per day", () => {
+    expect(p.start).toBe("2026-10-16");
+    expect(p.end).toBe("2026-10-29");
+    expect(p.in).toBe(1976.52);
+    expect(p.bills).toEqual([{ id: "net", name: "Internet", date: "2026-10-28", amount: 65, optional: false, paid: true }]);
+    expect(p.spent).toBe(172.36); // groceries + the unsorted one; not the bill, not 'not spending'
+    expect(p.left).toBe(1739.16);
+    expect(p.daysLeft).toBe(3);
+    expect(p.perDay).toBe(579.72);
+  });
+  test("the next paycheck against its own bills: rent shows short; an extra payoff isn't counted", () => {
+    expect(p.next.start).toBe("2026-10-30");
+    expect(p.next.bills.map((b) => b.name)).toEqual(["Mortgage / Rent", "Visa Platinum", "Water"]);
+    expect(p.next.billsTotal).toBe(1835.83);
+    expect(p.next.extra).toBe(500);
+    expect(p.next.left).toBe(140.69);
   });
 });

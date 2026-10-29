@@ -341,7 +341,7 @@ button.kv.mtx{width:100%; background:none; border:0; border-bottom:1px solid var
 .mcount::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--c-money);}
 .msheet h2{margin:2px 0 6px;}
 .msort{text-align:center; padding:14px 0 18px;}
-.msort h2{font-size:22px; margin:4px 0 6px; overflow-wrap:anywhere; text-align:center;}
+.msort h2{font-size:22px; margin:4px 0 6px; overflow-wrap:anywhere; text-align:center; justify-content:center;}
 .mbig{font-size:34px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums;}
 .mbig.in{color:var(--accent-ink);}
 .mchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:center;}
@@ -352,3 +352,18 @@ button.kv.mtx{width:100%; background:none; border:0; border-bottom:1px solid var
 .mamt{display:inline-flex; align-items:center; gap:2px; font-weight:800; font-variant-numeric:tabular-nums;}
 .mamt input{width:96px; text-align:right; font:inherit; font-weight:800; color:var(--ink); background:var(--tint); border:0; border-radius:10px; padding:7px 10px;}
 .mtag{display:inline-block; margin-left:8px; padding:1px 8px; border-radius:100px; background:var(--c-money); color:#1B1E26; font-size:12px; font-weight:800; vertical-align:2px;}
+
+/* Phase 7: this paycheck, all envelopes, purchases */
+.mpay-hero{font-size:28px; font-weight:800; letter-spacing:-.02em; margin:2px 0 2px; font-variant-numeric:tabular-nums;}
+.mpay-hero .soft{font-size:17px; font-weight:700; color:var(--ink-3); letter-spacing:0;}
+.mpay-math{color:var(--ink-3); font-size:14px; padding-bottom:8px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums;}
+.mpay-bills{padding-top:2px;}
+.mnext{border-bottom:0;}
+.mall{margin-top:4px;}
+.mgroup{font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); padding:12px 0 2px;}
+.msheet{max-height:86vh; overflow-y:auto;}
+.msum{color:var(--ink-3); font-size:13px; font-weight:700; margin:8px 0 2px; font-variant-numeric:tabular-nums;}
+.mline{display:flex; align-items:baseline; gap:0; min-width:0; flex:1;}
+.mname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+.mcat{margin-left:8px; font-size:12px; font-weight:700; color:var(--ink-3); white-space:nowrap;}
+.mcat.todo{color:#1B1E26; background:var(--c-money); border-radius:100px; padding:1px 7px;}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { setPlanAmount, SKIP, sortPurchase, useBudget, type Purchase } from "../lib/budget";
 import { fmtMoney } from "../lib/money";
-import { storeKeyFor, tidyPayee } from "../lib/money-core.js";
+import { mixedFor, storeKeyFor, tidyPayee } from "../lib/money-core.js";
 import { useToast } from "../lib/toast";
 import { I, Icon } from "../ui/Icon";
 
@@ -33,15 +33,18 @@ export function SortSheet(props: { ids?: string[]; onClose: () => void }) {
   const [done, setDone] = useState<string[]>([]);
   const queue = !b ? [] : props.ids ? b.purchases.filter((p) => props.ids!.includes(p.id) && !done.includes(p.id)) : b.purchases.filter((p) => !p.cat && !done.includes(p.id));
   const p = queue[0];
+  // A store he files more than one way (Walmart…) isn't remembered unless he says so, and his past picks come first.
+  const mix = b && p ? mixedFor(p, b.mixed) : null;
   useEffect(() => { if (b && !p) props.onClose(); }, [b, p]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setMore(false); setRemember(true); }, [p?.id]);
+  useEffect(() => { setMore(false); setRemember(!mix); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!b || !p) return null;
 
   const incomeGroups = new Set(["income", ...b.groups.filter((g) => g.isIncome).map((g) => g.id)]);
   const pool = b.envelopes.filter((e) => !e.archived && (p.amount > 0 ? true : !incomeGroups.has(e.group)));
   const use = new Map<string, number>();
   for (const x of b.purchases) if (x.cat && x.cat !== SKIP) use.set(x.cat, (use.get(x.cat) ?? 0) + 1);
-  const ranked = [...pool].sort((a, c) => (use.get(c.key) ?? 0) - (use.get(a.key) ?? 0) || a.order - c.order);
+  const past = (k: string) => (mix?.[k] ?? 0);
+  const ranked = [...pool].sort((a, c) => past(c.key) - past(a.key) || (use.get(c.key) ?? 0) - (use.get(a.key) ?? 0) || a.order - c.order);
   const first = p.cat && p.cat !== SKIP ? pool.find((e) => e.key === p.cat) : undefined;
   const top = [...(first ? [first] : []), ...ranked.filter((e) => e !== first)].slice(0, 6);
   const rest = pool.filter((e) => !top.includes(e)).sort((a, c) => a.name.localeCompare(c.name));
@@ -67,7 +70,8 @@ export function SortSheet(props: { ids?: string[]; onClose: () => void }) {
         {!more && rest.length > 0 && <button className="mchip ghost" onClick={() => setMore(true)}>More <I n="chevD" /></button>}
         <button className="mchip ghost" onClick={() => void pick(SKIP, "")}>Not spending</button>
       </div>
-      {store && <label className="kv mremember"><span>Remember {titleOf(p)}</span><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /></label>}
+      {store && <label className="kv mremember"><span>{mix ? `Always this for ${titleOf(p)}` : `Remember ${titleOf(p)}`}</span><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /></label>}
+      {mix && <p className="quiet" style={{ textAlign: "center", marginTop: 6 }}>You've sorted this store more than one way.</p>}
     </Frame>
   );
 }
@@ -108,6 +112,52 @@ export function EnvelopeSheet(props: { envKey: string; onClose: () => void; onSo
           </button>
         ))}
       </>}
+    </Frame>
+  );
+}
+
+/** Everything this month on the budget account, searchable by store, envelope or amount; tap one to re-sort. */
+export function PurchasesSheet(props: { onClose: () => void; onSort: (ids: string[]) => void }) {
+  const b = useBudget();
+  const [q, setQ] = useState("");
+  if (!b) return null;
+  const names = new Map(b.envelopes.map((e) => [e.key, e.name]));
+  const qq = q.trim().toLowerCase().replace(/^\$/, "");
+  const label = (p: Purchase) => (p.cat === SKIP ? "Not spending" : (p.cat && names.get(p.cat)) || "To sort");
+  const rows = b.purchases.filter((p) => !qq || titleOf(p).toLowerCase().includes(qq) || p.name.toLowerCase().includes(qq) || label(p).toLowerCase().includes(qq) || Math.abs(p.amount).toFixed(2).includes(qq));
+  const out = Math.round(-rows.filter((p) => p.amount < 0 && p.cat !== SKIP).reduce((a, p) => a + p.amount, 0) * 100) / 100;
+  return (
+    <Frame label="Purchases" onClose={props.onClose}>
+      <h2>Purchases</h2>
+      <input className="field" type="search" placeholder="Store, envelope or amount" aria-label="Search purchases" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="msum">{rows.length} · {fmtMoney(out, true)} out</div>
+      {rows.slice(0, 300).map((p) => (
+        <button key={p.id} className="kv mtx" onClick={() => props.onSort([p.id])}>
+          <span className="mline"><span className="mday">{short(p.date)}</span><span className="mname">{titleOf(p)}</span><span className={"mcat" + (p.cat ? "" : " todo")}>{label(p)}</span></span>
+          <span className="mnum">{amt(p.amount)}</span>
+        </button>
+      ))}
+      {rows.length === 0 && <p className="quiet" style={{ marginTop: 10 }}>Nothing matches.</p>}
+    </Frame>
+  );
+}
+
+/** Settings → Bank: Bird Budgeting's rows next to the bank's, over the dates both have. */
+export function BirdCheckSheet(props: { check: { matched: number; total: number; from: string | null; to: string | null; onlyBird: { date: string; cents: number; name: string }[]; onlyBank: { date: string; amount: number; merchant: string; name: string }[] }; onClose: () => void }) {
+  const c = props.check;
+  return (
+    <Frame label="Bird Budgeting check" onClose={props.onClose}>
+      <h2>Bird Budgeting check</h2>
+      <p className="quiet">{c.from && c.to ? `${short(c.from)} – ${short(c.to)}` : ""}: {c.matched} of {c.total} matched by date and exact amount. Matched ones kept your envelope.</p>
+      {c.onlyBird.length > 0 && <>
+        <div className="lbl">Only in Bird Budgeting · {c.onlyBird.length}</div>
+        {c.onlyBird.map((e, i) => <div key={i} className="kv"><span><span className="mday">{short(e.date)}</span>{e.name || "—"}</span><span className="mnum">{amt(e.cents / 100)}</span></div>)}
+      </>}
+      {c.onlyBank.length > 0 && <>
+        <div className="lbl">Only in the bank · {c.onlyBank.length}</div>
+        {c.onlyBank.map((t, i) => <div key={i} className="kv"><span><span className="mday">{short(t.date)}</span>{titleOf(t)}</span><span className="mnum">{amt(t.amount)}</span></div>)}
+      </>}
+      {c.onlyBird.length === 0 && c.onlyBank.length === 0 && <p className="quiet" style={{ marginTop: 10 }}><I n="check" /> Every purchase lines up.</p>}
     </Frame>
   );
 }

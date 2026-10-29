@@ -28,6 +28,7 @@ export interface MoneySummary {
   source?: "nest";
   sorted?: { you: number; rule: number; hint: number };
   plan_own?: boolean;
+  paycheck?: import("./money-core.js").Paycheck | null;
 }
 
 /** Bird Budgeting's own link (it opens in Safari). */
@@ -46,15 +47,16 @@ export function useMoney(): { summary: MoneySummary | null; updated: string | nu
 
 /** What the cloud hands down: Bird Budgeting's summary, and once, the setup that moves it into Nest.
     After that Nest works the numbers out itself, and Bird Budgeting's summary no longer replaces them. */
-export async function saveMoney(data: MoneySummary & { setup?: unknown }, updated_at: string): Promise<void> {
+export async function saveMoney(data: MoneySummary & { setup?: unknown; setup_gz?: unknown }, updated_at: string): Promise<void> {
   if (!data || typeof data !== "object" || !data.month) return;
-  if (data.setup) {
-    const { importSetup, refreshNestMoney } = await import("./budget");
-    if (await importSetup(data.setup as Parameters<typeof importSetup>[0])) await refreshNestMoney();
+  if (data.setup || data.setup_gz) {
+    const { importSetup, refreshNestMoney, unpackSetup } = await import("./budget");
+    const setup = await unpackSetup(data);
+    if (setup && (await importSetup(setup))) await refreshNestMoney();
   }
   if ((await db.money.get("summary"))?.data?.source === "nest") return;
-  const { setup: _setup, ...summary } = data;
-  void _setup;
+  const { setup: _setup, setup_gz: _gz, ...summary } = data;
+  void _setup; void _gz;
   await db.money.put({ key: "summary", data: summary, updated_at });
 }
 

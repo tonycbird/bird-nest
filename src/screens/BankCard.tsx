@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { bankWhy, connectBank, pullNow, reconnectBank, refreshStatus, removePractice, useBank, type BankItem, type PlaidEnv } from "../lib/bank";
-import { toggleBudgetAccount, useBudgetAccounts } from "../lib/budget";
+import { toggleBudgetAccount, useBirdCheck, useBudgetAccounts } from "../lib/budget";
+import { BirdCheckSheet } from "./MoneySheets";
 import { fmtMoney } from "../lib/money";
 import { CLOUD } from "../lib/supabase";
 import { useToast } from "../lib/toast";
@@ -32,6 +33,8 @@ export function BankCard() {
   const [confirm, setConfirm] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const budgetIds = useBudgetAccounts();
+  const bird = useBirdCheck();
+  const [check, setCheck] = useState(false);
   useEffect(() => { if (CLOUD) void refreshStatus().catch(() => undefined); }, []);
   if (!CLOUD) return null;
 
@@ -89,6 +92,8 @@ export function BankCard() {
           </div>
         ))}
 
+        {bird && bird.total > 0 && <button className="kv linkish" onClick={() => setCheck(true)}><span>Bird Budgeting</span>
+          <span className="muted">{bird.matched} of {bird.total} matched <I n="chevR" /></span></button>}
         {items.length > 0 && <div className="kv"><span>Purchases</span><span className="muted">{status?.count ?? 0}{status?.newest ? ` · newest ${status.newest.slice(5).replace("-", "/")}` : ""}</span></div>}
 
         {confirm && (
@@ -111,6 +116,7 @@ export function BankCard() {
         )}
         {why && <p className="quiet" style={{ marginTop: 8, color: "var(--warn-ink)" }}>{why}</p>}
       </div>
+      {check && bird && <BirdCheckSheet check={bird} onClose={() => setCheck(false)} />}
     </>
   );
 }

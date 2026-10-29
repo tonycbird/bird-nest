@@ -17,7 +17,9 @@ const budget = [
   { id: 'bill:rent', kind: 'bill', type: 'expense', name: 'Mortgage / Rent', amount: 1670, dueDay: 2, cadence: '', dueMonth: null, anchorDate: '', categoryId: 'rent', updated_at: at },
   { id: 'bill:pay', kind: 'bill', type: 'income', name: 'Payroll', amount: 1573.7, dueDay: 0, cadence: 'biweekly', dueMonth: null, anchorDate: '2026-04-03', categoryId: '', updated_at: at },
   { id: 'label:winco foods', kind: 'label', key: 'winco foods', categoryId: 'groceries', updated_at: at },
-  { id: 'prefs', kind: 'prefs', groups: [], setup_made: at, updated_at: at },
+  { id: 'prefs', kind: 'prefs', groups: [], setup_made: at, mixed: { walmart: { groceries: 3, household: 12 } }, updated_at: at },
+  // Bird Budgeting's sorting history: one row has a bank twin (Corner Cafe), one doesn't (cash at a market)
+  { id: 'history', kind: 'history', entries: [['2026-10-05', -1234, 'dining-out', 'Corner Cafe'], ['2026-10-07', -5000, 'groceries', 'Farmers market']], updated_at: at },
 ];
 const t = (id, amount, date, o = {}) => ({ id, item_id: 'i1', account_id: 'joint', date, month: date.slice(0, 7), amount, name: '', merchant: '', pending: false, hint: '', updated_at: at, ...o });
 const txns = [
@@ -28,6 +30,8 @@ const txns = [
   t('p2', -18.75, '2026-10-21', { merchant: 'Pizza Hut', pending: false }),
   t('v', -40, '2026-10-25', { merchant: 'Venmo', name: 'VENMO PAYMENT TOMMY' }),
   t('biz', -400, '2026-10-20', { account_id: 'biz', merchant: 'Home Depot' }),
+  t('hx', -12.34, '2026-10-05', { merchant: 'Corner Cafe' }),
+  t('wm', -30, '2026-10-10', { merchant: 'Walmart', name: 'WAL-MART #1234' }),
 ];
 const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ item_id: 'i1', env: 'production', inst_name: 'Idaho Central Credit Union', status: 'ok', error: '', update_status: 'HISTORICAL_UPDATE_COMPLETE', last_sync: Date.parse('2026-10-29T15:30:00Z') }],
   accounts: [
@@ -64,7 +68,15 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     await circle.click(); await p.waitForTimeout(400);
     assert(await p.locator('.money h1', { hasText: '$348' }).count() === 1, 'Money opens with groceries left');
     assert(await p.locator('a', { hasText: 'Open Bird Budgeting' }).count() === 0, 'no more Bird Budgeting link');
-    assert(await p.locator('.money .kv', { hasText: 'To sort' }).locator('text=3').count() === 1, 'three purchases to sort (Pizza Hut ×2, Venmo); Starbucks sorted itself by Plaid\'s category');
+    assert(await p.locator('.money .kv', { hasText: 'To sort' }).locator('text=4').count() === 1, 'four to sort (Pizza Hut ×2, Venmo, Walmart: a store he files two ways); Starbucks sorted itself; Corner Cafe kept its Bird Budgeting envelope');
+    // This paycheck: Oct 16 – 29, nothing billed, $241.01 spent of $1,573.70 → $1,333 left; the next one is short for rent
+    const pay = p.locator('.mpay');
+    assert(await pay.locator('text=Oct 16 – 29').count() === 1 && await pay.locator('text=Last day').count() === 1, 'this paycheck: Oct 16 – 29, last day');
+    assert(await pay.locator('.mpay-hero b', { hasText: '$1,333' }).count() === 1, 'left from this paycheck after everything spent');
+    assert(await pay.locator('.mnext', { hasText: 'Short $161' }).count() === 1, 'next paycheck: short $161 (Internet on the 30th + rent on the 2nd)');
+    assert(await pay.locator('text=Keep $161 of this paycheck for Mortgage / Rent on Nov 2.').count() === 1, 'says what to hold back, and for what');
+    await pay.click(); await p.waitForTimeout(200);
+    assert(await pay.locator('.mpay-bills').count() === 1, 'tap: this paycheck\'s bills open');
     assert(await p.locator('text=Bank · Today').count() === 1, 'says when the bank was last pulled');
     assert(!(await p.locator('.money').innerText()).match(/overdue|late|missed|Bank copy/i), 'no naggy words, no stale bank copy note');
     await shot('nest-money');
@@ -72,30 +84,51 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     // Sort: one tap each; remembering Pizza Hut sorts the other Pizza Hut too
     await p.locator('button.mtx', { hasText: 'To sort' }).click(); await p.waitForTimeout(400);
     const sheet = p.locator('.msheet');
-    assert(await sheet.locator('h2', { hasText: 'Pizza Hut' }).count() === 1 && await sheet.locator('text=To sort · 3').count() === 1, 'the sort sheet starts with the newest');
+    assert(await sheet.locator('h2', { hasText: 'Pizza Hut' }).count() === 1 && await sheet.locator('text=To sort · 4').count() === 1, 'the sort sheet starts with the newest');
     assert(await sheet.locator('.mremember', { hasText: 'Remember Pizza Hut' }).locator('input:checked').count() === 1, '"Remember Pizza Hut" is on');
     await shot('nest-sort');
     await sheet.locator('.mchip', { hasText: 'Dining Out' }).click(); await p.waitForTimeout(500);
-    assert(await sheet.locator('h2', { hasText: 'Venmo' }).count() === 1 && await sheet.locator('text=To sort · 1').count() === 1, 'the other Pizza Hut sorted itself; Venmo is next');
+    assert(await sheet.locator('h2', { hasText: 'Venmo' }).count() === 1 && await sheet.locator('text=To sort · 2').count() === 1, 'the other Pizza Hut sorted itself; Venmo is next');
     assert(await sheet.locator('.mremember').count() === 0, 'Venmo is a one-off: nothing to remember');
     await sheet.locator('.mchip', { hasText: 'Not spending' }).click(); await p.waitForTimeout(600);
+    assert(await sheet.locator('h2', { hasText: 'Walmart' }).count() === 1, 'Walmart is asked, even though "walmart" is a Groceries keyword');
+    assert(await sheet.locator('.mremember', { hasText: 'Always this for Walmart' }).locator('input:checked').count() === 0 && await sheet.locator('text=sorted this store more than one way').count() === 1, 'a store he files two ways isn\'t remembered unless he says so');
+    assert((await sheet.locator('.mchip').first().innerText()).includes('Household') && (await sheet.locator('.mchip').nth(1).innerText()).includes('Groceries'), 'his past picks for Walmart come first (Household 12×, Groceries 3×)');
+    await sheet.locator('.mchip', { hasText: 'Groceries' }).first().click(); await p.waitForTimeout(600);
     assert(await p.locator('.msheet').count() === 0, 'all sorted: the sheet closes');
     assert(await p.locator('.money .kv', { hasText: 'All sorted' }).count() === 1, 'To sort says all sorted');
 
     // An envelope: change what it gets
     await p.locator('.mrow', { hasText: 'Dining Out' }).click(); await p.waitForTimeout(400);
     const es = p.locator('.msheet');
-    assert(await es.locator('h2', { hasText: 'Dining Out' }).count() === 1 && await es.locator('.kv', { hasText: 'Spent' }).locator('text=$42').count() === 1, 'Dining Out: both Pizza Hut purchases, $42 spent');
+    assert(await es.locator('h2', { hasText: 'Dining Out' }).count() === 1 && await es.locator('.kv', { hasText: 'Spent' }).locator('text=$54').count() === 1, 'Dining Out: both Pizza Hut purchases and Corner Cafe (from history), $54 spent');
     await es.locator('input[aria-label="Dining Out this month"]').fill('300');
     await es.locator('input[aria-label="Dining Out this month"]').press('Enter'); await p.waitForTimeout(600);
-    assert(await es.locator('.kv', { hasText: 'Left' }).locator('text=$258').count() === 1, 'changed to $300: $258 left');
+    assert(await es.locator('.kv', { hasText: 'Left' }).locator('text=$246').count() === 1, 'changed to $300: $246 left');
     await shot('nest-envelope');
     // Re-sort one of its purchases
     await es.locator('button.mtx', { hasText: 'Pizza Hut' }).first().click(); await p.waitForTimeout(400);
     assert(await p.locator('.msheet h2', { hasText: 'Pizza Hut' }).count() === 1 && await p.locator('.msheet .date', { hasText: 'Sort' }).count() === 1, 'tapping a purchase opens it to re-sort');
     await p.locator('.msheet').last().locator('.sheet-x').click(); await p.waitForTimeout(300);
     await p.locator('.msheet').last().locator('.sheet-x').click(); await p.waitForTimeout(300);
-    assert(await p.locator('.money .mrow', { hasText: 'Dining Out' }).locator('text=$258').count() === 1, 'the Money screen shows the new amount');
+    assert(await p.locator('.money .mrow', { hasText: 'Dining Out' }).locator('text=$246').count() === 1, 'the Money screen shows the new amount');
+    assert(await p.locator('.money h1', { hasText: '$318' }).count() === 1, 'groceries left now counts the Walmart run: $318');
+
+    // All envelopes, by group
+    await p.locator('button.mtx', { hasText: 'All envelopes' }).click(); await p.waitForTimeout(300);
+    assert(await p.locator('.mall .mgroup', { hasText: 'Housing & Utilities' }).count() === 1 && await p.locator('.mall button', { hasText: 'Internet' }).count() === 1, 'all envelopes show, grouped, bill envelopes too');
+    assert(await p.locator('.mall button', { hasText: 'Income' }).count() === 0, 'income envelopes aren\'t in the list');
+    await shot('nest-all');
+    // Purchases, searchable
+    await p.locator('button.mtx', { hasText: 'Purchases' }).click(); await p.waitForTimeout(300);
+    const ps = p.locator('.msheet');
+    assert(await ps.locator('button.mtx').count() === 8, 'every purchase on the budget account this month (not the business one)');
+    await ps.locator('input[aria-label="Search purchases"]').fill('pizza'); await p.waitForTimeout(200);
+    assert(await ps.locator('button.mtx').count() === 2 && await ps.locator('text=2 · $42 out').count() === 1, 'search "pizza": 2 purchases, $42 out');
+    await ps.locator('input[aria-label="Search purchases"]').fill('not spending'); await p.waitForTimeout(200);
+    assert(await ps.locator('button.mtx', { hasText: 'Venmo' }).count() === 1, 'search by envelope works too');
+    await shot('nest-purchases');
+    await ps.locator('.sheet-x').click(); await p.waitForTimeout(300);
 
     // Settings → Bank: Joint Checking is the budget; the business account doesn't count
     if (theme === 'light') {
@@ -105,6 +138,12 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
       // (Bank card shows only when cloud is on; the phone-only build skips it)
       if (await card.count()) {
         assert(await card.locator('.kv', { hasText: 'Joint Checking' }).locator('.mtag').count() === 1, 'Joint Checking is marked Budget');
+        const bc = card.locator('button', { hasText: 'Bird Budgeting' });
+        assert(await bc.locator('text=1 of 2 matched').count() === 1, 'Bird Budgeting check: 1 of 2 matched over the dates both have');
+        await bc.click(); await p.waitForTimeout(300);
+        assert(await p.locator('.msheet .kv', { hasText: 'Farmers market' }).count() === 1, 'the one only in Bird Budgeting is listed by name');
+        await shot('nest-birdcheck');
+        await p.locator('.msheet .sheet-x').click(); await p.waitForTimeout(200);
       }
     }
     await ctx.close();

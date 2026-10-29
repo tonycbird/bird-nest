@@ -76,19 +76,25 @@ export interface BankRow { key: string; data: unknown; updated_at: string }
 
 /** Phase 7: Nest's own budget, one table for all of it (synced like everything else):
     envelopes, monthly plans, bills, store rules, his own sorts, and prefs. */
-export type BudgetKind = "envelope" | "plan" | "bill" | "label" | "sort" | "prefs";
+export type BudgetKind = "envelope" | "plan" | "bill" | "label" | "sort" | "mark" | "history" | "prefs";
 export interface BudgetRow {
   id: string; kind: BudgetKind; updated_at: string; deleted_at?: string | null;
   // envelope
   key?: string; name?: string; group?: string; order?: number; archived?: boolean;
+  keywords?: string[]; target?: number | null; priority?: string; rollover?: boolean;
   // plan
   month?: string; amounts?: Record<string, number>; carry?: Record<string, number>;
   // bill
-  type?: "expense" | "income"; amount?: number; dueDay?: number; cadence?: string; dueMonth?: number | null; anchorDate?: string; categoryId?: string;
-  // sort (his pick for one purchase)
-  txn?: string;
+  type?: "expense" | "income"; amount?: number; dueDay?: number; cadence?: string; dueMonth?: number | null; anchorDate?: string; categoryId?: string; variesBy?: number;
+  // sort (his pick for one purchase; from "bird" when it came from Bird Budgeting's history)
+  txn?: string; from?: "bird";
+  // mark (a bill paid by hand: no bank row to show it)
+  billId?: string; date?: string;
+  // history (Bird Budgeting's rows: [date, cents, envelope, short name])
+  entries?: [string, number, string, string][];
   // prefs: the accounts that count as the budget, and where the setup came from
-  accounts?: string[]; setup_made?: string; groups?: { id: string; name: string; isIncome: boolean }[];
+  accounts?: string[]; setup_made?: string; setup_v?: number; groups?: { id: string; name: string; isIncome: boolean }[];
+  mixed?: Record<string, Record<string, number>>; // stores he files more than one way: {store key: {envelope: times}}
 }
 
 export type OutboxOp =

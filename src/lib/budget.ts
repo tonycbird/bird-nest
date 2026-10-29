@@ -5,25 +5,63 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, nowISO, type BudgetRow, type Txn } from "./db";
 import type { BankAccount, BankStatus } from "./bank";
-import { nestSummary, planFor, SKIP, sortOf, storeKeyFor, type Bill, type Envelope, type Label, type Plan, type Setup, type SortCtx } from "./money-core.js";
+import { makeCtx, matchHistory, nestSummary, planFor, SKIP, sortOf, storeKeyFor, type Bill, type Envelope, type HistoryEntry, type Label, type Plan, type Setup } from "./money-core.js";
 import { today } from "./time";
 
 export { SKIP };
 const live = (r: BudgetRow) => !r.deleted_at;
 
-/** First time only: Bird Budgeting's envelopes, plans, bills and store rules become Nest's. */
+/** The setup rides the money door gzipped (setup_gz) so it fits; older payloads carry it plain. */
+export async function unpackSetup(data: { setup?: unknown; setup_gz?: unknown } | undefined | null): Promise<Setup | null> {
+  if (!data) return null;
+  if (data.setup && typeof data.setup === "object") return data.setup as Setup;
+  if (typeof data.setup_gz !== "string" || !data.setup_gz) return null;
+  try {
+    const bin = Uint8Array.from(atob(data.setup_gz), (c) => c.charCodeAt(0));
+    const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+    return JSON.parse(text) as Setup;
+  } catch { return null; }
+}
+
+/** Bird Budgeting's envelopes, plans, bills, store rules, paid marks and sorting history become Nest's.
+    The first setup moves everything in. A newer setup (v2) on a phone that took an older one (v1, Oct 29)
+    upgrades it in place: it adds what v1 didn't carry (keywords, targets, marks, history, mixed stores),
+    takes Anthony's bill decisions, and keeps everything he has changed since (plans, his sorts, his store
+    rules). Anything older or the same is ignored: after that, Nest owns it. */
 export async function importSetup(setup: Setup): Promise<boolean> {
-  if (!setup || setup.v !== 1 || !Array.isArray(setup.envelopes) || !setup.envelopes.length) return false;
-  if (await db.budget.where("kind").equals("envelope").count()) return false; // already set up: Nest owns it now
-  const at = nowISO();
-  const rows: BudgetRow[] = [
-    ...setup.envelopes.map((e) => ({ id: "env:" + e.key, kind: "envelope" as const, key: e.key, name: e.name, group: e.group, order: e.order, archived: e.archived, updated_at: at })),
-    ...setup.plans.map((p) => ({ id: "plan:" + p.month, kind: "plan" as const, month: p.month, amounts: p.amounts, carry: p.carry ?? {}, updated_at: at })),
-    ...setup.bills.map(({ id, ...b }) => ({ ...b, id: "bill:" + id, kind: "bill" as const, updated_at: at })),
-    ...setup.labels.map((l) => ({ id: "label:" + l.key, kind: "label" as const, key: l.key, categoryId: l.categoryId, updated_at: at })),
-  ];
+  if (!setup || (setup.v !== 1 && setup.v !== 2) || !Array.isArray(setup.envelopes) || !setup.envelopes.length) return false;
   const prefs = await db.budget.get("prefs");
-  rows.push({ ...(prefs ?? {}), id: "prefs", kind: "prefs", setup_made: setup.made, groups: setup.groups, updated_at: at });
+  const had = await db.budget.where("kind").equals("envelope").count();
+  if (had && (prefs?.setup_v ?? 1) >= setup.v) return false;
+  const at = nowISO();
+  const env = (e: Setup["envelopes"][number]) => ({ keywords: e.keywords ?? [], target: e.target ?? null, priority: e.priority ?? "", rollover: !!e.rollover });
+  const rows: BudgetRow[] = [];
+  if (!had) {
+    rows.push(
+      ...setup.envelopes.map((e) => ({ id: "env:" + e.key, kind: "envelope" as const, key: e.key, name: e.name, group: e.group, order: e.order, archived: e.archived, ...env(e), updated_at: at })),
+      ...setup.plans.map((p) => ({ id: "plan:" + p.month, kind: "plan" as const, month: p.month, amounts: p.amounts, carry: p.carry ?? {}, updated_at: at })),
+      ...setup.bills.map(({ id, ...b }) => ({ ...b, id: "bill:" + id, kind: "bill" as const, updated_at: at })),
+      ...setup.labels.map((l) => ({ id: "label:" + l.key, kind: "label" as const, key: l.key, categoryId: l.categoryId, updated_at: at })),
+    );
+  } else {
+    // Upgrade: envelopes gain their extras; bills are replaced (there's no bill editing yet, so nothing of his is lost);
+    // store rules and plans he may have touched are left as they are, and only missing rules are added.
+    const old = new Map((await db.budget.where("kind").anyOf("envelope", "bill", "label").toArray()).map((r) => [r.id, r]));
+    for (const e of setup.envelopes) {
+      const r = old.get("env:" + e.key);
+      rows.push(r ? { ...r, ...env(e), updated_at: at } : { id: "env:" + e.key, kind: "envelope", key: e.key, name: e.name, group: e.group, order: e.order, archived: e.archived, ...env(e), updated_at: at });
+    }
+    const billIds = new Set(setup.bills.map((b) => "bill:" + b.id));
+    rows.push(...setup.bills.map(({ id, ...b }) => ({ ...b, id: "bill:" + id, kind: "bill" as const, updated_at: at })));
+    for (const r of old.values()) if (r.kind === "bill" && !billIds.has(r.id) && !r.deleted_at) rows.push({ ...r, deleted_at: at, updated_at: at });
+    for (const l of setup.labels) if (!old.has("label:" + l.key)) rows.push({ id: "label:" + l.key, kind: "label", key: l.key, categoryId: l.categoryId, updated_at: at });
+  }
+  for (const m of setup.marks ?? []) {
+    const id = `mark:${m.billId}_${m.month}`;
+    if (!had || !(await db.budget.get(id))) rows.push({ id, kind: "mark", billId: m.billId, month: m.month, amount: m.amount, date: m.date, updated_at: at });
+  }
+  if (setup.history?.length) rows.push({ id: "history", kind: "history", entries: setup.history, updated_at: at });
+  rows.push({ ...(prefs ?? {}), id: "prefs", kind: "prefs", setup_made: setup.made, setup_v: setup.v, groups: setup.groups, mixed: setup.mixed ?? prefs?.mixed ?? {}, updated_at: at });
   await db.budget.bulkPut(rows);
   return true;
 }
@@ -39,6 +77,8 @@ export function budgetAccounts(accounts: BankAccount[], picked?: string[] | null
 
 interface Loaded {
   envelopes: Envelope[]; plans: Plan[]; bills: Bill[]; labels: Label[]; sorts: Map<string, string>;
+  marks: { recurringId: string; month: string; kind: "manual"; amount: number; date: string }[];
+  history: HistoryEntry[]; mixed: Record<string, Record<string, number>>;
   groups: { id: string; name: string; isIncome: boolean }[]; prefs: BudgetRow | undefined; accounts: BankAccount[]; budgetIds: Set<string>;
 }
 async function load(): Promise<Loaded> {
@@ -48,23 +88,45 @@ async function load(): Promise<Loaded> {
   const status = (await db.bank.get("status"))?.data as BankStatus | undefined;
   const accounts = status?.accounts ?? [];
   return {
-    envelopes: by("envelope").map((r) => ({ key: r.key!, name: r.name ?? "", group: r.group ?? "", order: r.order ?? 0, archived: !!r.archived })).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
+    envelopes: by("envelope").map((r) => ({ key: r.key!, name: r.name ?? "", group: r.group ?? "", order: r.order ?? 0, archived: !!r.archived,
+      keywords: r.keywords ?? [], target: r.target ?? null, priority: r.priority ?? "", rollover: !!r.rollover })).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
     plans: by("plan").map((r) => ({ month: r.month!, amounts: r.amounts ?? {}, carry: r.carry ?? {} })),
-    bills: by("bill").map((r) => ({ id: r.id.slice(5), type: r.type ?? "expense", name: r.name ?? "", amount: r.amount ?? 0, dueDay: r.dueDay ?? 0, cadence: r.cadence ?? "", dueMonth: r.dueMonth ?? null, anchorDate: r.anchorDate ?? "", categoryId: r.categoryId ?? "" })),
+    bills: by("bill").map((r) => ({ id: r.id.slice(5), type: r.type ?? "expense", name: r.name ?? "", amount: r.amount ?? 0, dueDay: r.dueDay ?? 0, cadence: r.cadence ?? "",
+      dueMonth: r.dueMonth ?? null, anchorDate: r.anchorDate ?? "", categoryId: r.categoryId ?? "", variesBy: r.variesBy ?? 0 })),
     labels: by("label").map((r) => ({ key: r.key!, categoryId: r.categoryId ?? "" })),
     sorts: new Map(by("sort").map((r) => [r.txn!, r.categoryId ?? ""])),
-    groups: prefs?.groups ?? [],
+    marks: by("mark").map((r) => ({ recurringId: r.billId!, month: r.month!, kind: "manual" as const, amount: r.amount ?? 0, date: r.date ?? "" })),
+    history: (by("history")[0]?.entries ?? []).map(([date, cents, cat, name]) => ({ date, cents, cat, name })),
+    groups: prefs?.groups ?? [], mixed: prefs?.mixed ?? {},
     prefs, accounts, budgetIds: budgetAccounts(accounts, prefs?.accounts),
   };
+}
+
+/** Bird Budgeting's sorting lands on the bank's copy: each past purchase that finds its twin (same cents,
+    within 3 days) gets the envelope it had there, as his own pick. Runs again as more history arrives;
+    a purchase he has ever sorted himself (even undone) is never touched. */
+async function applyHistory(d: Loaded, txns: Txn[]): Promise<number> {
+  if (!d.history.length) return 0;
+  const mine = txns.filter((t) => d.budgetIds.has(t.account_id));
+  const { pairs } = matchHistory(d.history, mine);
+  const keys = new Set(d.envelopes.map((e) => e.key));
+  const want = pairs.filter((p) => p.cat && keys.has(p.cat));
+  if (!want.length) return 0;
+  const had = await db.budget.bulkGet(want.map((p) => "sort:" + p.txn));
+  const at = nowISO();
+  const add: BudgetRow[] = want.filter((_, i) => !had[i]).map((p) => ({ id: "sort:" + p.txn, kind: "sort", txn: p.txn, categoryId: p.cat, from: "bird", updated_at: at }));
+  if (add.length) await db.budget.bulkPut(add);
+  return add.length;
 }
 
 /** Work the summary out again (after a pull, a sort, a plan change, or a new day). Quiet until there's
     a setup and the bank has purchases on a budget account. */
 export async function refreshNestMoney(day = today()): Promise<boolean> {
-  const d = await load();
+  let d = await load();
   if (!d.envelopes.length) return false;
   const txns = await db.txns.toArray();
   if (!txns.some((t) => d.budgetIds.has(t.account_id))) return false;
+  if (await applyHistory(d, txns)) d = await load();
   const s = nestSummary({ ...d, txns, accounts: d.budgetIds }, day);
   await db.money.put({ key: "summary", data: s, updated_at: nowISO() });
   return true;
@@ -72,8 +134,7 @@ export async function refreshNestMoney(day = today()): Promise<boolean> {
 
 /** At start: a setup that arrived while an older Nest was running (it kept it with the summary) moves in now. */
 export async function startMoney(): Promise<void> {
-  const row = await db.money.get("summary");
-  const setup = (row?.data as { setup?: Setup } | undefined)?.setup;
+  const setup = await unpackSetup((await db.money.get("summary"))?.data as never);
   if (setup) await importSetup(setup);
   await refreshNestMoney();
 }
@@ -84,11 +145,23 @@ export interface Purchase extends Txn { cat: string | null; how: "you" | "rule" 
 export function useBudget() {
   return useLiveQuery(async () => {
     const d = await load();
-    const ctx: SortCtx = { sorts: d.sorts, labels: d.labels, envelopes: d.envelopes, keys: new Set(d.envelopes.filter((e) => !e.archived).map((e) => e.key)) };
+    const ctx = makeCtx(d);
     const month = today().slice(0, 7);
     const txns = (await db.txns.where("month").equals(month).toArray()).filter((t) => d.budgetIds.has(t.account_id));
     const purchases: Purchase[] = txns.map((t) => ({ ...t, ...sortOf(t, ctx) })).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-    return { ...d, month, plan: planFor(month, d.plans, d.bills), purchases };
+    return { ...d, month, income: ctx.income, plan: planFor(month, d.plans, d.bills), purchases };
+  }, []);
+}
+
+/** Settings → Bank: how Bird Budgeting's history lines up with the bank's copy, over the dates both have. */
+export function useBirdCheck() {
+  return useLiveQuery(async () => {
+    const d = await load();
+    if (!d.history.length) return null;
+    const txns = (await db.txns.toArray()).filter((t) => d.budgetIds.has(t.account_id));
+    if (!txns.length) return null;
+    const m = matchHistory(d.history, txns);
+    return { matched: m.matched, total: m.total, from: m.from, to: m.to, onlyBird: m.onlyBird, onlyBank: m.onlyBank };
   }, []);
 }
 

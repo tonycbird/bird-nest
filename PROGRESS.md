@@ -22,7 +22,14 @@ Anthony saw Claude's ideas every morning and passed on all of them. Goal: things
    - [x] Money screen: tap an envelope to change what it gets this month (and see its purchases, tap one to re-sort); To sort opens the one-tap sorter; no more Bird Budgeting link. A new month copies last month's plan, bill envelopes at their bills
    - [x] One-time move from Bird Budgeting (read-only): 36 envelopes, Oct + Sep plans, 18 bills (3 twins merged), 122 store rules — sent through the money door with today's summary (`claude/tools/money-setup.mjs`); the phone takes it once
    - [x] Tests: money rules 17, budget 8, Money in Nest e2e light/dark
-   - [ ] Phone check: push, open Money; groceries left from the bank, To sort works
+   - [x] Transfer checklist with Anthony (Oct 29): every Bird Budgeting store and feature, moved / to build / later / not needed. His calls: one Chase bill $85 on the 7th; Kootenai Electric $90 on the 5th; State Farm $76.19 on the 30th; carry the sorting history over; build the paycheck plan and all envelopes + purchases now
+   - [x] Setup v2 (one import, gzipped through the money door): + envelope keywords, Gym target, Visa Platinum "payoff", paycheck "plus up to $100", the Avista paid mark, 473 history rows (date, cents, envelope, short name), 14 stores he files more than one way
+   - [x] Sorting guards: bank fees never filed under the store they name (Bird Budgeting's V43 rule); keywords as whole words; spending never auto-sorted into an income envelope; a store he files two ways (Walmart, Maverik, Avista…) is always asked, his past picks first, not remembered unless he says
+   - [x] History carried over: each Bird Budgeting row finds its bank twin (exact cents, ±3 days) and keeps his envelope; a purchase he's sorted himself is never touched. Settings → Bank shows "Bird Budgeting · N of M matched" and lists anything only one side has
+   - [x] This paycheck (Bird Budgeting's Plan page in one card): left after its bills and everything else, per day; next paycheck short or not, and what to hold back for (extra payoffs listed, not counted)
+   - [x] All envelopes (grouped) and Purchases (search by store, envelope or amount)
+   - [x] Dry run on Bird Budgeting's real data as a stand-in bank: 473/473 history rows matched, 0 swapped; October envelopes identical (one unsorted Kroc purchase now sorts to Gym); for new purchases the rules agree with his own choice 317 times, differ 3, ask 88
+   - [ ] Phone check: push, open Money; groceries from the bank, the paycheck card, To sort; Settings → Bank: Bird Budgeting matched count
    - [ ] Drop the Bird Budgeting step from the morning run (needs Anthony's OK)
 4. **Abby's Google Sheet.** A new sheet, refreshed every morning: envelopes, bills, spending, with charts. Setup: connect Google Sheets to Claude, share the sheet with her.
 
