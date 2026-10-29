@@ -1,9 +1,9 @@
 // Integration test for the Nest push helper (worker/) running under `wrangler dev`.
 // Not part of `npm test` (needs wrangler + http_ece, which aren't app dependencies). To run:
-//   1. npm i wrangler http_ece in a scratch folder (W); make test-only VAPID keys into keys.json {pub, priv}
-//   2. W/node_modules/.bin/wrangler dev -c <config like wrangler.jsonc, assets = any built dist> --port 8787
-//        --var PUSH_DEV:1 --var VAPID_PUBLIC:<pub> --var VAPID_PRIVATE:<priv>
-//   3. ECE_DIR=W/ KEYS=keys.json node tests/e2e/push-helper.it.mjs
+//   1. npm i wrangler http_ece in a scratch folder (W)
+//   2. W/node_modules/.bin/wrangler dev -c <config like wrangler.jsonc, assets = any built dist> --port 8787 --var PUSH_DEV:1
+//      (the helper makes its own push key on first use)
+//   3. ECE_DIR=W/ node tests/e2e/push-helper.it.mjs
 // A fake push service on 127.0.0.1:9911 records what arrives; we decrypt it with http_ece (an
 // independent implementation) and check the VAPID signature with node:crypto.
 import http from "node:http";
@@ -14,7 +14,7 @@ const require = createRequire(process.env.ECE_DIR || "/tmp/claude-0/wr/");
 const ece = require("http_ece");
 
 const BASE = process.env.BASE || "http://127.0.0.1:8787";
-const keys = JSON.parse(fs.readFileSync(process.env.KEYS || "/tmp/claude-0/wr/wtest/testkeys.json", "utf8"));
+const keys = { pub: "" }; // filled from /api/push/key: the helper makes its own key
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log("✓", m); } else { fail++; console.log("✗", m); } };
 
@@ -56,7 +56,10 @@ function checkVapid(h) {
 
 try {
   const k = await (await fetch(`${BASE}/api/push/key`)).json();
-  ok(k.key === keys.pub && k.ready === true && k.pair === true, "/api/push/key gives the public key, ready, and the two halves match");
+  keys.pub = k.key;
+  ok(/^[A-Za-z0-9_-]{87}$/.test(k.key || "") && k.ready === true && k.pair === true, "/api/push/key: the helper made its own key, and can sign with it");
+  const k2 = await (await fetch(`${BASE}/api/push/key`)).json();
+  ok(k2.key === k.key, "the same key every time");
   const home = await fetch(`${BASE}/today`);
   ok(home.status === 200 && (await home.text()).includes("<div id=\"root\""), "other paths still open the app");
 

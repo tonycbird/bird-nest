@@ -1,15 +1,16 @@
 /* The Nest helper: a tiny Cloudflare Worker next to the app.
    The app itself is still plain files (dist/). Only /api/* reaches this code.
    Each phone gets its own Notifier (a Durable Object) that keeps its push address and a short
-   list of buzzes to send, and wakes itself with an alarm at the exact second one is due. */
+   list of buzzes to send, and wakes itself with an alarm at the exact second one is due.
+   The push key (VAPID) is made by the helper itself the first time it's needed and kept in its own
+   Durable Object (Keys). Nothing to copy or paste, and the private half never leaves Cloudflare. */
 import { DurableObject } from "cloudflare:workers";
-import { pushHostOk, sendPush, vapidPairOk, whyNot, type PushSub, type Vapid } from "./webpush";
+import { b64uEncode, pushHostOk, sendPush, vapidPairOk, whyNot, type PushSub, type Vapid } from "./webpush";
 
 export interface Env {
   ASSETS: Fetcher;
   NOTIFIER: DurableObjectNamespace<Notifier>;
-  VAPID_PUBLIC?: string;
-  VAPID_PRIVATE?: string; // secret, set in the Cloudflare dashboard
+  KEYS: DurableObjectNamespace<Keys>;
   VAPID_SUBJECT?: string;
   PUSH_DEV?: string; // "1" only in local tests: allows a localhost push address
 }
@@ -19,11 +20,33 @@ type Reply = Record<string, string | number | boolean | null>;
 interface State { sub: PushSub | null; keyHash: string; items: Item[]; sent: number; lastStatus: number; lastAt: number; lastWhy?: string }
 
 const MAX_ITEMS = 40;
-/** A pasted key can carry a newline, spaces, quotes or "=" padding; keep only the key itself. */
-export const cleanKey = (k?: string) => (k ?? "").replace(/\+/g, "-").replace(/\//g, "_").replace(/[^A-Za-z0-9_-]/g, "");
-function keysOf(e: Env): Vapid | null {
-  const publicKey = cleanKey(e.VAPID_PUBLIC), privateKey = cleanKey(e.VAPID_PRIVATE);
-  return publicKey && privateKey ? { publicKey, privateKey, subject: e.VAPID_SUBJECT || "https://bird-nest.tonyc-bird.workers.dev" } : null;
+interface KeyPair { publicKey: string; privateKey: string }
+
+/** The helper's own push key: made once, kept in one Durable Object, the same for every phone. */
+export class Keys extends DurableObject<Env> {
+  async keys(): Promise<KeyPair> {
+    let k = await this.ctx.storage.get<KeyPair>("vapid");
+    if (k) return k;
+    // Only one key, even if two phones ask at the same moment.
+    await this.ctx.blockConcurrencyWhile(async () => {
+      k = await this.ctx.storage.get<KeyPair>("vapid");
+      if (k) return;
+      const kp = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
+      const jwk = (await crypto.subtle.exportKey("jwk", kp.privateKey)) as JsonWebKey;
+      const raw = new Uint8Array((await crypto.subtle.exportKey("raw", kp.publicKey)) as ArrayBuffer);
+      k = { publicKey: b64uEncode(raw), privateKey: String(jwk.d) };
+      await this.ctx.storage.put("vapid", k);
+    });
+    return k!;
+  }
+}
+let cachedKeys: Vapid | null = null;
+async function vapidFor(env: Env): Promise<Vapid> {
+  if (!cachedKeys) {
+    const k = await env.KEYS.get(env.KEYS.idFromName("vapid")).keys();
+    cachedKeys = { publicKey: k.publicKey, privateKey: k.privateKey, subject: env.VAPID_SUBJECT || "https://bird-nest.tonyc-bird.workers.dev" };
+  }
+  return cachedKeys;
 }
 const LATE_MS = 90_000; // a buzz more than this late is dropped, not sent
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -56,8 +79,8 @@ export class Notifier extends DurableObject<Env> {
     if (s.sub && s.items.length) await this.ctx.storage.setAlarm(s.items[0].at);
     else await this.ctx.storage.deleteAlarm();
   }
-  private vapid(): Vapid | null {
-    return keysOf(this.env);
+  private vapid(): Promise<Vapid | null> {
+    return vapidFor(this.env).catch(() => null);
   }
 
   /** One call from the phone. `key` proves it's the phone that set this Notifier up. */
@@ -94,7 +117,7 @@ export class Notifier extends DurableObject<Env> {
       return { status: 200, body: { ok: true, count: s.items.length } };
     }
     if (op === "test") {
-      const v = this.vapid();
+      const v = await this.vapid();
       if (!v || !s.sub) return { status: 503, body: { error: "not ready" } };
       let ok = false, status = 0, why = "";
       try {
@@ -121,7 +144,7 @@ export class Notifier extends DurableObject<Env> {
   /** The alarm: send what's due, drop what's too late, set the next alarm. */
   async alarm(): Promise<void> {
     const s = await this.load();
-    const v = this.vapid();
+    const v = await this.vapid();
     const now = Date.now();
     const due = s.items.filter((i) => i.at <= now + 250);
     s.items = s.items.filter((i) => i.at > now + 250);
@@ -151,10 +174,10 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     if (url.pathname === "/api/push/key") {
-      const v = keysOf(env);
-      // pair: do the public key here and the secret in Cloudflare belong together?
+      const v = await vapidFor(env).catch(() => null);
+      // pair: a check that the helper can sign with the key it hands out.
       const pair = v ? await vapidPairOk(v) : false;
-      return json({ key: v?.publicKey || cleanKey(env.VAPID_PUBLIC) || null, ready: !!v, pair });
+      return json({ key: v?.publicKey ?? null, ready: !!v, pair });
     }
     const m = url.pathname.match(/^\/api\/push\/(subscribe|schedule|cancel|test|status|off)$/);
     if (!m) return json({ error: "not found" }, 404);

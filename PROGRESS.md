@@ -27,15 +27,14 @@ A read-only look at Bird Budgeting inside Nest: what's left, the next payday, an
 Buzzing on a locked phone, warmer words, small motion, and a speed check.
 
 ### Setup (Anthony, once)
-1. Push "Phase 5 polish" with GitHub Desktop, and wait for Cloudflare → bird-nest → Deployments to show it finished. (Before this push the site is "static assets only", and Cloudflare won't take a secret.)
-2. Cloudflare → Workers & Pages → **bird-nest** → Settings → Variables and Secrets → **Add** → Type **Secret**, name `VAPID_PRIVATE`, value = the one line in `supabase/local/cloudflare-push-secret.txt` on the Mac → Deploy. (The public half is already in `wrangler.jsonc`.)
-3. On the iPhone, open Nest from the Home Screen → Settings → Buzz → **Turn on buzzing** → Allow → **Test**, then lock the phone.
+1. Push with GitHub Desktop and wait for Cloudflare → bird-nest → Deployments to show it finished. (Since Oct 29 the helper makes its own push key, kept in its Keys Durable Object: there is no secret to paste. The old VAPID_PRIVATE secret in Cloudflare is unused and can be deleted.)
+2. On the iPhone, open Nest from the Home Screen → Settings → Buzz → **Turn on buzzing** → Allow → **Test**, then lock the phone.
 
 ### Done
 - [x] Buzz (Settings): rest timer done and shutdown, even with the phone locked. A small helper on Cloudflare (`worker/`, one Durable Object per phone) holds the phone's push address and wakes with an alarm on the exact second. Free plan
 - [x] Rest timer: plans the buzz when rest starts, moves it on ±15, cancels it on skip. Warm-up timers buzz too ("Walk done — go"); holds don't. Tapping it opens Body
 - [x] Shutdown: once each evening at the shutdown time, not on off days, not after you've shut down. Tapping it opens Shutdown
-- [x] Push is locked end to end (aes128gcm) and signed (VAPID); the helper only talks to real push services; each phone has its own id and key
+- [x] Push is locked end to end (aes128gcm) and signed (VAPID); the helper makes and keeps its own key (no pasting); it only talks to real push services; each phone has its own id and key
 - [x] Words: no screen has a paragraph (the audit crawler now checks: over 16 words or 3 sentences); long task titles show two lines in lists
 - [x] Voice: "1 earlier", not "1 late"; a clock, not a warning sign; "Skipped", not "Missed"; "Was due", not "Late"; "Make up a workout"; empty Today says "A clear day"; empty groceries say "All stocked"
 - [x] Motion: screens ease in, checks pop when you tap them (not when a list just draws), buttons press in. Off when the iPhone asks for less motion

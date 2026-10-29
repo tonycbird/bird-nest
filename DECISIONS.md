@@ -68,4 +68,5 @@
 | 2026-10-28 | The money summary is worked out by a fixed script (claude/tools/money.mjs), not by Claude doing sums | Same answer every morning, tested, and it uses Bird Budgeting's own rules. Claude only reads the data and runs it. The script rides inside the prompt with a sha256 check. |
 | 2026-10-28 | Only the summary is stored in Nest's cloud (money_summary), never transactions | Bird Budgeting is shared with Abby and holds the household's records; Nest just needs the totals. |
 | 2026-10-28 | A bill after the newest imported transaction is "not in yet", not late | Imports run behind (Oct 9 on the 28th). Calling those late would be wrong and naggy. |
+| 2026-10-29 | The push helper makes its own VAPID key and keeps it in a Durable Object (Keys) | Pasting the private key into Cloudflare went wrong twice (a plain Variable, then a mismatch). Now nothing is copied by hand and the private half never leaves Cloudflare. Phones re-subscribe to the new key (Buzz → Turn off → Turn on). |
 
