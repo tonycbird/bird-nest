@@ -253,6 +253,7 @@ export async function pullClaude() {
   await part(async () => { await flushOutbox(); await refreshProposals(); });
   await part(pullCalendar);
   await part(pullMail);
+  await part(pullMoney);
   if (errors.length) throw new Error(errors.join(" · "));
 }
 
@@ -264,6 +265,13 @@ async function pullCalendar() {
     await db.calendar.clear();
     await db.calendar.bulkPut((cal.data ?? []).map((e) => ({ id: e.google_id + "|" + e.day, day: e.day, start: e.start_time, end: e.end_time, title: e.title, all_day: e.all_day })));
   });
+}
+
+/** Phase 6: the money summary Claude leaves each morning (absent until migration 0005 is run: skipped quietly). */
+async function pullMoney() {
+  const r = await supabase.from("money_summary").select("data,updated_at").maybeSingle();
+  if (r.error) { if (/money_summary|relation|schema cache/i.test(r.error.message)) return; throw new Error(r.error.message); }
+  if (r.data?.data) { const { saveMoney } = await import("./money"); await saveMoney(r.data.data, r.data.updated_at); }
 }
 
 async function pullMail() {

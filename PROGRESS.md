@@ -1,5 +1,28 @@
 # Progress
 
+## Phase 6 — Money summary · built Oct 28 (needs one SQL paste + an OK for the morning run)
+A read-only look at Bird Budgeting inside Nest: what's left, the next payday, and the bills before it. Bird Budgeting stays the place to import, label and mark paid.
+
+### Setup (Anthony, once)
+1. Supabase → SQL editor: paste `supabase/migrations/0005_money.sql` → Run.
+2. Push "Money summary" with GitHub Desktop.
+3. Tell Claude "OK" to add the money step to the morning run (it reads Bird Budgeting with the ArtifactData tool, then sends only the summary).
+
+### Done
+- [x] `claude/tools/money.mjs`: Bird Budgeting's own rules (txnLines, billStatusesFor, billDaysInMonth, nextDueDate, nextPayday, before-payday) ported, so both apps agree. Summary only: left per envelope (groceries first), all envelopes, next payday, bills before it, paid this month, transactions to sort. No transactions or payees leave the run
+- [x] Honest about the bank copy: a bill due after the newest imported transaction is "not in yet" (quiet), not late; one due before it with no payment gets a small "!"
+- [x] Checked on the real data (read-only, Oct 28): bank copy through Oct 9, groceries $347.64 left of $500, payday Fri Oct 30
+- [x] `nest_money(token, put|get)` door + `money_summary` table (one row, read-own RLS) — migration 0005, SQL tests
+- [x] Phone: pulls the summary on sync; Today gets one brass circle ("$348 left") → Money screen (brass only): groceries, other envelopes, payday + bills before it, paid, to sort, Open Bird Budgeting
+- [x] Bills due today become a 15-minute money block: Open ICCU · Pay $65 · Mark paid in Budget (once; delete it and it stays gone)
+- [x] The grocery block's title shows what's left ("Groceries · $348 left")
+- [x] `claude/tasks/money.md`: the money run, with the script inside it and a sha256 check (built by `claude/tools/build-money-task.mjs`; a test fails if they drift)
+- [x] Tests: money summary (shared-category bills, marks, biweekly paydays, quarterly/yearly bills, splits, transfers), bill blocks, SQL door, Money e2e light/dark
+
+### Phone check (done when)
+- [ ] The Money circle shows the morning after the SQL paste and the morning-run OK
+- [ ] A bill due today shows as a block with its amount
+
 ## Phase 5 — Polish · built Oct 28 (phone check next)
 Buzzing on a locked phone, warmer words, small motion, and a speed check.
 

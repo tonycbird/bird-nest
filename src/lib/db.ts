@@ -21,7 +21,7 @@ export interface Block extends Row {
   title: string;
   status: BlockStatus;
   done_at: string | null;
-  source_type?: "task" | "groceries" | "workout" | "calendar" | null;  // made from Head (a task, grocery items), Body (a workout part), or a calendar event Anthony accepted
+  source_type?: "task" | "groceries" | "workout" | "calendar" | "bill" | null;  // made from Head (a task, grocery items), Body (a workout part), or a calendar event Anthony accepted
   source_id?: string | null;    // task id; grocery task ids joined by ","; "YYYY-MM-DD|warm|main|cool|…" for Body; the calendar event id
 }
 
@@ -65,6 +65,9 @@ export interface Report extends Row {
   fixed_at: string | null;
 }
 
+/** Phase 6: the money summary Claude works out from Bird Budgeting (claude/tools/money.mjs). Pulled, never pushed. */
+export interface MoneyRow { key: "summary"; data: import("./money").MoneySummary; updated_at: string }
+
 export type OutboxOp =
   | { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string }
   | { op_id: string; table: "mail_items"; row_id: string; patch: { dismissed_at: string }; queued_at: string };
@@ -89,6 +92,7 @@ export class NestDB extends Dexie {
   calendar!: Table<CalEvent, string>;
   mail!: Table<MailItem, string>;
   reports!: Table<Report, string>;
+  money!: Table<MoneyRow, string>;
   constructor(name = "bird-nest") {
     super(name);
     this.version(1).stores({ proposals: "id, status, created_at", outbox: "op_id, queued_at" });
@@ -111,6 +115,7 @@ export class NestDB extends Dexie {
     this.version(4).stores({ fit: "key, updated_at" });
     this.version(5).stores({ calendar: "id, day", mail: "id, created_at" });
     this.version(6).stores({ reports: "id, created_at, status" });
+    this.version(7).stores({ money: "key" });
   }
 }
 export const db = new NestDB();

@@ -37,3 +37,8 @@ Reports live in `nest_rows` (tbl `reports`) and come through their own door, `ne
 (migration 0003): `list` (args `{"status":"open|fixed|later|all","full":true}`) and `mark` (args `{"items":[{"id","status":"fixed|later|open","note"}]}`).
 In a coding session: `node claude/tools/reports.mjs list`, `pull <dir>` (saves the screen HTML + photo to redraw), `mark <id> fixed "what changed"`.
 The note shows on Anthony's phone under the report.
+
+## Money (Phase 6)
+The money summary has its own narrow door, `nest_money(token, action, args)` (migration 0005): `put` (args `{"summary": {...}}` from claude/tools/money.mjs) and `get`.
+The full steps are in `claude/tasks/money.md` (built from money.template.md; the morning prompt's `<MONEY>` is that file with the door filled in).
+

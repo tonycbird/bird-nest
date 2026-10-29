@@ -8,6 +8,7 @@ import { fitApi, fitState, type FitPlan } from "../body/host";
 import { missingFromRiver, putPlanOnRiver } from "../body/river-body";
 import { Icon, type IconName } from "../ui/Icon";
 import { colorFor, shortLabel, taskIcon } from "../ui/colors";
+import { fmtMoney, isCurrent, useMoney } from "../lib/money";
 
 /* The circles at the top of Today: things that fit today but have no time yet.
    Tap one to open it. Claude's suggestions sit first. Nothing to show, no row. */
@@ -19,6 +20,7 @@ export default function QuickRow({ day, pending, onApprovals }: { day: string; p
   const s = useHeadSettings();
   const onRiver = useLiveQuery(async () => new Set((await db.blocks.where("day").equals(day).toArray()).filter((b) => !b.deleted_at && b.source_type === "task").map((b) => b.source_id!)), [day], new Set<string>());
   const plan = useBodyPlan(day);
+  const { summary: money } = useMoney();
 
   const items: Q[] = [];
   if (pending > 0) items.push({ key: "claude", icon: "claude", color: "var(--accent)", label: "Claude", badge: pending, dashed: true, aria: `${pending} from Claude`, run: onApprovals });
@@ -35,6 +37,12 @@ export default function QuickRow({ day, pending, onApprovals }: { day: string; p
     const inbox = C.selectInbox(data).length;
     if (inbox) items.push({ key: "inbox", icon: "inbox", color: colorFor("inbox"), label: `${inbox} to sort`, run: () => openOverlay("process") });
     if (s.lastPlan !== C.today() && (main.length || overdue.length || inbox)) items.push({ key: "plan", icon: "morning", color: colorFor("morning"), label: "Plan", run: () => openOverlay("plan") });
+    // Money: groceries left (or what's left overall), from Bird Budgeting. Tap for the rest.
+    if (isCurrent(money, day)) {
+      const g = money.groceries;
+      items.push({ key: "money", icon: "coin", color: "var(--c-money)", label: `${fmtMoney(g ? g.left : money.left.total, true)} left`,
+        aria: g ? `${fmtMoney(g.left)} left for groceries. Open Money` : `${fmtMoney(money.left.total)} left this month. Open Money`, run: () => goTab("money") });
+    }
   }
   if (!items.length) return null;
   return (

@@ -307,3 +307,23 @@ body:has(.player) .toast{bottom:auto; top:calc(72px + env(safe-area-inset-top,0p
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
 }
+
+/* ---------- Money (Phase 6): brass is the only color ---------- */
+.money .sentence .soft{color:var(--ink-3); font-weight:700;}
+.money-ic{color:var(--c-money);}
+.mhero{padding-bottom:16px;}
+.mbar{height:6px; border-radius:100px; background:var(--tint); overflow:hidden; margin:2px 0 4px;}
+.mbar.big{height:12px; margin-top:6px;}
+.mbar > span{display:block; height:100%; border-radius:100px; background:var(--c-money); transition:width .4s ease;}
+.mrow{padding:2px 0 8px; border-bottom:1px solid var(--line);}
+.mrow .kv{border-bottom:0; padding-bottom:6px;}
+.mrow b{font-variant-numeric:tabular-nums;}
+.mneg{color:var(--warn-ink);}
+.money .kv b, .money .kv > span:last-child{font-variant-numeric:tabular-nums; white-space:nowrap; flex:none;}
+.money .kv > span:first-child{min-width:0;}
+.mbill{font-size:15px;}
+.mbill.unseen{color:var(--ink-3);}
+.mday{display:inline-block; min-width:52px; color:var(--ink-3); font-size:13px; font-weight:700;}
+.mflag{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--c-money); color:#1B1E26; font-size:12px; font-weight:900; margin-right:6px; vertical-align:1px;}
+.mnote{margin-top:8px;}
+a.btn{text-decoration:none;}

@@ -239,3 +239,44 @@ describe("coffee meetings", () => {
   });
 });
 
+
+describe("real dictation, Oct 28", () => {
+  test("talking to the app becomes the task itself", () => {
+    expect(find(plan("add a simple task for fixing the outlet").items, "Fix").title).toBe("Fix the outlet");
+    expect(find(plan("make a task to call the plumber").items, "Call").title).toBe("Call the plumber");
+    expect(find(plan("put down that I need to fix the gate").items, "Fix").title).toBe("Fix the gate");
+    const p = find(plan("create a task for painting the fence friday").items, "Paint");
+    expect(p.title).toBe("Paint the fence");
+    expect(p.when).toBe("2026-10-23");
+  });
+  test("last names, 'as well as', and a day that's the topic", () => {
+    expect(find(plan("I need to clear the debris for Gayle bent").items, "Clear").title).toBe("Clear the debris for Gayle Bent");
+    expect(find(plan("drop off keys with Sarah jones").items, "Drop").title).toBe("Drop off keys with Sarah Jones");
+    expect(find(plan("help Dave move on saturday").items, "Help").title).toBe("Help Dave move");
+    expect(find(plan("get an empty truck as well as my tarp").items, "Get").title).toBe("Get an empty truck and my tarp");
+    const t = find(plan("text Abby about friday").items, "Text");
+    expect(t.title).toBe("Text Abby about Friday");
+    expect(t.when ?? null).toBeNull();
+  });
+});
+
+describe("already on the list", () => {
+  test("a thing you already have is left unchecked, inside the same project only", () => {
+    const pay = find(plan("pay the kootenai electric bill").items, "Pay");
+    expect(pay.keep).toBe(false);
+    expect(pay.dupOf).toBe("t3");
+    const buy = find(plan("For the Jon Wolfe project, buy materials").items, "Buy materials");
+    expect(buy.dupOf).toBe("t2");
+    expect(buy.keep).toBe(false);
+    const fresh = find(plan("buy materials for the shed").items, "Buy materials");
+    expect(fresh.keep).toBe(true);
+  });
+  test("sameTask is loose about little words, strict about real ones", async () => {
+    const { sameTask } = await import("../src/head/same");
+    expect(sameTask("Rent the sod cutter", "rent sod cutter")).toBe(true);
+    expect(sameTask("Call Dave", "Call Dave.")).toBe(true);
+    expect(sameTask("Call Dave", "Call Mark")).toBe(false);
+    expect(sameTask("Pick up the trim boards", "Pick up trim board")).toBe(true);
+    expect(sameTask("Buy paint", "Buy paint brushes and tape")).toBe(false);
+  });
+});

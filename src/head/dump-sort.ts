@@ -1,3 +1,4 @@
+import { normTitle, sameTask } from "./same";
 import * as C from "./core/clearhead.js";
 import type { Area, HeadData, HeadSettings, Project, RepeatRule } from "./types";
 
@@ -26,6 +27,8 @@ export interface DumpItem {
   newProject: string | null;
   /** "every Monday" */
   repeat?: RepeatRule | null;
+  /** Already on the list (that task's id): left unchecked so it isn't added twice. */
+  dupOf?: string | null;
 }
 export interface DumpProject { key: string; name: string; areaId: string | null; outcome: string | null; deadline: string | null; on: boolean; client?: string | null; }
 export interface DumpPlan { items: DumpItem[]; projects: DumpProject[]; }
@@ -273,7 +276,22 @@ const PHRASES: [RegExp, string][] = [
   [/^take care of\s+/i, "handle "],
   [/^get (?:a|the) hold of\s+/i, "contact "],
   [/^get (?:the|a)\s+(.+?)\s+(?:fixed|done|finished|sorted)\b/i, "finish the $1"],
+  [/\s+as well as\s+/gi, " and "],
 ];
+/* Talking to the app instead of about the task: "add a simple task for fixing the outlet" → "Fix the outlet". */
+const META_TASK = /^(?:please\s+)?(?:(?:add|make|create|set|put|write)(?:\s+(?:down|up|me))?\s+(?:a|an)?\s*(?:simple|quick|new|little|small)?\s*(?:task|to-?do|reminder|note)(?:\s+item)?\s+(?:for|to|that|about|on)\s+|(?:put|write)\s+down\s+(?:that\s+)?|note to self:?\s+|add to (?:my|the) (?:list|to-?do list)\s+(?:to\s+)?)(?:i\s+(?:need|have|gotta|got)\s+to\s+|we\s+(?:need|have)\s+to\s+)?/i;
+function metaTask(t: string): string {
+  if (!META_TASK.test(t)) return t;
+  let rest = t.replace(META_TASK, "");
+  // "fixing the outlet" → "fix the outlet"
+  const m = rest.match(/^([a-z]+?)ing\b/i);
+  if (m) {
+    const stem = m[1].toLowerCase();
+    const v = [stem, stem + "e", stem.replace(/(.)\1$/, "$1")].find((c) => VERBS.has(c));
+    if (v) rest = v + rest.slice(m[0].length);
+  }
+  return rest.trim() ? rest : t;
+}
 /* Why and when-if words: they matter, but in the notes, not the title. */
 const REASON = /\s+(?:because|cause|'cause|cuz|since|so that|so i can|so we can|so he can|so she can|so they can|so it can|in order to|that way|which|otherwise|just in case|in case)\b/i;
 /* "Coffee with Mark to go over the deck": for a meetup, the purpose is notes. */
@@ -344,6 +362,13 @@ wendy wesley william zach zachary`.split(/\s+/));
 const NOT_NAMES = new Set(["the", "a", "an", "my", "our", "his", "her", "their", "him", "them", "back", "about", "up", "in", "out", "someone", "everyone",
   "people", "client", "county", "city", "bank", "office", "shop", "store", "doctor", "dentist", "plumber", "electrician", "supplier", "landlord", "boss",
   "team", "church", "school", "insurance", "company", "guy", "lady", "contractor", "inspector", "it", "that", "this", "on", "for", "to", "with", "and"]);
+/* Everyday words that never start a last name. */
+const COMMON = new Set(`about above after again against all also and any are around ask back because been before being below between both but can come
+could day did does doing done down during each early else ever every few first for from get gets got had has have her here hers him his home house how
+into its just know last late later let like made make many may maybe might more morning afternoon evening night most much must need needs next not now
+off once one only onto other our out over own please put said same say says see she should since some soon still such sure take than thank thanks that
+the their them then there these they thing things this those though through today together tomorrow tonight too two under until upon very want wants was
+way week weekend well went were what when where which while who why will with would yet you your yours again stuff too also maybe really`.split(/\s+/));
 const PLACES: [RegExp, string][] = [
   [/\bhome depot\b/gi, "Home Depot"], [/\blowe'?s\b/gi, "Lowe's"], [/\bcostco\b/gi, "Costco"], [/\bwinco\b/gi, "WinCo"], [/\bwalmart\b/gi, "Walmart"],
   [/\bamazon\b/gi, "Amazon"], [/\bavista\b/gi, "Avista"], [/\bkootenai electric\b/gi, "Kootenai Electric"], [/\bmenards\b/gi, "Menards"],
@@ -377,6 +402,13 @@ function caps(title: string, known: Map<string, string>): string {
     if (/s$/.test(w) && (known.has(w.slice(0, -1)) || FIRST_NAMES.has(w.slice(0, -1)))) { const b = known.get(w.slice(0, -1)) ?? w[0].toUpperCase() + w.slice(1, -1); return b + "'s"; }
     if (/^(?:greek|hebrew|latin|english|spanish)$/.test(w)) return w[0].toUpperCase() + w.slice(1);
     return w;
+  });
+  // A last name after a first name: "Gayle bent" → "Gayle Bent", "Sarah jones" → "Sarah Jones". Not "Dave move", "Abby about".
+  t = t.replace(/(?<=\S\s)([A-Z][a-z]+) ([a-z]{3,})\b/g, (m, first: string, w: string) => {
+    if (!FIRST_NAMES.has(first.toLowerCase()) || NOT_NAMES.has(w) || COMMON.has(w) || WEEKDAY_WORDS.test(w)) { WEEKDAY_WORDS.lastIndex = 0; return m; }
+    WEEKDAY_WORDS.lastIndex = 0;
+    const bases = [w, w.replace(/s$/, ""), w.replace(/es$/, ""), w.replace(/ed$/, ""), w.replace(/ed$/, "e"), w.replace(/ing$/, ""), w.replace(/ing$/, "e"), w.replace(/ied$/, "y")];
+    return bases.some((b) => VERBS.has(b)) ? m : first + " " + w[0].toUpperCase() + w.slice(1);
   });
   // The word after call/text/… is a person ("Call Smith"), unless it's a common word.
   t = t.replace(/^(\S+\s+)([a-z][a-z']+)\b/, (m, v: string, w: string) => (PEOPLE_VERB.test(v) && !NOT_NAMES.has(w) && w.length > 2 ? v + w[0].toUpperCase() + w.slice(1) : m));
@@ -781,7 +813,10 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
     // "plan out next week": the week is what gets planned, not when.
     const keep: string[] = [];
     let pp = dateWords(p).replace(/^((?:plan|plan out|map out|organize|prep for|prepare for|schedule out|think through)\s+)((?:next|this|the)\s+(?:week|month|weekend)|tomorrow)\b/i,
-      (_m, v: string, what: string) => { keep.push(what); return v + "\u0001" + (keep.length - 1); });
+      (_m, v: string, what: string) => { keep.push(what); return v + "\u0001" + (keep.length - 1); })
+      // "text Abby about Friday": Friday is what it's about, not when.
+      .replace(/\b(about|regarding)\s+((?:this|next)\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|the weekend|this weekend)\b/gi,
+        (_m, a: string, pre: string | undefined, d: string) => { keep.push((pre ?? "") + d); return a + " \u0001" + (keep.length - 1); });
     // "text Aaron and see if he can help Saturday": Saturday is about the help, not when to text.
     const msg = PEOPLE_VERB.test(pp) ? pp.search(/\s(?:and )?(?:see|ask|check)\s+(?:if|whether)\b|\sif\s|\swhether\s|\s(?:that|saying|to say)\s|\sand (?:ask|tell) (?:him|her|them)\b/i) : -1;
     let tail = "";
@@ -806,6 +841,7 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
     const pur = !isMsg && MEETUP.test(title) ? title.match(PURPOSE) : null;
     if (pur && pur.index! >= 6) { title = title.slice(0, pur.index).trim(); moved = true; }
     title = title.replace(FILL_MID, "").replace(/\s+/g, " ").trim();
+    title = metaTask(title);
     for (const [re, to] of PHRASES) title = title.replace(re, to);
     // "for the Jon Wolfe project" in the title is said by the project chip already.
     if (home?.projectId) {
@@ -866,6 +902,15 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
   for (const pr of [...projects]) {
     const steps = items.filter((it) => it.newProject === pr.key);
     if (steps.length < 2) { steps.forEach((it) => { it.newProject = null; }); projects.splice(projects.indexOf(pr), 1); }
+  }
+  // Already on the list? Leave it unchecked (one tap keeps it anyway).
+  const open = [...data.tasks.values()].filter((t) => t.status === "open");
+  for (const it of items) {
+    if (it.newProject || it.dest === "thought") continue;
+    const twin = it.dest === "shop"
+      ? open.find((t) => !!t.grocery && normTitle(t.title) === normTitle(it.title))
+      : open.find((t) => !t.grocery && (t.projectId ?? null) === (it.projectId ?? null) && sameTask(t.title, it.title));
+    if (twin) { it.keep = false; it.dupOf = twin.id; }
   }
   return { items, projects };
 }

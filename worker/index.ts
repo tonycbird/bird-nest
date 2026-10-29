@@ -19,6 +19,12 @@ type Reply = Record<string, string | number | boolean | null>;
 interface State { sub: PushSub | null; keyHash: string; items: Item[]; sent: number; lastStatus: number; lastAt: number; lastWhy?: string }
 
 const MAX_ITEMS = 40;
+/** A pasted key can carry a newline, spaces, quotes or "=" padding; keep only the key itself. */
+export const cleanKey = (k?: string) => (k ?? "").replace(/\+/g, "-").replace(/\//g, "_").replace(/[^A-Za-z0-9_-]/g, "");
+function keysOf(e: Env): Vapid | null {
+  const publicKey = cleanKey(e.VAPID_PUBLIC), privateKey = cleanKey(e.VAPID_PRIVATE);
+  return publicKey && privateKey ? { publicKey, privateKey, subject: e.VAPID_SUBJECT || "https://bird-nest.tonyc-bird.workers.dev" } : null;
+}
 const LATE_MS = 90_000; // a buzz more than this late is dropped, not sent
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
@@ -51,8 +57,7 @@ export class Notifier extends DurableObject<Env> {
     else await this.ctx.storage.deleteAlarm();
   }
   private vapid(): Vapid | null {
-    const e = this.env;
-    return e.VAPID_PUBLIC && e.VAPID_PRIVATE ? { publicKey: e.VAPID_PUBLIC, privateKey: e.VAPID_PRIVATE, subject: e.VAPID_SUBJECT || "https://bird-nest.tonyc-bird.workers.dev" } : null;
+    return keysOf(this.env);
   }
 
   /** One call from the phone. `key` proves it's the phone that set this Notifier up. */
@@ -146,10 +151,10 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     if (url.pathname === "/api/push/key") {
-      const ready = !!(env.VAPID_PUBLIC && env.VAPID_PRIVATE);
+      const v = keysOf(env);
       // pair: do the public key here and the secret in Cloudflare belong together?
-      const pair = ready ? await vapidPairOk({ publicKey: env.VAPID_PUBLIC!, privateKey: env.VAPID_PRIVATE!, subject: "" }) : false;
-      return json({ key: env.VAPID_PUBLIC || null, ready, pair });
+      const pair = v ? await vapidPairOk(v) : false;
+      return json({ key: v?.publicKey || cleanKey(env.VAPID_PUBLIC) || null, ready: !!v, pair });
     }
     const m = url.pathname.match(/^\/api\/push\/(subscribe|schedule|cancel|test|status|off)$/);
     if (!m) return json({ error: "not found" }, 404);

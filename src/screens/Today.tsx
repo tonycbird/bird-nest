@@ -13,6 +13,7 @@ import QuickRow from "./QuickRow";
 import { fitApi } from "../body/host";
 import { goTab, openTask, useHeadSettings } from "../head/useHead";
 import { placeTimedTasks } from "../head/river-bridge";
+import { placeBillBlocks, useMoney } from "../lib/money";
 import { acceptEvent, acceptedOn } from "../lib/calendar-accept";
 import { justDone, markJustDone } from "../lib/motion";
 import { I, Icon } from "../ui/Icon";
@@ -100,6 +101,10 @@ export default function Today(props: Props) {
   const timed = useLiveQuery(() => db.tasks.where("when").equals(todayKey).filter((t) => !!t.time && t.status === "open").primaryKeys(), [todayKey], [] as string[]);
   const timedSig = timed.join(",");
   useEffect(() => { if (timedSig) void placeTimedTasks(todayKey); }, [timedSig, todayKey]);
+  // Bills due today (from Bird Budgeting) become small money blocks, once each.
+  const { summary: money } = useMoney();
+  const billSig = money?.today === todayKey ? money.due_today.map((b) => b.id).join(",") : "";
+  useEffect(() => { if (billSig) void placeBillBlocks(todayKey); }, [billSig, todayKey]);
 
   const now = nowBlock(blocks);
   const open = openId === "auto" ? (isToday ? now?.id ?? null : null) : openId;

@@ -160,7 +160,7 @@ Money tables are not created until Phase 6. They are listed in Budget to come.
 
 ## Screens
 
-There are four tabs at the bottom: **Today**, **Head**, **Body** and **✓**. A fifth tab, **Money**, appears in Phase 6. Settings sits behind the gear. A global ＋ opens Quick Add from anywhere.
+There are four tabs at the bottom: **Today**, **Head**, **Body** and **✓**. Money (Phase 6) is a brass circle on Today that opens a Money screen, not a fifth tab. Settings sits behind the gear. A global ＋ opens Quick Add from anywhere.
 
 ### Today, the River
 

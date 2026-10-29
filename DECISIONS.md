@@ -64,3 +64,8 @@
 | 2026-10-28 | Push runs on a small Cloudflare helper (Worker + one Durable Object per phone, alarm-timed) | iPhones can't schedule their own notifications from a web app; the alarm fires on the exact second (a cron would be up to a minute late for a 90 s rest). Free plan. The private key is a Cloudflare secret, never in the repo. |
 | 2026-10-28 | The phone keeps its push id/key in localStorage, not the synced database | They belong to this phone; a restore or a second phone must not share them. |
 | 2026-10-28 | Words: no paragraph over 16 words or 3 sentences; nothing says late, missed or overdue | Phase 5 voice: lead with what's next, not what slipped. The audit crawler checks both. |
+| 2026-10-28 | Money is a brass circle on Today that opens a Money screen, not a 5th tab | Less is more: the tab bar stays four + ＋. The circle shows groceries left, the number he checks most. |
+| 2026-10-28 | The money summary is worked out by a fixed script (claude/tools/money.mjs), not by Claude doing sums | Same answer every morning, tested, and it uses Bird Budgeting's own rules. Claude only reads the data and runs it. The script rides inside the prompt with a sha256 check. |
+| 2026-10-28 | Only the summary is stored in Nest's cloud (money_summary), never transactions | Bird Budgeting is shared with Abby and holds the household's records; Nest just needs the totals. |
+| 2026-10-28 | A bill after the newest imported transaction is "not in yet", not late | Imports run behind (Oct 9 on the 28th). Calling those late would be wrong and naggy. |
+

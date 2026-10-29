@@ -219,6 +219,7 @@ function Row({ it, data, grouped, onChange, onMove }: { it: DumpItem; data: Retu
   if (!grouped && home) meta.push(<span key="p"><I n="project" /> {home.name}</span>);
   else if (!grouped && area && it.dest !== "shop" && it.dest !== "thought") meta.push(<span key="a">{area.name}</span>);
   if (it.notes) meta.push(<span key="n" title={it.notes}><I n="doc" /> note</span>);
+  if (it.dupOf) meta.unshift(<span key="dup"><I n="check" /> On your list</span>);
   return (
     <div className={"task drow" + (it.keep ? "" : " off")}>
       <Check on={it.keep} onToggle={(v) => onChange({ keep: v })} label={it.keep ? "Leave out" : "Keep"} />

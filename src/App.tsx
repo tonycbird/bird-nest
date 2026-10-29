@@ -7,6 +7,7 @@ import { ToastProvider } from "./lib/toast";
 import Today from "./screens/Today";
 import Approvals from "./screens/Approvals";
 import Settings from "./screens/Settings";
+import Money from "./screens/Money";
 import UpdateToast from "./screens/UpdateToast";
 import HeadScreen, { HeadOverlays } from "./head/HeadScreen";
 import { appNav, goTab, multi, openOverlay, type AppTab } from "./head/useHead";
@@ -78,6 +79,7 @@ export default function App() {
           {tab === "body" && <BodyScreen />}
           {tab === "ok" && <Approvals />}
           {tab === "settings" && <Settings email={c.email} online={online} />}
+          {tab === "money" && <Money />}
         </main>
         <nav className="tabs" aria-label="Main">
           {T("today", "today", "Today")}

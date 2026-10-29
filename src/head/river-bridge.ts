@@ -9,6 +9,7 @@ import { minutes as toMin, nowHHMM, today as riverToday } from "../lib/time";
 import type { Task } from "./types";
 import { ic } from "./ui/bits";
 import { taskIcon } from "../ui/colors";
+import { groceriesLeftLabel } from "../lib/money";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const hhmm = (m: number) => `${pad(Math.floor(Math.min(m, 23 * 60 + 45) / 60))}:${pad(Math.min(m, 23 * 60 + 45) % 60)}`;
@@ -109,8 +110,9 @@ export async function putGroceriesOnRiver(areaId: string, day: string = riverTod
   items.sort((a, b) => order.indexOf(a.grocery!.cat) - order.indexOf(b.grocery!.cat) || a.order - b.order);
   const take = items.slice(0, MAX_STEPS);
   const start = await nextFreeSlot(day);
+  const left = await groceriesLeftLabel(day); // "$348 left" from Bird Budgeting, when there's a fresh summary
   const { id } = await addBlock({
-    day, start: hhmm(start), end: hhmm(start + 45), kind: "life", icon: "🛒", title,
+    day, start: hhmm(start), end: hhmm(start + 45), kind: "life", icon: "🛒", title: left ? `${title} · ${left}` : title,
     steps: take.map((t) => ({ label: t.title, value: C.GROCERY_CATS.find((c) => c.id === t.grocery!.cat)?.name ?? null })),
     source_type: "groceries", source_id: take.map((t) => t.id).join(","),
   });

@@ -149,6 +149,17 @@ async function seed(p) {
     await P('pp2', 'grocery', { items: [{ name: 'Eggs', amt: '5 dozen' }, { name: 'Rice' }] }, 'You are low on eggs and rice.');
     await P('pp3', 'task', { title: 'Reply to Dave about the quote', when: '2026-10-21', link: 'https://mail.google.com/x' }, 'Dave asked yesterday.');
     await P('pp4', 'calendar_book', { title: 'Gym', day: '2026-10-22', start: '05:00', end: '06:30' }, 'Book the gym.');
+    // Phase 6: a money summary like the real one (made-up numbers)
+    await put('money', { key: 'summary', updated_at: now, data: { v: 1, as_of: now, month: '2026-10', today: '2026-10-21',
+      left: { total: 1056.4, budget: 4389.84, spent: 3333.44 },
+      categories: [{ id: 'groceries', name: 'Groceries', budget: 500, spent: 152.36, left: 347.64 }, { id: 'dining-out', name: 'Dining Out', budget: 250, spent: 146.85, left: 103.15 },
+        { id: 'fuel', name: 'Fuel', budget: 150, spent: 50.03, left: 99.97 }, { id: 'household', name: 'Household Supplies and Other Very Long Envelope Names', budget: 125, spent: 162.42, left: -37.42 }],
+      groceries: { id: 'groceries', name: 'Groceries', budget: 500, spent: 152.36, left: 347.64 },
+      payday: { date: '2026-10-30', amount: 1976.52 },
+      before_payday: { total: 441.02, bills: [{ id: 'e', name: 'Electric', date: '2026-10-05', amount: 221.39, late: true, unseen: false },
+        { id: 'p', name: 'T-Mobile for Business', date: '2026-10-20', amount: 94.63, late: false, unseen: true }, { id: 'n', name: 'Internet', date: '2026-10-21', amount: 65, late: false, unseen: false },
+        { id: 'w', name: 'Water & Sewer', date: '2026-10-28', amount: 60, late: false, unseen: false }] },
+      bank_through: '2026-10-09', overdue: 1, unseen: 1, due_today: [{ id: 'n', name: 'Internet', amount: 65 }], paid_this_month: { count: 7, total: 2156.05 }, to_sort: 3 } });
     await put('mail', { id: 'm1', received: now, sender: 'Dave Smith', subject: 'Quote for the bathroom', ask: 'Send the quote', due: null, link: 'https://mail.google.com/y', created_at: now, dismissed_at: null });
     db.close();
   });
@@ -188,6 +199,8 @@ const STEPS = [
   ['dump-write', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); }],
   ['dump-sorted', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); await p.click('.flow-foot >> text=Sort'); }],
   ['dump-sorted-bottom', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); await p.click('.flow-foot >> text=Sort'); await p.locator('.flow-body').evaluate((e) => { e.scrollTop = 99999; }); await p.waitForTimeout(150); }],
+  ['money', async (p) => { await go(p); await p.click('.qc >> text=left'); }],
+  ['money-bottom', async (p) => { await go(p); await p.click('.qc >> text=left'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
   ['settings', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); }],
   ['settings-bottom', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
   ['settings-trash', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.click('button >> text=Show'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],

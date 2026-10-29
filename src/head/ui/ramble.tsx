@@ -1,3 +1,4 @@
+import { sameTask } from "../same";
 import { useEffect, useRef, useState } from "react";
 import { once } from "../../lib/once";
 import * as C from "../core/clearhead.js";
@@ -146,7 +147,7 @@ export function Ramble(props: { focus?: Focus }) {
     const existing = new Set((focus!.kind === "project"
       ? C.projectTasks(data, focus!.id).filter(C.isOpen).map((t) => t.title)
       : focus!.kind === "task" ? (data.tasks.get(focus!.id)?.checklist || []).filter((c) => !c.done).map((c) => c.text) : []).map((x) => x.toLowerCase().trim()));
-    setRows(r.todos.map((t) => ({ ...t, id: C.uid("r"), keep: !existing.has(t.title.toLowerCase().trim()) })));
+    setRows(r.todos.map((t) => ({ ...t, id: C.uid("r"), keep: ![...existing].some((x) => sameTask(x, t.title)) })));
     setMaterials(r.materials);
     setNotes(r.notes.map((n) => "- " + n).join("\n"));
     const n = r.todos.length;
