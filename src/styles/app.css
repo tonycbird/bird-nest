@@ -327,3 +327,7 @@ body:has(.player) .toast{bottom:auto; top:calc(72px + env(safe-area-inset-top,0p
 .mflag{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--c-money); color:#1B1E26; font-size:12px; font-weight:900; margin-right:6px; vertical-align:1px;}
 .mnote{margin-top:8px;}
 a.btn{text-decoration:none;}
+
+/* Phase 7: Settings → Bank */
+.mnum { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bank-item + .bank-item { margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--line); }

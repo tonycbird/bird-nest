@@ -254,6 +254,7 @@ export async function pullClaude() {
   await part(pullCalendar);
   await part(pullMail);
   await part(pullMoney);
+  await part(async () => { const { syncBank } = await import("./bank"); await syncBank().catch(() => undefined); }); // quiet: the Bank card shows its own state
   if (errors.length) throw new Error(errors.join(" · "));
 }
 

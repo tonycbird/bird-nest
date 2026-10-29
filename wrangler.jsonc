@@ -14,12 +14,18 @@
     "run_worker_first": ["/api/*"]
   },
   // One small Notifier per phone (its push address and the buzzes waiting to go out),
-  // and one Keys object holding the helper's own push key, made on first use (nothing to paste).
+  // one Keys object holding the helper's own push key, made on first use (nothing to paste),
+  // and one Bank object holding the Plaid link and every transaction (the bank key never leaves it).
   "durable_objects": {
-    "bindings": [{ "name": "NOTIFIER", "class_name": "Notifier" }, { "name": "KEYS", "class_name": "Keys" }]
+    "bindings": [{ "name": "NOTIFIER", "class_name": "Notifier" }, { "name": "KEYS", "class_name": "Keys" }, { "name": "BANK", "class_name": "Bank" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Notifier"] }, { "tag": "v2", "new_sqlite_classes": ["Keys"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Notifier"] }, { "tag": "v2", "new_sqlite_classes": ["Keys"] }, { "tag": "v3", "new_sqlite_classes": ["Bank"] }],
+  // Pull new bank transactions every 3 hours.
+  "triggers": { "crons": ["23 */3 * * *"] },
+  // Public values only. Plaid's keys are Cloudflare Secrets (PLAID_CLIENT_ID, PLAID_SANDBOX_SECRET, PLAID_SECRET).
   "vars": {
-    "VAPID_SUBJECT": "https://bird-nest.tonyc-bird.workers.dev"
+    "VAPID_SUBJECT": "https://bird-nest.tonyc-bird.workers.dev",
+    "SUPABASE_URL": "https://joorbzjevfjclngoapsf.supabase.co",
+    "SUPABASE_KEY": "sb_publishable_mNEO6EvcASFm4UpbDFfi_Q_UpCAjw8z"
   }
 }

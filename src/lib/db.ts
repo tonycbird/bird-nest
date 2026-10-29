@@ -68,6 +68,12 @@ export interface Report extends Row {
 /** Phase 6: the money summary Claude works out from Bird Budgeting (claude/tools/money.mjs). Pulled, never pushed. */
 export interface MoneyRow { key: "summary"; data: import("./money").MoneySummary; updated_at: string }
 
+/** Phase 7: bank transactions from Plaid, through the helper's Bank (worker/bank.ts). Pulled, never pushed.
+    Spending is negative. `category` and `note` are Nest's own and survive the bank editing a row. */
+export interface Txn { id: string; item_id: string; account_id: string; date: string; month: string; amount: number; name: string; merchant: string; pending: boolean; hint: string; category?: string | null; note?: string | null; updated_at: string }
+/** The bank's last status and where the pull got to (key "status", "seq"). */
+export interface BankRow { key: string; data: unknown; updated_at: string }
+
 export type OutboxOp =
   | { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string }
   | { op_id: string; table: "mail_items"; row_id: string; patch: { dismissed_at: string }; queued_at: string };
@@ -93,6 +99,8 @@ export class NestDB extends Dexie {
   mail!: Table<MailItem, string>;
   reports!: Table<Report, string>;
   money!: Table<MoneyRow, string>;
+  txns!: Table<Txn, string>;
+  bank!: Table<BankRow, string>;
   constructor(name = "bird-nest") {
     super(name);
     this.version(1).stores({ proposals: "id, status, created_at", outbox: "op_id, queued_at" });
@@ -116,6 +124,7 @@ export class NestDB extends Dexie {
     this.version(5).stores({ calendar: "id, day", mail: "id, created_at" });
     this.version(6).stores({ reports: "id, created_at, status" });
     this.version(7).stores({ money: "key" });
+    this.version(8).stores({ txns: "id, date, month, account_id, item_id", bank: "key" });
   }
 }
 export const db = new NestDB();

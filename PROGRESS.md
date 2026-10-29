@@ -1,12 +1,31 @@
 # Progress
 
-## Phase 6 — Money summary · built Oct 28 (needs one SQL paste + an OK for the morning run)
+## Phase 7 — Assistant mode · planned Oct 29 (next)
+Anthony saw Claude's ideas every morning and passed on all of them. Goal: things land in the right place by themselves, nothing to approve.
+
+1. **No more Approvals.** Claude writes straight into Nest, never into Google without a tap.
+   - Mail that needs him → Head Inbox (max 3 a day, link back to the email). Bills from mail → Money.
+   - 4:45: Claude fills today's River itself (events, gym, due tasks, with steps). Swipe off what you don't want.
+   - Leftover tasks roll to tomorrow on the phone. No recap or makeup cards. Gym booking dropped.
+   - Everything Claude adds is marked and can be swiped away. Setup: one SQL paste.
+2. **Calendar by itself.** His own events become River blocks, no hold. Shared calendars stay hidden. Refresh 5× a day.
+3. **Money in Nest.** Plaid bank feed (free Trial, 10 links for life) → Nest. Envelopes, bills, payday, one-tap sorting. Bird Budgeting history moves once, then it retires. If ICCU isn't on Plaid, keep the emailed CSV.
+   - [x] Plaid account + 3 Cloudflare Secrets (PLAID_CLIENT_ID, PLAID_SANDBOX_SECRET, PLAID_SECRET) — Anthony, Oct 29
+   - [x] Bank helper (`worker/bank.ts`): one Bank Durable Object keeps the link, cursor, accounts and every transaction; the bank key never leaves it. Owner-only (Supabase session; the first account to use it owns it). `/api/bank/{status,link,exchange,relinked,pull,changes,remove}`. Pulls every 3 h (cron) and again 1 min / 10 min / 1 h after a new link. Spending negative. Reconnect uses Plaid's update mode (no new link). The 11th real link is refused; real links can't be removed from the app
+   - [x] Phone: Settings → Bank (Connect ICCU with a "uses 1 of 10" step, Try the practice bank, balances, Pull now, Sign in again). Purchases land in a `txns` table (db v8), pulled on every sync; a pending purchase that posts keeps the category Nest gave it
+   - [x] Tests: helper 30/30 against a fake Plaid (`tests/e2e/bank-helper.it.mjs`), Bank e2e light/dark (`tests/e2e/bank.e2e.cjs`)
+   - [ ] Phone check: practice bank links (First Platypus Bank, user_good / pass_good), purchases show
+   - [ ] ICCU: search for it in Plaid; link once
+   - [ ] Money screen from Nest's own data (envelopes, bills, sort a purchase); Bird Budgeting's categories, budgets and bills move over once
+4. **Abby's Google Sheet.** A new sheet, refreshed every morning: envelopes, bills, spending, with charts. Setup: connect Google Sheets to Claude, share the sheet with her.
+
+## Phase 6 — Money summary · built Oct 28, live Oct 29
 A read-only look at Bird Budgeting inside Nest: what's left, the next payday, and the bills before it. Bird Budgeting stays the place to import, label and mark paid.
 
 ### Setup (Anthony, once)
-1. Supabase → SQL editor: paste `supabase/migrations/0005_money.sql` → Run.
-2. Push "Money summary" with GitHub Desktop.
-3. Tell Claude "OK" to add the money step to the morning run (it reads Bird Budgeting with the ArtifactData tool, then sends only the summary).
+- [x] Supabase → SQL editor: paste `supabase/migrations/0005_money.sql` → Run.
+- [x] Push "Money summary" with GitHub Desktop.
+- [x] OK for the money step in the morning run (added Oct 29, with the tighter mail rules).
 
 ### Done
 - [x] `claude/tools/money.mjs`: Bird Budgeting's own rules (txnLines, billStatusesFor, billDaysInMonth, nextDueDate, nextPayday, before-payday) ported, so both apps agree. Summary only: left per envelope (groceries first), all envelopes, next payday, bills before it, paid this month, transactions to sort. No transactions or payees leave the run
@@ -42,7 +61,7 @@ Buzzing on a locked phone, warmer words, small motion, and a speed check.
 - [x] Tests: 148 unit (web push checked against node:crypto, buzz plans), Buzz e2e (stubbed iPhone push), helper integration test under `wrangler dev` with a fake push service (26 checks, decrypted with http_ece), audit crawler clean
 
 ### Phone check (done when)
-- [ ] Test buzz arrives on the locked iPhone
+- [x] Test buzz arrives on the locked iPhone (Oct 29)
 - [ ] Rest buzz arrives on time with the phone locked at the gym; skip cancels it
 - [ ] Shutdown buzz arrives at the shutdown time; tapping opens Shutdown
 - [ ] 7 days on Nest only, without opening the old apps

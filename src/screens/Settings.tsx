@@ -11,6 +11,7 @@ import { cloud, cloudCounts, restoreFromCloud, signOut as cloudSignOut, stuckRow
 import SignIn from "./SignIn";
 import { TestingSettings } from "./Testing";
 import { BuzzCard } from "./BuzzCard";
+import { BankCard } from "./BankCard";
 import { useToast } from "../lib/toast";
 import { go, goTab } from "../head/useHead";
 import { getMode, setMode, onTheme, resolve, sunLabel, type ThemeMode } from "../lib/theme";
@@ -82,6 +83,7 @@ export default function Settings(props: { email: string; online: boolean }) {
 
       <Look />
       <BuzzCard />
+      <BankCard />
       <TestingSettings />
 
       <div className="lbl">Your data</div>

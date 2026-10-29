@@ -6,8 +6,10 @@
    Durable Object (Keys). Nothing to copy or paste, and the private half never leaves Cloudflare. */
 import { DurableObject } from "cloudflare:workers";
 import { b64uEncode, pushHostOk, sendPush, vapidPairOk, whyNot, type PushSub, type Vapid } from "./webpush";
+import { bankCron, bankFetch, type BankEnv } from "./bank";
+export { Bank } from "./bank";
 
-export interface Env {
+export interface Env extends BankEnv {
   ASSETS: Fetcher;
   NOTIFIER: DurableObjectNamespace<Notifier>;
   KEYS: DurableObjectNamespace<Keys>;
@@ -173,6 +175,8 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
+    const bank = url.pathname.match(/^\/api\/bank\/([a-z]+)$/);
+    if (bank) return bankFetch(req, env, bank[1]);
     if (url.pathname === "/api/push/key") {
       const v = await vapidFor(env).catch(() => null);
       // pair: a check that the helper can sign with the key it hands out.
@@ -195,5 +199,9 @@ export default {
     } catch (e) {
       return json({ ok: false, why: "error " + String((e as Error)?.message ?? e).slice(0, 120) }, 500);
     }
+  },
+  /** Every 3 hours: pull new bank transactions (Plaid checks the bank a few times a day). */
+  async scheduled(_c: ScheduledController, env: Env): Promise<void> {
+    try { await bankCron(env); } catch (e) { console.log("bank cron", String((e as Error)?.message ?? e)); }
   },
 };

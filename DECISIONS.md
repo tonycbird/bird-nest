@@ -69,4 +69,11 @@
 | 2026-10-28 | Only the summary is stored in Nest's cloud (money_summary), never transactions | Bird Budgeting is shared with Abby and holds the household's records; Nest just needs the totals. |
 | 2026-10-28 | A bill after the newest imported transaction is "not in yet", not late | Imports run behind (Oct 9 on the 28th). Calling those late would be wrong and naggy. |
 | 2026-10-29 | The push helper makes its own VAPID key and keeps it in a Durable Object (Keys) | Pasting the private key into Cloudflare went wrong twice (a plain Variable, then a mismatch). Now nothing is copied by hand and the private half never leaves Cloudflare. Phones re-subscribe to the new key (Buzz → Turn off → Turn on). |
-
+| 2026-10-29 | Approvals retire: Claude writes straight into Nest (Inbox, River, Money), marked and swipe-away; Google writes still need a tap | Anthony saw every idea and passed on all of them, and never used the Claude section. Replaces "Claude proposes, Anthony approves" for Nest-only changes. |
+| 2026-10-29 | The 4:45 run fills today's River by itself | He wants each block to tell him what to do, without accepting a plan first. Blocks he already set or finished stay. |
+| 2026-10-29 | His own calendar events become River blocks without a hold; shared calendars stay hidden | Replaces the Oct 22 hold-to-accept. The useless 90% came from shared calendars. |
+| 2026-10-29 | Money moves into Nest with a bank feed; Bird Budgeting retires | Abby budgets in Google Sheets, not Bird Budgeting, so it no longer needs to be a shared app. The CSV step is why the bank copy was 3 weeks behind. |
+| 2026-10-29 | Abby gets a new Google Sheet, refreshed every morning | She lives in Sheets; she never needs to open Nest. |
+| 2026-10-29 | The bank feed is Plaid (free Trial), not SimpleFIN | Anthony was happy to do the setup; free, and Plaid is what most apps use. The Trial allows 10 bank links ever, so: test on the practice bank, a "uses 1 of 10" step before a real link, reconnect by update mode, no Remove for real links. |
+| 2026-10-29 | Bank data lives in one Cloudflare Durable Object (Bank); the phone pulls changes by sequence number | Only the Plaid keys to paste, no database key. The bank key stays on Cloudflare; the phone and Claude never see it. |
+| 2026-10-29 | Bank calls need Anthony's Supabase session; the first account to use the bank owns it | The helper is on a public address. Sign-ups are off, and owner-on-first-use stops anyone else even if that changes. |
