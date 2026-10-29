@@ -14,9 +14,16 @@ Anthony saw Claude's ideas every morning and passed on all of them. Goal: things
    - [x] Bank helper (`worker/bank.ts`): one Bank Durable Object keeps the link, cursor, accounts and every transaction; the bank key never leaves it. Owner-only (Supabase session; the first account to use it owns it). `/api/bank/{status,link,exchange,relinked,pull,changes,remove}`. Pulls every 3 h (cron) and again 1 min / 10 min / 1 h after a new link. Spending negative. Reconnect uses Plaid's update mode (no new link). The 11th real link is refused; real links can't be removed from the app
    - [x] Phone: Settings → Bank (Connect ICCU with a "uses 1 of 10" step, Try the practice bank, balances, Pull now, Sign in again). Purchases land in a `txns` table (db v8), pulled on every sync; a pending purchase that posts keeps the category Nest gave it
    - [x] Tests: helper 30/30 against a fake Plaid (`tests/e2e/bank-helper.it.mjs`), Bank e2e light/dark (`tests/e2e/bank.e2e.cjs`)
-   - [ ] Phone check: practice bank links (First Platypus Bank, user_good / pass_good), purchases show
-   - [ ] ICCU: search for it in Plaid; link once
-   - [ ] Money screen from Nest's own data (envelopes, bills, sort a purchase); Bird Budgeting's categories, budgets and bills move over once
+   - [x] Phone check: practice bank linked (about 10 made-up accounts), Oct 29
+   - [x] ICCU is on Plaid and linked once (1 of 10 used): Joint Checking, Small Business Checking, Credit Card; 138 purchases on the first pull, Oct 29
+   - [x] Bank card: the budget account shows, the rest fold behind "＋N more"; open, tap a bank account to count it in the budget
+   - [x] Money in Nest: one synced `budget` table (envelopes, plans, bills, store rules, his sorts, prefs). The numbers come from the bank: Joint Checking only, cards and the business account are balances. `src/lib/money-core.js` holds the rules (Bird Budgeting's summary, copied unchanged and tested against it, plus Smart Labels' merchant keys)
+   - [x] Sorting: his pick → a store rule → Plaid's category (only the clear ones: groceries, coffee, fuel, utilities…) → To sort. Sort with one tap; a store is remembered, Venmo/Zelle/transfers never are; "Not spending" leaves a purchase out
+   - [x] Money screen: tap an envelope to change what it gets this month (and see its purchases, tap one to re-sort); To sort opens the one-tap sorter; no more Bird Budgeting link. A new month copies last month's plan, bill envelopes at their bills
+   - [x] One-time move from Bird Budgeting (read-only): 36 envelopes, Oct + Sep plans, 18 bills (3 twins merged), 122 store rules — sent through the money door with today's summary (`claude/tools/money-setup.mjs`); the phone takes it once
+   - [x] Tests: money rules 17, budget 8, Money in Nest e2e light/dark
+   - [ ] Phone check: push, open Money; groceries left from the bank, To sort works
+   - [ ] Drop the Bird Budgeting step from the morning run (needs Anthony's OK)
 4. **Abby's Google Sheet.** A new sheet, refreshed every morning: envelopes, bills, spending, with charts. Setup: connect Google Sheets to Claude, share the sheet with her.
 
 ## Phase 6 — Money summary · built Oct 28, live Oct 29

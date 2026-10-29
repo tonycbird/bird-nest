@@ -10,7 +10,7 @@ import { today, addDays } from "./time";
 import { cleanDeep } from "./text";
 
 /** Phone tables copied to the cloud. Photos stay on the phone; proposals/calendar/mail come down, not up. */
-export const SYNC_TABLES = ["days", "blocks", "steps", "settings", "areas", "projects", "tasks", "templates", "trash", "fit", "reports"] as const;
+export const SYNC_TABLES = ["days", "blocks", "steps", "settings", "areas", "projects", "tasks", "templates", "trash", "fit", "reports", "budget"] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];
 
 const DIRTY = "nest:dirty";

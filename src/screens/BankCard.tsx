@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { bankWhy, connectBank, pullNow, reconnectBank, refreshStatus, removePractice, useBank, type BankItem, type PlaidEnv } from "../lib/bank";
+import { toggleBudgetAccount, useBudgetAccounts } from "../lib/budget";
 import { fmtMoney } from "../lib/money";
 import { CLOUD } from "../lib/supabase";
 import { useToast } from "../lib/toast";
@@ -29,6 +30,8 @@ export function BankCard() {
   const [busy, setBusy] = useState("");
   const [why, setWhy] = useState("");
   const [confirm, setConfirm] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const budgetIds = useBudgetAccounts();
   useEffect(() => { if (CLOUD) void refreshStatus().catch(() => undefined); }, []);
   if (!CLOUD) return null;
 
@@ -57,9 +60,26 @@ export function BankCard() {
           <div key={it.item_id} className="bank-item">
             <div className="kv"><span><I n="coin" /> {short(it.inst_name)}{it.env === "sandbox" && <span className="muted"> · practice</span>}</span>
               <span className="muted" style={it.status !== "ok" ? { color: "var(--warn-ink)", fontWeight: 700 } : undefined}>{itemLine(it)}</span></div>
-            {(status?.accounts ?? []).filter((a) => a.item_id === it.item_id).map((a) => (
-              <div key={a.account_id} className="kv"><span>{a.name}{a.mask ? ` ··${a.mask}` : ""}</span><span className="muted mnum">{a.current == null ? "—" : fmtMoney(a.type === "credit" ? -a.current : a.current)}</span></div>
-            ))}
+            {(() => {
+              // The budget account (Joint Checking) shows; the rest (business, savings, cards) fold behind one line.
+              // Open, a tap on an account counts it in the budget or takes it out.
+              const all = (status?.accounts ?? []).filter((a) => a.item_id === it.item_id);
+              const isOpen = open.has(it.item_id);
+              const main = all.filter((a) => budgetIds?.has(a.account_id));
+              const shown = isOpen ? all : main.length ? main : all.slice(0, 1);
+              const more = all.length - shown.length;
+              return <>
+                {shown.map((a) => {
+                  const inBudget = !!budgetIds?.has(a.account_id);
+                  const row = <><span>{a.name}{a.mask ? ` ··${a.mask}` : ""}{inBudget && <span className="mtag">Budget</span>}</span><span className="muted mnum">{a.current == null ? "—" : fmtMoney(a.type === "credit" || a.type === "loan" ? -a.current : a.current)}</span></>;
+                  return isOpen && a.type === "depository"
+                    ? <button key={a.account_id} className="kv linkish" aria-pressed={inBudget} onClick={() => void toggleBudgetAccount(a.account_id)}>{row}</button>
+                    : <div key={a.account_id} className="kv">{row}</div>;
+                })}
+                {more > 0 && <button className="kv linkish" onClick={() => setOpen(new Set([...open, it.item_id]))}><span className="muted">＋{more} more account{more === 1 ? "" : "s"}</span><I n="chevD" /></button>}
+                {isOpen && <p className="quiet" style={{ marginTop: 6 }}>Tap a bank account to count it in the budget.</p>}
+              </>;
+            })()}
             {(it.status === "login" || it.env === "sandbox") && (
               <div className="sheet-actions" style={{ marginTop: 8 }}>
                 {it.status === "login" && <button className="btn primary" disabled={!!busy} onClick={() => void run("re", async () => { if ((await reconnectBank(it.item_id)) === "ok") toast("✓ Signed in again"); })}><I n="key" /> Sign in again</button>}

@@ -74,6 +74,23 @@ export interface Txn { id: string; item_id: string; account_id: string; date: st
 /** The bank's last status and where the pull got to (key "status", "seq"). */
 export interface BankRow { key: string; data: unknown; updated_at: string }
 
+/** Phase 7: Nest's own budget, one table for all of it (synced like everything else):
+    envelopes, monthly plans, bills, store rules, his own sorts, and prefs. */
+export type BudgetKind = "envelope" | "plan" | "bill" | "label" | "sort" | "prefs";
+export interface BudgetRow {
+  id: string; kind: BudgetKind; updated_at: string; deleted_at?: string | null;
+  // envelope
+  key?: string; name?: string; group?: string; order?: number; archived?: boolean;
+  // plan
+  month?: string; amounts?: Record<string, number>; carry?: Record<string, number>;
+  // bill
+  type?: "expense" | "income"; amount?: number; dueDay?: number; cadence?: string; dueMonth?: number | null; anchorDate?: string; categoryId?: string;
+  // sort (his pick for one purchase)
+  txn?: string;
+  // prefs: the accounts that count as the budget, and where the setup came from
+  accounts?: string[]; setup_made?: string; groups?: { id: string; name: string; isIncome: boolean }[];
+}
+
 export type OutboxOp =
   | { op_id: string; table: "proposals"; row_id: string; patch: Partial<Proposal>; queued_at: string }
   | { op_id: string; table: "mail_items"; row_id: string; patch: { dismissed_at: string }; queued_at: string };
@@ -101,6 +118,7 @@ export class NestDB extends Dexie {
   money!: Table<MoneyRow, string>;
   txns!: Table<Txn, string>;
   bank!: Table<BankRow, string>;
+  budget!: Table<BudgetRow, string>;
   constructor(name = "bird-nest") {
     super(name);
     this.version(1).stores({ proposals: "id, status, created_at", outbox: "op_id, queued_at" });
@@ -125,11 +143,12 @@ export class NestDB extends Dexie {
     this.version(6).stores({ reports: "id, created_at, status" });
     this.version(7).stores({ money: "key" });
     this.version(8).stores({ txns: "id, date, month, account_id, item_id", bank: "key" });
+    this.version(9).stores({ budget: "id, kind, updated_at" });
   }
 }
 export const db = new NestDB();
 
-export const TABLES = ["days", "blocks", "steps", "settings", "proposals", "areas", "projects", "tasks", "templates", "trash", "photos", "fit"] as const;
+export const TABLES = ["days", "blocks", "steps", "settings", "proposals", "areas", "projects", "tasks", "templates", "trash", "photos", "fit", "budget"] as const;
 export type TableName = (typeof TABLES)[number];
 
 export const nowISO = () => new Date().toISOString();

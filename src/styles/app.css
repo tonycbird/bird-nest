@@ -331,3 +331,24 @@ a.btn{text-decoration:none;}
 /* Phase 7: Settings → Bank */
 .mnum { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bank-item + .bank-item { margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--line); }
+button.kv.linkish { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 11px 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+
+/* Phase 7: Money from the bank — tap an envelope, sort with a tap */
+.money .tap{cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.money .tap:active{opacity:.7;}
+button.kv.mtx{width:100%; background:none; border:0; border-bottom:1px solid var(--line); padding:11px 0; font:inherit; color:inherit; cursor:pointer; text-align:left;}
+.mcount{display:inline-flex; align-items:center; gap:4px; font-weight:800; color:var(--ink);}
+.mcount::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--c-money);}
+.msheet h2{margin:2px 0 6px;}
+.msort{text-align:center; padding:14px 0 18px;}
+.msort h2{font-size:22px; margin:4px 0 6px; overflow-wrap:anywhere; text-align:center;}
+.mbig{font-size:34px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums;}
+.mbig.in{color:var(--accent-ink);}
+.mchips{display:flex; flex-wrap:wrap; gap:8px; justify-content:center;}
+.mchip{border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:100px; padding:10px 15px; font:inherit; font-size:15px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; min-height:42px;}
+.mchip.on{background:var(--c-money); border-color:var(--c-money); color:#1B1E26;}
+.mchip.ghost{background:none; color:var(--ink-3);}
+.mremember{margin-top:14px; border-bottom:0;}
+.mamt{display:inline-flex; align-items:center; gap:2px; font-weight:800; font-variant-numeric:tabular-nums;}
+.mamt input{width:96px; text-align:right; font:inherit; font-weight:800; color:var(--ink); background:var(--tint); border:0; border-radius:10px; padding:7px 10px;}
+.mtag{display:inline-block; margin-left:8px; padding:1px 8px; border-radius:100px; background:var(--c-money); color:#1B1E26; font-size:12px; font-weight:800; vertical-align:2px;}

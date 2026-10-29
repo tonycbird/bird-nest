@@ -46,6 +46,7 @@ export default function App() {
   // Buzzes: plan them (rest timer, shutdown), and open the right place when one is tapped.
   useEffect(() => {
     startBuzz();
+    void import("./lib/budget").then((m) => m.startMoney()).catch(() => undefined); // a new day: this month's numbers
     const open = (href: string) => {
       const what = new URL(href, location.origin).searchParams.get("open");
       if (what === "body") goTab("body");

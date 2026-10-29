@@ -83,6 +83,7 @@ export async function pullBank(): Promise<number> {
     since = r.seq;
     if (!r.more) break;
   }
+  if (n) { const { refreshNestMoney } = await import("./budget"); await refreshNestMoney(); }
   return n;
 }
 
@@ -92,6 +93,8 @@ export async function syncBank(): Promise<void> {
   if (!s?.items?.length) return;
   await pullBank();
   await refreshStatus();
+  const { refreshNestMoney } = await import("./budget");
+  await refreshNestMoney();
 }
 
 /* ---------- Plaid Link ---------- */

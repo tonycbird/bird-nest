@@ -24,6 +24,10 @@ export interface MoneySummary {
   due_today: { id: string; name: string; amount: number }[];
   paid_this_month: { count: number; total: number };
   to_sort: number;
+  /** Phase 7: "nest" when Nest worked it out from the bank itself (Bird Budgeting's has none). */
+  source?: "nest";
+  sorted?: { you: number; rule: number; hint: number };
+  plan_own?: boolean;
 }
 
 /** Bird Budgeting's own link (it opens in Safari). */
@@ -40,9 +44,18 @@ export function useMoney(): { summary: MoneySummary | null; updated: string | nu
   return { summary: row?.data ?? null, updated: row?.updated_at ?? null, ready: row !== undefined };
 }
 
-export async function saveMoney(data: MoneySummary, updated_at: string): Promise<void> {
+/** What the cloud hands down: Bird Budgeting's summary, and once, the setup that moves it into Nest.
+    After that Nest works the numbers out itself, and Bird Budgeting's summary no longer replaces them. */
+export async function saveMoney(data: MoneySummary & { setup?: unknown }, updated_at: string): Promise<void> {
   if (!data || typeof data !== "object" || !data.month) return;
-  await db.money.put({ key: "summary", data, updated_at });
+  if (data.setup) {
+    const { importSetup, refreshNestMoney } = await import("./budget");
+    if (await importSetup(data.setup as Parameters<typeof importSetup>[0])) await refreshNestMoney();
+  }
+  if ((await db.money.get("summary"))?.data?.source === "nest") return;
+  const { setup: _setup, ...summary } = data;
+  void _setup;
+  await db.money.put({ key: "summary", data: summary, updated_at });
 }
 
 /** This month's summary only: last month's numbers would mislead. */
@@ -69,7 +82,8 @@ export async function placeBillBlocks(day: string = riverToday()): Promise<numbe
     while (taken.includes(hhmm(at))) at += 15;
     await addBlock({
       day, start: hhmm(at), end: hhmm(at + 15), kind: "money", icon: "bill", title: `Pay ${bill.name}`.slice(0, 48),
-      steps: [{ label: "Open ICCU" }, { label: "Pay", value: fmtMoney(bill.amount) }, { label: "Mark paid in Budget" }],
+      // Nest sees the payment in the bank by itself; Bird Budgeting needed it marked by hand.
+      steps: s.source === "nest" ? [{ label: "Open ICCU" }, { label: "Pay", value: fmtMoney(bill.amount) }] : [{ label: "Open ICCU" }, { label: "Pay", value: fmtMoney(bill.amount) }, { label: "Mark paid in Budget" }],
       source_type: "bill", source_id: sid,
     });
     taken.push(hhmm(at)); at += 15; n++;

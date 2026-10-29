@@ -1,11 +1,15 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
+import { useBank } from "../lib/bank";
 import { BUDGET_URL, fmtMoney, useMoney, type MoneyCategory } from "../lib/money";
+import { EnvelopeSheet, SortSheet } from "./MoneySheets";
 import { goTab } from "../head/useHead";
 import { keyLabel, today } from "../lib/time";
 import { I, Icon } from "../ui/Icon";
 
-/* Money (Phase 6): what's left, the next payday, and the bills before it. Read-only: brass is the
-   only color here, and changes still happen in Bird Budgeting. */
+/* Money: what's left, the next payday, and the bills before it. Brass is the only color here.
+   Phase 7: once Nest works the numbers out from the bank itself (source "nest"), an envelope opens
+   to change what it gets, and "To sort" sorts purchases with a tap. Until then it's Bird Budgeting's
+   read-only summary (Phase 6). */
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const short = (iso: string) => `${MON[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
@@ -23,6 +27,9 @@ function Bar({ c, big }: { c: MoneyCategory; big?: boolean }) {
 
 export default function Money() {
   const { summary: s, updated, ready } = useMoney();
+  const { status } = useBank();
+  const [env, setEnv] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ ids?: string[] } | null>(null);
   const day = today();
   const close = <button className="gear" aria-label="Back to Today" onClick={() => goTab("today")}><Icon n="close" size={20} tone={false} /></button>;
   if (!ready) return null;
@@ -38,6 +45,9 @@ export default function Money() {
     );
   }
   const fresh = s.month === day.slice(0, 7);
+  const nest = s.source === "nest";
+  const pulled = Math.max(0, ...(status?.items ?? []).map((i) => i.last_sync || 0));
+  const open = (id: string) => (nest ? () => setEnv(id) : undefined);
   const g = s.groceries;
   const others = s.categories.filter((c) => !g || c.id !== g.id);
   const late = s.before_payday.bills.filter((b) => b.late).length;
@@ -50,7 +60,7 @@ export default function Money() {
       </header>
 
       {g && (
-        <div className="card mhero">
+        <div className={"card mhero" + (nest ? " tap" : "")} onClick={open(g.id)} role={nest ? "button" : undefined}>
           <div className="kv"><span>Groceries</span><span className="muted">{fmtMoney(g.spent, true)} of {fmtMoney(g.budget, true)}</span></div>
           <Bar c={g} big />
         </div>
@@ -60,7 +70,7 @@ export default function Money() {
         <div className="lbl">Left this month</div>
         <div className="card">
           {others.map((c) => (
-            <div key={c.id} className="mrow">
+            <div key={c.id} className={"mrow" + (nest ? " tap" : "")} onClick={open(c.id)} role={nest ? "button" : undefined}>
               <div className="kv"><span>{c.name}</span><b className={c.left < 0 ? "mneg" : ""}>{fmtMoney(c.left, true)}</b></div>
               <Bar c={c} />
             </div>
@@ -84,10 +94,10 @@ export default function Money() {
             ))}
           </>}
         </div>
-        {(late > 0 || (s.unseen > 0 && s.bank_through)) && (
+        {(late > 0 || (s.unseen > 0 && s.bank_through && !nest)) && (
           <p className="quiet mnote">
             {late > 0 && <><span className="mflag">!</span> not seen paid yet. </>}
-            {s.bank_through && <>Bank copy through {short(s.bank_through)}.</>}
+            {s.bank_through && !nest && <>Bank copy through {short(s.bank_through)}.</>}
           </p>
         )}
       </>}
@@ -95,12 +105,16 @@ export default function Money() {
       <div className="lbl">This month</div>
       <div className="card">
         <div className="kv"><span><I n="check" /> Bills paid</span><span className="muted">{s.paid_this_month.count} · {fmtMoney(s.paid_this_month.total, true)}</span></div>
-        <div className="kv"><span><I n="sort" /> To sort</span><span className="muted">{s.to_sort}</span></div>
+        {nest && s.to_sort > 0
+          ? <button className="kv mtx" onClick={() => setSort({})}><span><I n="sort" /> To sort</span><span className="mcount">{s.to_sort} <I n="chevR" /></span></button>
+          : <div className="kv"><span><I n="sort" /> To sort</span><span className="muted">{nest ? "All sorted" : s.to_sort}</span></div>}
       </div>
-      <div className="stack" style={{ marginTop: 12 }}>
+      {!nest && <div className="stack" style={{ marginTop: 12 }}>
         <a className="btn" href={BUDGET_URL} target="_blank" rel="noreferrer"><I n="arrow" /> Open Bird Budgeting</a>
-      </div>
-      <p className="quiet" style={{ textAlign: "center", marginTop: 14 }}>Updated {at(updated)}</p>
+      </div>}
+      <p className="quiet" style={{ textAlign: "center", marginTop: 14 }}>{nest ? <>Bank · {pulled ? at(new Date(pulled).toISOString()) : "not yet"}</> : <>Updated {at(updated)}</>}</p>
+      {env && <EnvelopeSheet envKey={env} onClose={() => setEnv(null)} onSort={(ids) => setSort({ ids })} />}
+      {sort && <SortSheet ids={sort.ids} onClose={() => setSort(null)} />}
     </div>
   );
 }
