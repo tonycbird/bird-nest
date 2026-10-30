@@ -9,7 +9,8 @@
   --bg:#F4F5F8; --surface:#FFFFFF; --surface-2:#F1F3F7; --tint:#ECEEF3; --line:rgba(22,27,45,.08); --rail:#D3D8E2;
   --ink:#171A23; --ink-2:#5C6375; --ink-3:#767D8F; --ink-4:#B4B9C4;
   --accent:#16A394; --on-accent:#FFFFFF; --accent-ink:#0F8577;
-  --c-body:#22B8A5; --c-stretch:#4C8DF6; --c-warm:#F2795F; --c-head:#8366F2; --c-money:#F2AE2E;
+  /* body and money a shade deeper (Oct 30) so their white icons read clearly */
+  --c-body:#00A896; --c-stretch:#4C8DF6; --c-warm:#F2795F; --c-head:#8366F2; --c-money:#CA8F00;
   --c-people:#3FB572; --c-home:#EC5F93; --c-rest:#5B67E8; --c-cal:#A3A9B6;
   --glyph:#FFFFFF;
   --good:var(--accent); --warn:#E0683D; --warn-ink:#C05128;

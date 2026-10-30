@@ -1,5 +1,5 @@
-/* Phase 4 end-to-end: sign in with a code, the phone's copy goes up, Claude's proposals come down,
-   ✓ replaces the River, ✕ leaves it, calendar shows as locked rows, flagged mail shows with its link.
+/* Phase 4 end-to-end: sign in, the phone's copy goes up, Claude's proposals come down and settle themselves
+   (mail tasks into the Inbox, the rest set aside), his own calendar fills the River, shared events stay lines.
    Supabase is faked in the browser (same REST shapes), so this runs with no network.
    Run:  VITE_SUPABASE_URL=https://fake.supabase.co VITE_SUPABASE_ANON_KEY=x VITE_CLOUD=on npx vite build --outDir dist-cloud
          npx vite preview --outDir dist-cloud --port 4183 &
@@ -24,7 +24,7 @@ const server = {
     { id: 'p-gym', kind: 'calendar_book', status: 'pending', needs_google: true, day_key: T, created_at: '2026-10-17T11:43:00Z', updated_at: '2026-10-17T11:43:00Z', reason: 'No gym event on the calendar', payload: { title: 'Gym · Legs', day: T, start: '05:00', end: '06:10' } },
     { id: 'p-groc', kind: 'grocery', status: 'pending', needs_google: false, day_key: T, created_at: '2026-10-17T11:42:00Z', updated_at: '2026-10-17T11:42:00Z', reason: 'Meal plan needs these', payload: { items: [{ name: 'Spinach', amt: '1 bag' }] } },
   ],
-  calendar: [{ google_id: 'g1', day: T, start_time: '12:00', end_time: '13:00', title: 'Dentist', all_day: false }, { google_id: 'g2', day: T, start_time: null, end_time: null, title: 'Payday', all_day: true }],
+  calendar: [{ google_id: 'g1', day: T, start_time: '12:00', end_time: '13:00', title: 'Dentist', all_day: false, calendar: 'The Heart Staff' }, { google_id: 'g2', day: T, start_time: null, end_time: null, title: 'Payday', all_day: true, calendar: 'anthony@example.com' }, { google_id: 'g3', day: T, start_time: '15:00', end_time: '16:00', title: 'Coffee with Landyn', all_day: false, calendar: 'anthony@example.com' }],
   mail: [{ id: 'm1', received: null, sender: 'Dave Smith', subject: 'Tile quote?', ask: 'Send tile quote', due: null, link: 'https://mail.google.com/x', created_at: '2026-10-17T11:40:00Z', dismissed_at: null }],
 };
 const session = () => ({ access_token: 'aaa.' + Buffer.from(JSON.stringify({ sub: 'u1', exp: 4102444800 })).toString('base64url') + '.sig', token_type: 'bearer', expires_in: 3600, expires_at: 4102444800, refresh_token: 'r', user: { id: 'u1', email: 'anthony@example.com', aud: 'authenticated', role: 'authenticated' } });
@@ -74,40 +74,28 @@ async function fakeSupabase(route) {
   await p.click('text=Make account'); await p.waitForTimeout(2500);
   assert(server.otp === 1, 'account made with email + password');
   await shot(p, '40-settings-connected');
-  assert(await p.locator('.kv >> text=anthony@example.com').count() === 1, 'Settings shows connected');
+  assert(await p.locator('.lbl', { hasText: /^Claude$/ }).locator('xpath=following-sibling::div[1]').locator('.kv >> text=anthony@example.com').count() === 1, 'Settings shows connected');
+  assert(await p.locator('.lbl', { hasText: 'Your day' }).locator('xpath=following-sibling::div[1]').locator('.kv', { hasText: 'The Heart Staff' }).locator('input:not(:checked)').count() === 1, 'Your day: his calendars listed, a shared one off by default');
   assert(server.claimed >= 1, "Claude's door claimed for this account");
   const tbls = new Set([...server.rows.values()].map((r) => r.tbl));
   assert(['blocks', 'steps', 'areas', 'settings', 'derived'].every((t) => tbls.has(t)), 'the phone copy went up: ' + [...tbls].join(','));
   assert(server.rows.has('derived|prefs'), 'prefs for Claude went up');
 
-  // Claude's suggestions came down: a dashed Claude circle on Today opens them.
-  await p.click('[aria-label="Back to Today"]'); await p.waitForTimeout(300);
-  await p.click('.qc >> text=Claude'); await p.waitForTimeout(400);
-  assert(await p.locator('.prop').count() === 4, '4 proposals waiting');
-  assert(await p.locator('text=Mail Claude flagged · 1').count() === 1, 'flagged mail shows');
-  await p.locator('.prop', { hasText: 'Plan for' }).click(); await p.waitForTimeout(200);
-  assert(await p.locator('.prop-list li').count() === 2, 'tapping a plan previews its blocks');
-  await shot(p, '41-approve');
-
-  // ✕ the groceries: nothing changes.
-  await p.locator('.prop', { hasText: 'Groceries' }).locator('[aria-label=Skip]').click(); await p.waitForTimeout(500);
-  assert(server.proposals.find((x) => x.id === 'p-groc').status === 'declined', '✕ goes up as declined');
-  // ✓ the gym booking: waits for Claude's applier.
-  await p.locator('.prop', { hasText: 'Gym' }).locator('[aria-label=Approve]').click(); await p.waitForTimeout(500);
-  assert(server.proposals.find((x) => x.id === 'p-gym').status === 'approved', 'booking approved, waiting for the applier');
-  assert(await p.locator('text=Waiting for Claude · 1').count() === 1, 'shows as waiting for Claude');
-  // ✓ the mail task.
-  await p.locator('.prop', { hasText: 'Send Dave' }).locator('[aria-label=Approve]').click(); await p.waitForTimeout(500);
-  assert(server.proposals.find((x) => x.id === 'p-mail').status === 'applied', 'task applied on the phone, marked applied');
-  // ✓ the day plan: replaces the River.
-  await p.locator('.prop', { hasText: 'Plan for' }).locator('[aria-label=Approve]').click(); await p.waitForTimeout(600);
-  await p.click('.tabs >> text=Today'); await p.waitForTimeout(500);
+  // Claude's suggestions came down and settled themselves: no approving, no Claude section.
+  await p.click('[aria-label="Back to Today"]'); await p.waitForTimeout(1200);
+  assert(await p.locator('.qc >> text=Claude').count() === 0, 'no Claude circle on Today');
+  const st = (id) => server.proposals.find((x) => x.id === id).status;
+  for (let i = 0; i < 30 && server.proposals.some((x) => x.status === 'pending'); i++) await p.waitForTimeout(200); // the decisions go up in the background
+  assert(st('p-mail') === 'applied', 'the mail task went straight in (marked applied)');
+  assert(st('p-plan') === 'declined' && st('p-gym') === 'declined', 'the day plan and the gym booking were set aside');
+  assert(['applied', 'declined'].includes(st('p-groc')), 'groceries settled too (' + st('p-groc') + ')');
   const after = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
-  assert(after.join('|') === 'Legs|Smith quote', `River replaced (${before.length} sample blocks → ${after.join(', ')})`);
-  assert(await p.locator('.t-sentence >> text=Legs, then the Smith quote.').count() === 1, "Claude's sentence on top");
-  assert(await p.locator('.calline >> text=Dentist').count() === 1, 'calendar item shows as a small line');
+  assert(before.every((x) => after.includes(x)) && !after.includes('Smith quote'), `the River wasn't replaced (${after.join(', ')})`);
+  // His own calendar's event became a block by itself; the shared one stays a small line.
+  assert(await p.locator('.tr:not(.calline) .bc-main b', { hasText: 'Coffee with Landyn' }).count() === 1, 'his own event is on the River by itself');
+  assert(await p.locator('.calline >> text=Dentist').count() === 1, 'a shared event shows as a small line');
   assert(await p.locator('.allday >> text=Payday').count() === 1, 'all-day item shows as a small chip');
-  await shot(p, '42-river-from-claude');
+  await shot(p, '42-river-fills-itself');
   // A quick tap only says how; holding makes it yours.
   await p.locator('.calline', { hasText: 'Dentist' }).click(); await p.waitForTimeout(300);
   assert(await p.locator('.toast >> text=Hold to make it yours').count() === 1, 'a tap explains: hold');

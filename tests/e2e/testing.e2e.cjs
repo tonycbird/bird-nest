@@ -13,6 +13,9 @@ const SHOTS = process.env.SHOTS;
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   const shot = async (n) => { if (SHOTS) await p.screenshot({ path: `${SHOTS}/${n}.png` }); };
   await p.goto(process.env.URL || 'http://localhost:4180/'); await p.waitForTimeout(700);
+  // These checks start from an empty River: keep the workout from landing on it by itself (that's tested in phase3).
+  await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: false, calendars: null }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); });
+  await p.reload(); await p.waitForTimeout(700);
   await p.click('.tabs >> text=Head'); await p.click('button >> text=Start fresh'); await p.waitForTimeout(400);
 
   // ---- Brain dump ----

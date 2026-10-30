@@ -88,15 +88,21 @@ const PROBE = `(() => {
   const groc2 = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { r.result.transaction('tasks').objectStore('tasks').count().onsuccess = (e) => res(e.target.result); }; }); });
   assert(groc2 >= groc.length, 'sending twice adds no duplicates');
 
-  // Today: the Body tray offers the gym day; 🌊 Add puts three blocks on the River.
-  await p.click('.tabs >> text=Today'); await p.waitForTimeout(800);
-  assert(await p.locator('.quick [aria-label^="Put "]').count() === 1, 'Body plan shows as a circle on Today');
+  // Today: a gym day's workout is on the River by itself (warm-up, the lifts, cool-down). No circle to tap.
+  await p.click('.tabs >> text=Today'); await p.waitForTimeout(1200);
   assert(await p.evaluate(() => getComputedStyle(document.querySelector('iframe.bodyframe')).display) === 'none', 'off the Body tab the frame is not displayed at all (iPhone white-screen fix)');
-  const trayText = await p.locator('.quick [aria-label^="Put "]').getAttribute('aria-label');
-  await p.click('.quick [aria-label^="Put "]'); await p.waitForTimeout(800);
   const titles = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
-  assert(titles.includes('Warm-up') && titles.includes('Cool-down') && titles.length === 3, 'River has Warm-up, workout, Cool-down: ' + titles.join(' · ') + ' (' + trayText.replace(/\n/g, ' ') + ')');
-  assert(await p.locator('.quick [aria-label^="Put "]').count() === 0, 'the circle goes once the plan is on the River');
+  assert(titles.includes('Warm-up') && titles.includes('Cool-down') && titles.length === 3, 'the workout landed on the River by itself: ' + titles.join(' · '));
+  assert(await p.locator('.quick [aria-label^="Put "]').count() === 0, 'no "put it on today" circle: it is already there');
+  // Taken off, it stays off (and the circle offers it back).
+  const wu = p.locator('.tr', { hasText: 'Warm-up' });
+  if (!(await p.locator('.tr.open', { hasText: 'Warm-up' }).count())) { await wu.locator('.bc-main').first().click(); await p.waitForTimeout(250); }
+  await p.locator('.tr.open', { hasText: 'Warm-up' }).locator('[aria-label^="More for"]').click(); await p.click('.menu >> text=Delete'); await p.waitForTimeout(600);
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await p.waitForTimeout(900);
+  assert(await p.locator('.tr:not(.cal) .bc-main b', { hasText: 'Warm-up' }).count() === 0, 'a part he takes off stays off');
+  assert(await p.locator('.quick [aria-label^="Put "]').count() === 1, 'and the Body circle offers it back');
+  await p.click('.quick [aria-label^="Put "]'); await p.waitForTimeout(800);
+  assert(await p.locator('.tr:not(.cal) .bc-main b', { hasText: 'Warm-up' }).count() === 1, 'one tap puts it back');
   const main = titles.find((t) => t !== 'Warm-up' && t !== 'Cool-down');
   await p.locator('.tr', { hasText: main }).locator('.bc-main').click(); await p.waitForTimeout(300);
   await p.locator('.tr.open [aria-label^="Show all"]').click(); await p.waitForTimeout(200);

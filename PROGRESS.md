@@ -42,6 +42,10 @@ Anthony saw Claude's ideas every morning and passed on all of them. Goal: things
    - [x] Deep check before pushing (Oct 30): types, 215 unit tests, every e2e, the whole-app audit at 3 sizes in light and dark, all 86 icons in both looks, every file the build points at (icons, fonts, manifest, offline list), and Money with Anthony-sized data (36 envelopes, 18 bills, 6 months of purchases) through every view and sheet. Fixed: a reimbursement landing on payday was counted as part of the paycheck (now "Extra"); rounding after trims showed up as "extra" for the Emergency Fund; a paid bill hid that it went over its plan (now ✓ with the red amount); a few cents planned showed as "$0 of 0" with a full bar; long store names cut mid-word in "Remember …"; the toast's Undo was a small target and, at the top over a sheet, blocked a tap on the dim area (now taps pass through, Undo still works); Body showed two check-in barcode buttons; "Meals · left ›" in Body was a small target; the audit misread mixed colors as low contrast
    - [ ] Phone check: Body shows and taps work; sorting reaches the bottom; October → Suggested budget → Use it; November starts on its own
    - [ ] Drop the Bird Budgeting step from the morning run (needs Anthony's OK)
+   - [x] Oct 30 — the day fills itself (steps 1 and 2 on the phone): a gym day's workout lands on the River by itself (today and tomorrow); events from the calendars he picks (Settings → Your day) become blocks by themselves; each lands once, and anything he takes off stays off. Claude's mail tasks and groceries go straight in; day plans, recaps, makeups, rollovers and gym bookings are set aside. The Claude section and its circle are gone
+   - [x] Bills he changes himself: tap a bill (Money → Bills, or in its envelope) to change its name, amount, how often, day and envelope; ＋ Bill; remove with undo. Paydays open the paychecks behind them. A plan that was following its bills follows the change
+   - [x] Money gold and Body teal a shade deeper so their white icons read (2.8:1 and 3:1, from 1.9 and 2.5)
+   - [x] Claude's runs updated to match (Oct 30, his OK): morning sends calendar names + mail tasks only; evening = tomorrow's calendar + groceries; weekly = calendar only; applier turned off
 4. **Abby's Google Sheet.** A new sheet, refreshed every morning: envelopes, bills, spending, with charts. Setup: connect Google Sheets to Claude, share the sheet with her.
 
 ## Phase 6 — Money summary · built Oct 28, live Oct 29
@@ -199,7 +203,7 @@ Built Oct 16–17, 2026.
 - [ ] Three mornings in a row, the plan is waiting by 5:00
 - [x] ✓ replaces the River (e2e) — confirm on the phone
 - [x] ✕ leaves it alone (e2e)
-- [ ] An approved gym booking appears in Google Calendar by the next applier run, and never twice (applier searches first; mark is one-time)
+- [~] An approved gym booking appears in Google Calendar by the next applier run — retired Oct 30 (applier off; Nest builds the day itself)
 - [x] A declined proposal never reappears the same day (enforced in the database; SQL test)
 
 ### Not done in Phase 4 (and why)

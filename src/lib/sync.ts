@@ -260,11 +260,11 @@ export async function pullClaude() {
 
 async function pullCalendar() {
   const from = addDays(today(), -1), to = addDays(today(), 7);
-  const cal = await supabase.from("calendar_cache").select("google_id,day,start_time,end_time,title,all_day").gte("day", from).lte("day", to);
+  const cal = await supabase.from("calendar_cache").select("google_id,day,start_time,end_time,title,all_day,calendar").gte("day", from).lte("day", to);
   if (cal.error) throw new Error(cal.error.message);
   await db.transaction("rw", db.calendar, async () => {
     await db.calendar.clear();
-    await db.calendar.bulkPut((cal.data ?? []).map((e) => ({ id: e.google_id + "|" + e.day, day: e.day, start: e.start_time, end: e.end_time, title: e.title, all_day: e.all_day })));
+    await db.calendar.bulkPut((cal.data ?? []).map((e) => ({ id: e.google_id + "|" + e.day, day: e.day, start: e.start_time, end: e.end_time, title: e.title, all_day: e.all_day, calendar: (e as { calendar?: string | null }).calendar ?? null })));
   });
 }
 

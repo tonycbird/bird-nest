@@ -20,7 +20,7 @@ import { Layer } from "../ui/Layer";
 import { I, Icon } from "../ui/Icon";
 import { blockLook, colorFor, taskIcon } from "../ui/colors";
 
-interface Props { pending: number; online: boolean; onSettings: () => void; onApprovals: () => void; }
+interface Props { online: boolean; onSettings: () => void; }
 
 const k = (color: string) => ({ ["--k" as string]: color }) as CSSProperties;
 
@@ -149,7 +149,7 @@ export default function Today(props: Props) {
 
       <Week day={day} onPick={setDay} />
 
-      {isToday && <QuickRow day={day} pending={props.pending} onApprovals={props.onApprovals} />}
+      {isToday && <QuickRow day={day} />}
 
       {allDay.length > 0 && <div className="allday" aria-label="All-day items from your calendar">{allDay.map((e) => <CalChip key={e.id} e={e} onAccept={() => void accept(e)} onTap={holdHint} />)}</div>}
 

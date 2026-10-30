@@ -45,7 +45,7 @@ export interface Proposal {
   day_key?: string | null; note?: string | null;
 }
 /** A Google Calendar event Claude copied in. Read-only; shown on the River as a thin locked block. */
-export interface CalEvent { id: string; day: string; start: string | null; end: string | null; title: string; all_day: boolean }
+export interface CalEvent { id: string; day: string; start: string | null; end: string | null; title: string; all_day: boolean; calendar?: string | null }
 /** Mail Claude flagged: a summary line and a link, never the body. */
 export interface MailItem { id: string; received: string | null; sender: string | null; subject: string | null; ask: string | null; due: string | null; link: string; created_at: string; dismissed_at: string | null }
 

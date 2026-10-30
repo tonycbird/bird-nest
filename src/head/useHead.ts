@@ -69,7 +69,7 @@ export const openOverlay = (name: string, props: Record<string, unknown> = {}) =
 export const closeOverlay = () => { commitTyping(); nav.set((s) => ({ ...s, overlay: null })); };
 
 /* Which bottom tab the app shows. Head flows can send Anthony back to the River. */
-export type AppTab = "today" | "head" | "body" | "ok" | "settings" | "money";
+export type AppTab = "today" | "head" | "body" | "settings" | "money";
 export const appNav = createStore<{ tab: AppTab }>({ tab: "today" });
 export const goTab = (tab: AppTab) => appNav.set({ tab });
 

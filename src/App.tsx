@@ -5,7 +5,6 @@ import { cloud } from "./lib/sync";
 import { useSetting } from "./lib/settings";
 import { ToastProvider } from "./lib/toast";
 import Today from "./screens/Today";
-import Approvals from "./screens/Approvals";
 import Settings from "./screens/Settings";
 import Money from "./screens/Money";
 import UpdateToast from "./screens/UpdateToast";
@@ -26,7 +25,6 @@ export default function App() {
   const details = useSetting<boolean>("details", false);
   const testing = useSetting<boolean>("testing", false);
   useEffect(() => { setTestingOn(testing); }, [testing]);
-  const pending = useLiveQuery(() => db.proposals.where("status").equals("pending").count(), [], 0);
   const inbox = useLiveQuery(() => db.tasks.filter((t) => t.status === "open" && !t.areaId && !t.projectId && !t.list && !t.someday).count(), [], 0);
 
   // Quiet by default: anything marked .detail shows only when "Show details" is on (Settings).
@@ -46,6 +44,7 @@ export default function App() {
   // Buzzes: plan them (rest timer, shutdown), and open the right place when one is tapped.
   useEffect(() => {
     startBuzz();
+    void import("./lib/autofill").then((m) => m.startAutofill()).catch(() => undefined); // the day fills itself
     void import("./lib/budget").then((m) => m.startMoney()).catch(() => undefined); // a new day: this month's numbers
     const open = (href: string) => {
       const what = new URL(href, location.origin).searchParams.get("open");
@@ -88,10 +87,9 @@ export default function App() {
       <div className={"app" + (tab === "body" ? " body-on" : "")}>
         <div className="scroller" ref={scroller}>
         <main className="main" key={tab}>
-          {tab === "today" && <Today pending={pending} online={online} onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}
+          {tab === "today" && <Today online={online} onSettings={() => goTab("settings")} />}
           {tab === "head" && <HeadScreen />}
           {tab === "body" && <BodyScreen />}
-          {tab === "ok" && <Approvals />}
           {tab === "settings" && <Settings email={c.email} online={online} />}
           {tab === "money" && <Money />}
         </main>

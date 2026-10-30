@@ -3,7 +3,7 @@ import { useBank } from "../lib/bank";
 import { BUDGET_URL, fmtMoney, useMoney, type MoneyCategory, type MoneySummary } from "../lib/money";
 import { useBudget, type BudgetView } from "../lib/budget";
 import { GROUP_NAMES, type BudgetRowOut, type Paycheck } from "../lib/money-core.js";
-import { EnvelopeSheet, PurchasesSheet, SortSheet, SuggestSheet, TrendsSheet } from "./MoneySheets";
+import { BillSheet, EnvelopeSheet, PaychecksSheet, PurchasesSheet, SortSheet, SuggestSheet, TrendsSheet } from "./MoneySheets";
 import { goTab } from "../head/useHead";
 import { keyLabel, today } from "../lib/time";
 import { I, Icon, type IconName } from "../ui/Icon";
@@ -54,7 +54,8 @@ function Budget({ s }: { s: MoneySummary }) {
   const [view, setView] = useState<"budget" | "bills">("budget");
   const [env, setEnv] = useState<string | null>(null);
   const [sort, setSort] = useState<{ ids?: string[] } | null>(null);
-  const [sheet, setSheet] = useState<"suggest" | "trends" | "list" | null>(null);
+  const [sheet, setSheet] = useState<"suggest" | "trends" | "list" | "pay" | null>(null);
+  const [bill, setBill] = useState<{ id?: string; cat?: string; income?: boolean } | null>(null);
   const [inOpen, setInOpen] = useState(false);
   const [empty, setEmpty] = useState(false);
   if (!b) return null;
@@ -121,7 +122,7 @@ function Budget({ s }: { s: MoneySummary }) {
         return hidden > 0 ? <button className="kv mtx mempty" aria-expanded={empty} onClick={() => setEmpty((e) => !e)}><span className="muted">{empty ? "Hide empty envelopes" : `Empty envelopes · ${hidden}`}</span><I n={empty ? "chevU" : "chevD"} /></button> : null;
       })()}
 
-      {view === "bills" && <Bills b={b} paycheck={month === now ? s.paycheck ?? null : null} />}
+      {view === "bills" && <Bills b={b} paycheck={month === now ? s.paycheck ?? null : null} onBill={(id) => setBill({ id })} onPay={() => setSheet("pay")} />}
 
       <div className="card mmore">
         {month === now && s.trends && s.trends.rows.some((r) => r.usual > 0) && <button className="kv mtx" onClick={() => setSheet("trends")}><span><I n="layers" /> Compared with usual</span><I n="chevR" /></button>}
@@ -129,7 +130,9 @@ function Budget({ s }: { s: MoneySummary }) {
       </div>
       <p className="quiet" style={{ textAlign: "center", marginTop: 14 }}>Bank · {pulled ? at(new Date(pulled).toISOString()) : "not yet"}</p>
 
-      {env && <EnvelopeSheet month={month} envKey={env} onClose={() => setEnv(null)} onSort={(ids) => setSort({ ids })} />}
+      {env && <EnvelopeSheet month={month} envKey={env} onClose={() => setEnv(null)} onSort={(ids) => setSort({ ids })} onBill={(id, cat) => setBill({ id, cat })} />}
+      {sheet === "pay" && <PaychecksSheet onClose={() => setSheet(null)} onBill={(id) => setBill({ id, income: true })} />}
+      {bill && <BillSheet key={bill.id ?? "new"} id={bill.id} cat={bill.cat} income={bill.income} onClose={() => setBill(null)} />}
       {sheet === "list" && <PurchasesSheet month={month} onClose={() => setSheet(null)} onSort={(ids) => setSort({ ids })} />}
       {sheet === "suggest" && <SuggestSheet month={month} onClose={() => setSheet(null)} />}
       {sheet === "trends" && s.trends && <TrendsSheet t={s.trends} month={month} onClose={() => setSheet(null)} onOpen={(k) => { setSheet(null); setEnv(k); }} />}
@@ -182,9 +185,9 @@ function EnvelopeRow({ r, onOpen }: { r: BudgetRowOut; onOpen: () => void }) {
 }
 
 /** The month's bills by date with the paydays in between, and (this month) the paycheck card. */
-function Bills({ b, paycheck }: { b: BudgetView; paycheck: Paycheck | null }) {
+function Bills({ b, paycheck, onBill, onPay }: { b: BudgetView; paycheck: Paycheck | null; onBill: (id?: string) => void; onPay: () => void }) {
   const day = b.day;
-  const list = b.bills;
+  const list = b.billLines;
   const bills = list.filter((x) => x.kind === "bill");
   const paid = bills.filter((x) => x.paid);
   return (
@@ -193,15 +196,16 @@ function Bills({ b, paycheck }: { b: BudgetView; paycheck: Paycheck | null }) {
       <div className="lbl"><I n="bill" /> {monthName(b.month)} bills</div>
       <div className="card">
         {list.map((x) => x.kind === "pay"
-          ? <div key={x.id} className="kv mpayline"><span><span className="mday">{short(x.date)}</span><I n="coin" /> Payday</span><b className="mnum">+{fmtMoney(x.amount, true)}</b></div>
-          : <div key={x.id + x.date} className="kv mbill">
+          ? <button key={x.id} className="kv mtx mpayline" onClick={onPay}><span><span className="mday">{short(x.date)}</span><I n="coin" /> Payday</span><b className="mnum">+{fmtMoney(x.amount, true)}</b></button>
+          : <button key={x.id + x.date} className="kv mtx mbill" onClick={() => onBill(x.id)}>
               <span><span className="mday">{short(x.date)}</span>{!x.paid && x.date < day ? <span className="mflag" aria-label="Not seen paid">!</span> : null}{x.name}</span>
               <span className="mnum">{x.paid ? <I n="check" /> : null} {fmtMoney(x.amount, true)}</span>
-            </div>)}
+            </button>)}
         {bills.length === 0 && <div className="kv"><span className="muted">No bills this month</span></div>}
         {bills.length > 0 && <div className="kv mnext"><span className="muted">Paid {paid.length} of {bills.length}</span>
           <span className="muted mnum">{fmtMoney(paid.reduce((a, x) => a + x.amount, 0), true)} of {fmtMoney(bills.reduce((a, x) => a + x.amount, 0), true)}</span></div>}
       </div>
+      <button className="btn sm madd" onClick={() => onBill(undefined)}><I n="plus" tone={false} /> Bill</button>
       {bills.some((x) => !x.paid && x.date < day) && <p className="quiet mnote"><span className="mflag">!</span> not seen paid · sort its payment to the bill</p>}
     </>
   );

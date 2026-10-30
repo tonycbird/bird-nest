@@ -106,7 +106,29 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     assert(lines[0].includes('Oct 2') && lines[0].includes('Payday') && lines[1].includes('Mortgage') && lines[2].includes('Oct 16'), 'by date: payday, then the bills it pays');
     assert(await bl.locator('.kv', { hasText: 'Paid 1 of 2' }).count() === 1, 'paid 1 of 2');
     await shot('nest-bills');
+    // Change a bill: the month's plan that followed it follows too
+    await bl.locator('button.mbill', { hasText: 'Internet' }).click(); await p.waitForTimeout(400);
+    const bs = p.locator('.msheet');
+    assert(await bs.locator('h2', { hasText: 'Bill' }).count() === 1 && await bs.locator('input[aria-label="Amount"]').inputValue() === '65', 'tapping a bill opens it: Internet, $65');
+    await bs.locator('input[aria-label="Amount"]').fill('70'); await bs.locator('button', { hasText: 'Save' }).click(); await p.waitForTimeout(600);
+    assert(await bl.locator('button.mbill', { hasText: 'Internet' }).locator('text=$70').count() === 1, 'the bill shows $70');
+    await shot('nest-bill-edit');
+    // Add one, then take it off
+    await p.locator('button.madd', { hasText: 'Bill' }).click(); await p.waitForTimeout(400);
+    await bs.locator('input[aria-label="Name"]').fill('Netflix'); await bs.locator('input[aria-label="Amount"]').fill('15.49');
+    await bs.locator('input[aria-label="Day of the month"]').fill('12'); await bs.locator('select[aria-label="Envelope"]').selectOption('internet');
+    await shot('nest-bill-new');
+    await bs.locator('button', { hasText: 'Save' }).click(); await p.waitForTimeout(600);
+    assert(await bl.locator('button.mbill', { hasText: 'Netflix' }).locator('text=Oct 12').count() === 1, 'a new bill shows on its day');
+    await bl.locator('button.mbill', { hasText: 'Netflix' }).click(); await p.waitForTimeout(300);
+    await bs.locator('button[aria-label="Remove"]').click(); await p.waitForTimeout(600);
+    assert(await bl.locator('button.mbill', { hasText: 'Netflix' }).count() === 0, 'and comes off with one tap');
+    // Paydays open the paychecks behind them
+    await bl.locator('button.mpayline').first().click(); await p.waitForTimeout(300);
+    assert(await p.locator('.msheet h2', { hasText: 'Paychecks' }).count() === 1 && await p.locator('.msheet button.mtx', { hasText: 'Payroll' }).count() === 1, 'a payday opens the paychecks behind it');
+    await p.locator('.msheet .sheet-x').click(); await p.waitForTimeout(300);
     await p.click('.seg >> text=Budget'); await p.waitForTimeout(300);
+    assert(await p.locator('.money h1', { hasText: '$302' }).count() === 1, 'the plan followed the bill: $5 less left to budget');
 
     // Compared with usual (July–September): Household is ahead (Home Depot $80 vs a usual $25); Groceries and Dining aren't
     await p.locator('button.mtx', { hasText: 'Compared with usual' }).click(); await p.waitForTimeout(300);
@@ -150,7 +172,7 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     await p.locator('.msheet').last().locator('.sheet-x').click(); await p.waitForTimeout(300);
     assert(await row('Dining Out').locator('text=$246').count() === 1, 'the Money screen shows the new amount');
     assert(await row('Groceries').locator('text=$318').count() === 1, 'groceries left now counts the Walmart run: $318');
-    assert(await p.locator('.money h1', { hasText: '$257' }).count() === 1, 'left to budget: $50 more planned → $257');
+    assert(await p.locator('.money h1', { hasText: '$252' }).count() === 1, 'left to budget: $50 more planned → $252');
 
     // Suggested budget: bills as they are, everyday at the usual month; Use it, with undo
     await p.locator('button', { hasText: 'Suggested budget' }).click(); await p.waitForTimeout(400);
@@ -158,12 +180,12 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     assert(await sg.locator('.msug', { hasText: 'Mortgage / Rent' }).locator('.mwhy', { hasText: 'bill' }).count() === 1 && await sg.locator('.msug', { hasText: 'Mortgage / Rent' }).locator('b', { hasText: '$1,670' }).count() === 1, 'the mortgage at its bill, $1,670 (was $1,700)');
     assert(await sg.locator('.msug', { hasText: 'Groceries' }).locator('b', { hasText: '$300' }).count() === 1 && await sg.locator('.msug', { hasText: 'Groceries' }).locator('.mwhy', { hasText: 'usual' }).count() === 1, 'groceries at the usual month');
     assert(await sg.locator('.msug', { hasText: 'Household Supplies' }).locator('b', { hasText: '$80' }).count() === 1 && await sg.locator('.msug', { hasText: 'Household Supplies' }).locator('.mwhy', { hasText: 'spent so far' }).count() === 1, 'never less than what\'s already gone this month (Home Depot $80, usual $25)');
-    assert(await sg.locator('.kv', { hasText: 'Left to budget' }).locator('text=$942').count() === 1 && await sg.locator('text=Give the rest a job.').count() === 1, 'no Emergency Fund envelope here: what\'s left waits for a job');
+    assert(await sg.locator('.kv', { hasText: 'Left to budget' }).locator('text=$937').count() === 1 && await sg.locator('text=Give the rest a job.').count() === 1, 'no Emergency Fund envelope here: what\'s left waits for a job');
     await shot('nest-suggest');
     await sg.locator('button', { hasText: 'Use it' }).click(); await p.waitForTimeout(600);
-    assert(await p.locator('.money h1', { hasText: '$942' }).count() === 1, 'in use: the month runs on the suggested plan');
+    assert(await p.locator('.money h1', { hasText: '$937' }).count() === 1, 'in use: the month runs on the suggested plan');
     await p.locator('.toast button', { hasText: 'Undo' }).click(); await p.waitForTimeout(600);
-    assert(await p.locator('.money h1', { hasText: '$257' }).count() === 1, 'undo: his own plan is back');
+    assert(await p.locator('.money h1', { hasText: '$252' }).count() === 1, 'undo: his own plan is back');
 
     // Next month: planned ahead from the suggestion, no further
     await p.locator('button[aria-label="Next month"]').click(); await p.waitForTimeout(500);

@@ -12,6 +12,9 @@ const assert = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log(
   await p.clock.setFixedTime(new Date('2026-10-15T15:00:00Z'));
   const errs=[]; p.on('pageerror', e=>errs.push('PAGE '+e.message));
   await p.goto((process.env.URL || 'http://localhost:4180/')); await p.waitForTimeout(700);
+  // These checks start from an empty River: keep the workout from landing on it by itself (that's tested in phase3).
+  await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: false, calendars: null }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); });
+  await p.reload(); await p.waitForTimeout(700);
   // Quick add from Today tab → lands today, appears in tray
   await p.click('[aria-label="Quick add"]'); await p.keyboard.type('Call Smith ~15m'); await p.keyboard.press('Enter'); await p.waitForTimeout(500);
   assert(await p.locator('.quick [aria-label="Call Smith"]').count() === 1, 'quick add from Today lands in the circles at the top');

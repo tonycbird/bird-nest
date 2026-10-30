@@ -125,6 +125,9 @@ function checks() {
 
 /* ---------- seed data ---------- */
 async function seed(p) {
+  // Start from an empty River (the sample day below fills it); the workout landing by itself is tested in phase3.
+  await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: false, calendars: null }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); });
+  await p.reload(); await p.waitForTimeout(700);
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);
   if (SEED) { await p.setInputFiles('input[type=file]', SEED); await p.waitForTimeout(900); }
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(300);
@@ -206,9 +209,6 @@ const STEPS = [
   ['settings-trash', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.click('button >> text=Show'); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ['testing-flag', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.locator('.kv', { hasText: 'Testing mode' }).locator('input').click(); await p.waitForTimeout(500); await p.click('.tabs >> text=Today'); }],
   ['testing-report', async (p) => { await go(p); await p.click('.tflag'); }],
-  ['claude', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); }],
-  ['claude-preview', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); await p.locator('.prop').first().click(); }],
-  ['claude-bottom', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ...['Inbox', 'Today', 'Ahead', 'Anytime', 'Projects', 'Waiting', 'Someday', 'Groceries', 'Done', 'Find'].map((v) => ['head-' + v.toLowerCase(), async (p) => { await headView(p, v); }]),
   ['head-today-more', async (p) => { await headView(p, 'Today'); await p.click('[aria-label=More]'); }],
   ['head-select', async (p) => { await headView(p, 'Inbox'); await p.click('[aria-label="Select tasks"]'); await p.locator('.task').first().click(); }],

@@ -12,6 +12,7 @@ import SignIn from "./SignIn";
 import { TestingSettings } from "./Testing";
 import { BuzzCard } from "./BuzzCard";
 import { BankCard } from "./BankCard";
+import { calendarNames, DAY_DEFAULTS, pickedCalendars, type DayPrefs } from "../lib/autofill";
 import { useToast } from "../lib/toast";
 import { go, goTab } from "../head/useHead";
 import { getMode, setMode, onTheme, resolve, sunLabel, type ThemeMode } from "../lib/theme";
@@ -82,6 +83,7 @@ export default function Settings(props: { email: string; online: boolean }) {
       </header>
 
       <Look />
+      <DayCard />
       <BuzzCard />
       <BankCard />
       <TestingSettings />
@@ -204,6 +206,28 @@ function CloudCard() {
         </div>}
         {c.signedIn && <button className="btn" onClick={async () => { await cloudSignOut(); toast("⎋ Signed out"); }}><I n="signout" /> Sign out</button>}
       </div>
+    </>
+  );
+}
+
+/** What lands on the River by itself: the workout on gym days, and events from the calendars he picks. */
+function DayCard() {
+  const saved = useSetting<Partial<DayPrefs>>("day", {});
+  const names = useLiveQuery(async () => calendarNames(await db.calendar.toArray()), [], [] as string[]);
+  const p: DayPrefs = { ...DAY_DEFAULTS, ...saved };
+  const picked = pickedCalendars(p, names);
+  const set = (patch: Partial<DayPrefs>) => void setSetting("day", { ...p, ...patch });
+  const flip = (n: string, on: boolean) => { const s = new Set(picked); if (on) s.add(n); else s.delete(n); set({ calendars: [...s] }); };
+  return (
+    <>
+      <div className="lbl">Your day</div>
+      <div className="card">
+        <label className="kv"><span><I n="lift" /> Workout on gym days</span><input type="checkbox" checked={p.workout} onChange={(e) => set({ workout: e.target.checked })} /></label>
+        {names.map((n) => (
+          <label key={n} className="kv"><span className="kv-name"><I n="calendar" /> {n}</span><input type="checkbox" checked={picked.has(n)} onChange={(e) => flip(n, e.target.checked)} /></label>
+        ))}
+      </div>
+      <p className="quiet" style={{ marginTop: 8 }}>These land on your River by themselves.</p>
     </>
   );
 }

@@ -3,9 +3,9 @@
    Money screen, the Today circle and the bill blocks read is worked out here and kept in `money` under
    "summary", the same place Bird Budgeting's summary used to land, so every reader keeps working. */
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, nowISO, type BudgetRow, type Txn } from "./db";
+import { db, nowISO, uid, type BudgetRow, type Txn } from "./db";
 import type { BankAccount, BankStatus } from "./bank";
-import { budgetMonth, makeCtx, matchHistory, monthBills, nestSummary, paidCheck, planOf, SKIP, sortOf, storeKeyFor, suggestPlan, usualSpend, type Bill, type Envelope, type HistoryEntry, type Label, type Plan, type Setup } from "./money-core.js";
+import { billDaysInMonth, budgetMonth, makeCtx, matchHistory, monthBills, nestSummary, paidCheck, planOf, SKIP, sortOf, storeKeyFor, suggestPlan, usualSpend, type Bill, type Envelope, type HistoryEntry, type Label, type Plan, type Setup } from "./money-core.js";
 import { today } from "./time";
 
 export { SKIP };
@@ -176,7 +176,7 @@ export function useBudget(month: string = today().slice(0, 7)) {
     return {
       ...d, month, day, income: ctx.income, plan, purchases,
       bm: budgetMonth(dd, month, day, sorted, plan, statusOf),
-      bills: monthBills(d.bills, month, statusOf),
+      billLines: monthBills(d.bills, month, statusOf),
       usual: usualSpend(sorted, day, ctx.income).by,
       suggestion: suggestPlan(dd, month, day, sorted),
       months: [...new Set([...d.plans.map((p) => p.month), day.slice(0, 7)])].sort(), // the months he has a budget for
@@ -241,6 +241,71 @@ export async function usePlan(month: string, amounts: Record<string, number>): P
     await db.budget.put(before ? { ...before, updated_at: at } : { id: "plan:" + month, kind: "plan", month, updated_at: at, deleted_at: at });
     await refreshNestMoney();
   };
+}
+
+/* ---------- bills (and paychecks) he changes himself ---------- */
+
+export type BillInput = Omit<Bill, "id"> & { id?: string };
+const monthsFrom = (day: string, n: number) => Array.from({ length: n }, (_, i) => { const d = new Date(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1 + i, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
+const billTotal = (bills: Bill[], cat: string, month: string) => {
+  const [y, m] = month.split("-").map(Number);
+  return Math.round(bills.filter((b) => b.type === "expense" && b.categoryId === cat).reduce((a, b) => a + billDaysInMonth(b, y, m - 1).length * (Number(b.amount) || 0), 0) * 100) / 100;
+};
+
+/** Change a bill or a paycheck (or add one). A month's plan that was following its bills (planned = what they
+    cost) follows the change, this month and next; a plan he set to something else is left alone. Returns undo. */
+export async function saveBill(b: BillInput): Promise<() => Promise<void>> {
+  const id = b.id ?? uid();
+  const d = await load();
+  const old = d.bills.find((x) => x.id === id);
+  const next: Bill = { ...b, id, amount: Math.round((Number(b.amount) || 0) * 100) / 100 } as Bill;
+  const after = [...d.bills.filter((x) => x.id !== id), next];
+  const at = nowISO();
+  const touched = await followPlans(d, after, [old?.categoryId, next.categoryId], at);
+  const before = await db.budget.get("bill:" + id);
+  const { id: _i, ...rest } = next; void _i;
+  await db.budget.put({ ...(before ?? {}), ...rest, id: "bill:" + id, kind: "bill", deleted_at: null, updated_at: at });
+  await refreshNestMoney();
+  return async () => {
+    const t = nowISO();
+    await db.budget.put(before ? { ...before, updated_at: t } : { id: "bill:" + id, kind: "bill", updated_at: t, deleted_at: t });
+    for (const r of touched) await db.budget.put({ ...r, updated_at: t });
+    await refreshNestMoney();
+  };
+}
+
+/** Take a bill off (it stays in the past months' paid marks); a plan that followed it follows. Returns undo. */
+export async function removeBill(id: string): Promise<() => Promise<void>> {
+  const row = await db.budget.get("bill:" + id);
+  if (!row) return async () => {};
+  const d = await load();
+  const at = nowISO();
+  const touched = await followPlans(d, d.bills.filter((x) => x.id !== id), [row.categoryId], at);
+  await db.budget.put({ ...row, deleted_at: at, updated_at: at });
+  await refreshNestMoney();
+  return async () => {
+    const t = nowISO();
+    await db.budget.put({ ...row, deleted_at: null, updated_at: t });
+    for (const r of touched) await db.budget.put({ ...r, updated_at: t });
+    await refreshNestMoney();
+  };
+}
+
+/** This month's and next month's plans: an envelope planned at exactly what its bills cost follows the bills. */
+async function followPlans(d: Loaded, after: Bill[], cats: (string | null | undefined)[], at: string): Promise<BudgetRow[]> {
+  const touched: BudgetRow[] = [];
+  for (const month of monthsFrom(today(), 2)) {
+    const plan = d.plans.find((p) => p.month === month);
+    if (!plan) continue;
+    const amounts = { ...plan.amounts };
+    let changed = false;
+    for (const cat of new Set(cats.filter((c): c is string => !!c))) {
+      const was = billTotal(d.bills, cat, month), now = billTotal(after, cat, month);
+      if (was !== now && Math.abs((amounts[cat] ?? 0) - was) < 0.01) { amounts[cat] = now; changed = true; }
+    }
+    if (changed) { const row = await db.budget.get("plan:" + month); if (row) { touched.push(row); await db.budget.put({ ...row, amounts, updated_at: at }); } }
+  }
+  return touched;
 }
 
 /** A purchase that was pending posts under a new id: his pick moves with it. */

@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "../src/lib/db";
-import { budgetAccounts, carrySorts, importSetup, refreshNestMoney, setPlanAmount, sortPurchase, SKIP, toggleBudgetAccount, usePlan } from "../src/lib/budget";
+import { budgetAccounts, carrySorts, importSetup, refreshNestMoney, removeBill, saveBill, setPlanAmount, sortPurchase, SKIP, toggleBudgetAccount, usePlan } from "../src/lib/budget";
 import { saveMoney, type MoneySummary } from "../src/lib/money";
 import type { Setup } from "../src/lib/money-core.js";
 
@@ -123,6 +123,41 @@ describe("the month's plan", () => {
     expect(await carrySorts([["post", "pend"], ["other", "nothing"]])).toBe(1);
     expect(await db.budget.get("sort:post")).toMatchObject({ categoryId: "groceries" });
     expect(await carrySorts([["post", "pend"]])).toBe(0); // once
+  });
+});
+
+describe("bills he changes himself", () => {
+  beforeEach(async () => {
+    await importSetup(setup);
+    await db.txns.bulkPut([t("g", -152.36, "2026-10-27", { merchant: "WinCo Foods" })]);
+  });
+  test("a bill's new amount: the plan that followed it follows too; undo puts both back", async () => {
+    const undo = await saveBill({ id: "net", type: "expense", name: "Internet", amount: 70, dueDay: 28, cadence: "monthly", dueMonth: null, anchorDate: "", categoryId: "internet" });
+    expect(await db.budget.get("bill:net")).toMatchObject({ amount: 70, dueDay: 28 });
+    expect((await db.budget.get("plan:2026-10"))?.amounts?.internet).toBe(70); // was 65 = the bill
+    await undo();
+    expect(await db.budget.get("bill:net")).toMatchObject({ amount: 65 });
+    expect((await db.budget.get("plan:2026-10"))?.amounts?.internet).toBe(65);
+  });
+  test("a plan he set to something else is left alone", async () => {
+    await setPlanAmount("2026-10", "internet", 80);
+    await saveBill({ id: "net", type: "expense", name: "Internet", amount: 70, dueDay: 28, cadence: "monthly", dueMonth: null, anchorDate: "", categoryId: "internet" });
+    expect((await db.budget.get("plan:2026-10"))?.amounts?.internet).toBe(80);
+  });
+  test("a new bill, then taken off (undo brings it back)", async () => {
+    await saveBill({ type: "expense", name: "Water", amount: 60.5, dueDay: 11, cadence: "monthly", dueMonth: null, anchorDate: "", categoryId: "dining" });
+    const row = (await db.budget.where("kind").equals("bill").toArray()).find((r) => r.name === "Water")!;
+    expect(row).toMatchObject({ amount: 60.5, categoryId: "dining" });
+    expect((await db.budget.get("plan:2026-10"))?.amounts?.dining).toBe(250); // dining wasn't planned at its bills: left alone
+    await saveBill({ type: "expense", name: "Phone", amount: 50, dueDay: 21, cadence: "monthly", dueMonth: null, anchorDate: "", categoryId: "internet" });
+    expect((await db.budget.get("plan:2026-10"))?.amounts?.internet).toBe(115); // internet was: it follows (65 + 50)
+    const phone = (await db.budget.where("kind").equals("bill").toArray()).find((r) => r.name === "Phone")!;
+    await removeBill(phone.id.slice(5));
+    expect((await db.budget.get("plan:2026-10"))?.amounts?.internet).toBe(65); // and back when it's taken off
+    const undo = await removeBill(row.id.slice(5));
+    expect((await db.budget.get(row.id))?.deleted_at).toBeTruthy();
+    await undo();
+    expect((await db.budget.get(row.id))?.deleted_at).toBeFalsy();
   });
 });
 

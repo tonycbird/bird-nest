@@ -15,7 +15,7 @@ import { fmtMoney, isCurrent, useMoney } from "../lib/money";
 
 interface Q { key: string; icon: IconName; color: string; label: string; badge?: number; dashed?: boolean; aria?: string; run: () => void }
 
-export default function QuickRow({ day, pending, onApprovals }: { day: string; pending: number; onApprovals: () => void }) {
+export default function QuickRow({ day }: { day: string }) {
   const { data, ready } = useHeadData();
   const s = useHeadSettings();
   const onRiver = useLiveQuery(async () => new Set((await db.blocks.where("day").equals(day).toArray()).filter((b) => !b.deleted_at && b.source_type === "task").map((b) => b.source_id!)), [day], new Set<string>());
@@ -23,7 +23,6 @@ export default function QuickRow({ day, pending, onApprovals }: { day: string; p
   const { summary: money } = useMoney();
 
   const items: Q[] = [];
-  if (pending > 0) items.push({ key: "claude", icon: "claude", color: "var(--accent)", label: "Claude", badge: pending, dashed: true, aria: `${pending} from Claude`, run: onApprovals });
   if (plan) items.push({ key: "body", icon: "lift", color: colorFor("lift"), label: plan.label, aria: `Put ${plan.label} on today`,
     run: async () => { const u = await putPlanOnRiver(plan.plan); toast("🌊 On today", u); plan.done(); } });
   if (ready && day === C.today()) {
