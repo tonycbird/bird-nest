@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import * as bird from "../claude/tools/money.mjs";
 import {
   SKIP, buildSetup, hintEnvelope, isBankAdjustment, keywordEnvelope, learnMerchants, makeCtx, matchHistory, merchantKey, mixedFor, nestSummary, payPeriod, paydays,
-  planFor, ruleFor, sortOf, storeKeyFor, summarize, tidyPayee,
+  planFor, ruleFor, sortOf, storeKeyFor, summarize, tidyPayee, trends,
 } from "../src/lib/money-core.js";
 
 /* Made-up household (no real numbers), the same shapes as Bird Budgeting and Plaid. */
@@ -273,5 +273,36 @@ describe("this paycheck", () => {
     expect(p.next.billsTotal).toBe(1835.83);
     expect(p.next.extra).toBe(500);
     expect(p.next.left).toBe(140.69);
+  });
+});
+
+describe("compared with usual", () => {
+  const env = [
+    { key: "groceries", name: "Groceries", group: "food", order: 0, archived: false },
+    { key: "dining", name: "Dining Out", group: "food", order: 1, archived: false },
+    { key: "coffee", name: "Coffee Shops", group: "food", order: 2, archived: false },
+    { key: "rent", name: "Rent", group: "housing", order: 0, archived: false },
+  ];
+  const row = (date, amount, cat) => ({ date, amount, cat });
+  const sorted = [
+    row("2026-07-05", -300, "groceries"), row("2026-08-05", -320, "groceries"), row("2026-09-05", -280, "groceries"), row("2026-10-05", -100, "groceries"),
+    row("2026-07-05", -50, "dining"), row("2026-09-05", -900, "dining"), row("2026-10-03", -120, "dining"),
+    row("2026-10-04", -12, "coffee"), row("2026-10-02", -1670, "rent"), row("2026-10-06", -40, SKIP), row("2026-10-07", 500, "groceries"),
+  ];
+  const t = trends(sorted, env, new Set(["rent"]), "2026-10-10");
+  const by = Object.fromEntries(t.rows.map((r) => [r.id, r]));
+  test("usual is the middle of the last 3 full months (an empty month counts as nothing)", () => {
+    expect(t.months).toEqual(["2026-07", "2026-08", "2026-09"]);
+    expect(by.groceries.usual).toBe(300);
+    expect(by.dining.usual).toBe(50); // 50, 0, 900 → 50: one big month can't set the usual
+  });
+  test("by now = usual × the share of the month gone; ahead only when clearly past it", () => {
+    expect(by.groceries).toMatchObject({ now: 100, byNow: 96.77, ahead: false });
+    expect(by.dining).toMatchObject({ now: 120, byNow: 16.13, ahead: true });
+    expect(by.coffee).toMatchObject({ usual: 0, now: 12, ahead: false }); // new this month, not "ahead"
+  });
+  test("bills, 'not spending' and money coming in are left out", () => {
+    expect(by.rent).toBeUndefined();
+    expect(t.total.now).toBe(232);
   });
 });

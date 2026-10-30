@@ -29,6 +29,7 @@ export interface MoneySummary {
   sorted?: { you: number; rule: number; hint: number };
   plan_own?: boolean;
   paycheck?: import("./money-core.js").Paycheck | null;
+  trends?: import("./money-core.js").Trends;
 }
 
 /** Bird Budgeting's own link (it opens in Safari). */

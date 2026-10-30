@@ -41,11 +41,14 @@ export function matchHistory(entries: HistoryEntry[], bankTxns: { id: string; da
 export function paydays(bills: Bill[], fromISO: string, toISO: string): { date: string; amount: number; upside: number }[];
 export function payPeriod(d: { bills: Bill[]; income?: Set<string>; optional?: Set<string> }, todayISO: string, sorted: any[], statusOf?: (r: Bill, date: string) => boolean): Paycheck | null;
 export const GROUP_NAMES: Record<string, string>;
+export interface TrendRow { id: string; name: string; now: number; usual: number; byNow: number; ahead: boolean }
+export interface Trends { months: string[]; frac: number; rows: TrendRow[]; total: { now: number; usual: number; byNow: number } }
+export function trends(sorted: { date: string; amount: number; cat: string | null }[], envelopes: Envelope[], skipCats: Set<string>, todayISO: string): Trends;
 export function planFor(month: string, plans: Plan[], bills: Bill[]): { amounts: Record<string, number>; carry: Record<string, number>; own: boolean };
 export function nestSummary(d: {
   envelopes: Envelope[]; groups: BudgetGroup[]; plans: Plan[]; bills: Bill[]; labels: Label[];
   sorts: Map<string, string>; txns: SortTxn[]; accounts: Set<string>; marks?: any[]; mixed?: Record<string, Record<string, number>>;
-}, todayISO: string): MoneySummary & { source: "nest"; sorted: { you: number; rule: number; hint: number }; plan_own: boolean; paycheck: Paycheck | null };
+}, todayISO: string): MoneySummary & { source: "nest"; sorted: { you: number; rule: number; hint: number }; plan_own: boolean; paycheck: Paycheck | null; trends: Trends };
 export function buildSetup(bb: any, made?: string): Setup;
 export function summarize(data: any, todayISO: string): MoneySummary;
 export function billDaysInMonth(r: any, y: number, m: number): number[];

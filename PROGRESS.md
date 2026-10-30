@@ -29,7 +29,10 @@ Anthony saw Claude's ideas every morning and passed on all of them. Goal: things
    - [x] This paycheck (Bird Budgeting's Plan page in one card): left after its bills and everything else, per day; next paycheck short or not, and what to hold back for (extra payoffs listed, not counted)
    - [x] All envelopes (grouped) and Purchases (search by store, envelope or amount)
    - [x] Dry run on Bird Budgeting's real data as a stand-in bank: 473/473 history rows matched, 0 swapped; October envelopes identical (one unsorted Kroc purchase now sorts to Gym); for new purchases the rules agree with his own choice 317 times, differ 3, ask 88
-   - [ ] Phone check: push, open Money; groceries from the bank, the paycheck card, To sort; Settings → Bank: Bird Budgeting matched count
+   - [x] Phone check: Bird Budgeting check 466 of 473 — the 7 are September doubles in Bird Budgeting (it over-counted $81.82); 133 bank purchases Bird Budgeting never had (its CSVs missed days). Nest is the more complete copy
+   - [x] Money is a tab (Today · Head · ＋ · Body · Money), in the Claude tab's place; Claude's suggestions open from the dashed Claude circle on Today (with a ✕ back)
+   - [x] Compared with usual: each everyday envelope this month vs the middle of its last 3 months, a tick where a usual month is by today, "ahead" only when clearly past it
+   - [ ] Phone check: the Money tab, Compared with usual
    - [ ] Drop the Bird Budgeting step from the morning run (needs Anthony's OK)
 4. **Abby's Google Sheet.** A new sheet, refreshed every morning: envelopes, bills, spending, with charts. Setup: connect Google Sheets to Claude, share the sheet with her.
 

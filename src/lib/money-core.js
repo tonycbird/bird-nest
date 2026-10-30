@@ -393,7 +393,7 @@ export function matchHistory(entries, bankTxns) {
     pairs, onlyBird, from, to,
     total: list.filter((e) => inWindow(e.date)).length,
     matched: pairs.filter((p) => inWindow(p.date)).length,
-    onlyBank: posted.filter((t) => !used.has(t.id) && inWindow(t.date)),
+    onlyBank: posted.filter((t) => !used.has(t.id) && inWindow(t.date)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
   };
 }
 
@@ -466,6 +466,40 @@ export function payPeriod(d, todayISO, sorted, statusOf) {
   };
 }
 
+/* ---------- trends: this month against his usual ---------- */
+
+const median = (xs) => { const a = [...xs].sort((x, y) => x - y); const n = a.length; return n ? (n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2) : 0; };
+const monthAdd = (ym, n) => { const [y, m] = ym.split("-").map(Number); const d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+/** Each everyday envelope this month against its usual: the median of the last three full months (a month
+    with nothing counts as nothing, so one big month can't set the usual; Bird Budgeting's rule). "By now"
+    is the usual scaled to the day of the month; `ahead` only when clearly past that (15% and $10). */
+export function trends(sorted, envelopes, skipCats, todayISO) {
+  const month = todayISO.slice(0, 7);
+  const prev = [monthAdd(month, -3), monthAdd(month, -2), monthAdd(month, -1)];
+  const [y, m] = month.split("-").map(Number);
+  const frac = Number(todayISO.slice(8, 10)) / new Date(y, m, 0).getDate();
+  const by = new Map();
+  for (const t of sorted || []) {
+    if (!(t.amount < 0) || !t.cat || t.cat === SKIP || skipCats.has(t.cat)) continue;
+    const mm = String(t.date).slice(0, 7);
+    if (mm !== month && !prev.includes(mm)) continue;
+    const k = t.cat + "|" + mm;
+    by.set(k, (by.get(k) || 0) - t.amount);
+  }
+  const rows = [];
+  for (const e of envelopes || []) {
+    if (e.archived || skipCats.has(e.key)) continue;
+    const usual = money(median(prev.map((mm) => by.get(e.key + "|" + mm) || 0)));
+    const now = money(by.get(e.key + "|" + month) || 0);
+    if (!usual && !now) continue;
+    const byNow = money(usual * frac);
+    rows.push({ id: e.key, name: e.name, now, usual, byNow, ahead: usual > 0 && now > byNow * 1.15 && now - byNow > 10 });
+  }
+  rows.sort((a, b) => (b.now - b.byNow) - (a.now - a.byNow));
+  const total = { now: money(rows.reduce((a, r) => a + r.now, 0)), usual: money(rows.reduce((a, r) => a + r.usual, 0)) };
+  return { months: prev, frac: Math.round(frac * 100) / 100, rows, total: { ...total, byNow: money(total.usual * frac) } };
+}
+
 /** Bird Budgeting's built-in group names (custom ones come from its `groups`). */
 export const GROUP_NAMES = { giving: "Giving & Ministry", housing: "Housing & Utilities", food: "Food & Groceries", transport: "Transportation", insurance: "Insurance & Medical", debtsave: "Debt & Savings", personal: "Personal & Family", fun: "Fun & Recreation", income: "Income" };
 
@@ -528,7 +562,9 @@ export function nestSummary(d, todayISO) {
   };
   const optional = new Set(envelopes.filter((e) => e.priority === "payoff").map((e) => e.key));
   const paycheck = payPeriod({ bills: d.bills, income: ctx.income, optional }, todayISO, sorted, statusOf);
-  return { ...s, source: "nest", sorted: how, plan_own: plan.own, paycheck };
+  const billCats = new Set((d.bills || []).filter((b) => b.type === "expense" && b.categoryId).map((b) => b.categoryId));
+  const trend = trends(sorted, envelopes, new Set([...billCats, ...ctx.income]), todayISO);
+  return { ...s, source: "nest", sorted: how, plan_own: plan.own, paycheck, trends: trend };
 }
 
 /* ---------- the one-time move from Bird Budgeting ---------- */

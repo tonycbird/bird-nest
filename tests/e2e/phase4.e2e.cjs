@@ -65,10 +65,9 @@ async function fakeSupabase(route) {
   await p.click('.tabs >> text=Today'); await p.click('text=Sample day'); await p.waitForTimeout(400);
   const before = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
 
-  // ✓ tab says Claude isn't connected.
-  await p.click('.tabs >> text=Claude'); await p.waitForTimeout(200);
-  assert(await p.locator("text=Claude isn't connected").count() === 1, '✓ tab offers to connect');
-  await p.click('button >> text=Connect'); await p.waitForTimeout(300);
+  // The tab bar is Today · Head · ＋ · Body · Money; Claude is connected from Settings.
+  assert(await p.locator('.tabs >> text=Money').count() === 1 && await p.locator('.tabs >> text=Claude').count() === 0, 'Money has the Claude tab\'s place');
+  await p.click('[aria-label="Settings"]'); await p.waitForTimeout(300);
   await p.click('text=Connect Claude');
   await p.click('text=First time here');
   await p.fill('input[type=email]', 'anthony@example.com'); await p.fill('input[type=password]', 'correct horse battery');
@@ -81,8 +80,9 @@ async function fakeSupabase(route) {
   assert(['blocks', 'steps', 'areas', 'settings', 'derived'].every((t) => tbls.has(t)), 'the phone copy went up: ' + [...tbls].join(','));
   assert(server.rows.has('derived|prefs'), 'prefs for Claude went up');
 
-  // Claude's suggestions came down.
-  await p.click('.tabs >> text=Claude'); await p.waitForTimeout(400);
+  // Claude's suggestions came down: a dashed Claude circle on Today opens them.
+  await p.click('[aria-label="Back to Today"]'); await p.waitForTimeout(300);
+  await p.click('.qc >> text=Claude'); await p.waitForTimeout(400);
   assert(await p.locator('.prop').count() === 4, '4 proposals waiting');
   assert(await p.locator('text=Mail Claude flagged · 1').count() === 1, 'flagged mail shows');
   await p.locator('.prop', { hasText: 'Plan for' }).click(); await p.waitForTimeout(200);

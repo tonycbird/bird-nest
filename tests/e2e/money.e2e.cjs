@@ -78,8 +78,9 @@ const URL0 = process.env.URL || 'http://localhost:4181/';
     assert(await p.locator('a[href*="claude.ai/code/artifact"]', { hasText: 'Open Bird Budgeting' }).count() === 1, 'a way to Bird Budgeting');
     assert(!(await p.locator('.money').innerText()).match(/overdue|late|missed/i), 'no naggy words');
     await shot('money-screen');
-    await p.click('[aria-label="Back to Today"]'); await p.waitForTimeout(300);
-    assert(await p.locator('.t-head').count() === 1, '✕ goes back to Today');
+    assert(await p.locator('.tabs .tab.on', { hasText: 'Money' }).count() === 1, 'Money is a tab');
+    await p.click('.tabs >> text=Today'); await p.waitForTimeout(300);
+    assert(await p.locator('.t-head').count() === 1, 'the Today tab goes back');
 
     // Delete the bill block: it stays gone after a reload
     if (theme === 'light') {

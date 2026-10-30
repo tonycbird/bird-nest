@@ -89,7 +89,7 @@ export default function App() {
             {!selecting && <button aria-label="Quick add" onClick={() => openOverlay("quickadd", tab === "today" ? { defaults: { when: C.today() } } : tab === "head" ? {} : { defaults: {} })}><Icon n="plus" size={26} tone={false} /></button>}
           </div>
           {T("body", "body", "Body")}
-          {T("ok", "claude", "Claude", pending)}
+          {T("money", "coin", "Money")}
         </nav>
         <BodyFrame />
         <TimerPill />

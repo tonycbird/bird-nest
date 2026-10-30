@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { useBank } from "../lib/bank";
 import { BUDGET_URL, fmtMoney, useMoney, type MoneyCategory } from "../lib/money";
 import { useBudget } from "../lib/budget";
-import { GROUP_NAMES, SKIP, type Paycheck } from "../lib/money-core.js";
+import { GROUP_NAMES, SKIP, type Paycheck, type Trends } from "../lib/money-core.js";
 import { EnvelopeSheet, PurchasesSheet, SortSheet } from "./MoneySheets";
 import { goTab } from "../head/useHead";
 import { keyLabel, today } from "../lib/time";
@@ -55,6 +55,40 @@ function PaycheckCard({ p }: { p: Paycheck }) {
   );
 }
 
+/** This month against his usual, per everyday envelope: a brass bar for what's gone, a tick for where
+    the usual month would be by today. "Ahead" only when clearly past it; nothing red, nothing naggy. */
+function TrendsCard({ t, month, onOpen }: { t: Trends; month: string; onOpen: (key: string) => void }) {
+  const [all, setAll] = useState(false);
+  const known = t.rows.filter((r) => r.usual > 0);
+  if (!known.length) return null;
+  const rows = all ? t.rows : known.slice(0, 5);
+  const label = (r: Trends["rows"][number]) => (r.usual > 0 ? `usual ${fmtMoney(r.usual, true)}` : "new this month");
+  return (
+    <>
+      <div className="lbl">Compared with usual</div>
+      <div className="card">
+        <div className="kv"><span className="muted">{MONTHS[Number(month.slice(5, 7)) - 1]} so far</span>
+          <span className="muted mnum">{fmtMoney(t.total.now, true)} · usual by now {fmtMoney(t.total.byNow, true)}</span></div>
+        {rows.map((r) => {
+          const top = Math.max(r.usual, r.now, 1);
+          return (
+            <div key={r.id} className="mrow tap" role="button" onClick={() => onOpen(r.id)}>
+              <div className="kv"><span>{r.name}{r.ahead && <span className="mtag">ahead</span>}</span><b className="mnum">{fmtMoney(r.now, true)}</b></div>
+              <div className="mtrend" aria-hidden="true"><span style={{ width: `${Math.round((r.now / top) * 100)}%` }} />{r.usual > 0 && <i style={{ left: `${Math.min(99, Math.round((r.byNow / top) * 100))}%` }} />}</div>
+              <div className="msub">{label(r)}</div>
+            </div>
+          );
+        })}
+        {t.rows.length > rows.length || all
+          ? <button className="kv mtx" aria-expanded={all} onClick={() => setAll((a) => !a)}><span className="muted">{all ? "Fewer" : `All ${t.rows.length}`}</span><I n={all ? "chevU" : "chevD"} /></button>
+          : null}
+        <p className="quiet" style={{ marginTop: 8 }}>Usual = the middle of the last 3 months. The tick is where a usual month is by today.</p>
+      </div>
+    </>
+  );
+}
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 /** Every envelope, by group, with what's left (tap one to open it). */
 function AllEnvelopes({ onOpen }: { onOpen: (key: string) => void }) {
   const b = useBudget();
@@ -93,15 +127,15 @@ export default function Money() {
   const [all, setAll] = useState(false);
   const [list, setList] = useState(false);
   const day = today();
-  const close = <button className="gear" aria-label="Back to Today" onClick={() => goTab("today")}><Icon n="close" size={20} tone={false} /></button>;
+  const close = null; // Money is a tab now: the tab bar is the way out
   if (!ready) return null;
   if (!s) {
     return (
       <>
-        <header className="top"><div><div className="date">Money</div><h1 className="sentence">Bird Budgeting</h1></div>{close}</header>
-        <div className="empty"><div className="big money-ic"><Icon n="coin" size={36} /></div><h2>Coming with Claude's morning</h2>
-          <p className="detail">A read-only summary of Bird Budgeting.</p>
-          <a className="btn" href={BUDGET_URL} target="_blank" rel="noreferrer" style={{ marginTop: 14 }}><I n="arrow" /> Open Bird Budgeting</a>
+        <header className="top"><div><div className="date">Money</div><h1 className="sentence">Money</h1></div>{close}</header>
+        <div className="empty"><div className="big money-ic"><Icon n="coin" size={36} /></div><h2>Your money shows here</h2>
+          <p className="detail">Link your bank in Settings → Bank.</p>
+          <button className="btn" style={{ marginTop: 14 }} onClick={() => goTab("settings")}><I n="settings" /> Open Settings</button>
         </div>
       </>
     );
@@ -145,6 +179,8 @@ export default function Money() {
       </>}
 
       {nest && s.paycheck && <PaycheckCard p={s.paycheck} />}
+
+      {nest && s.trends && <TrendsCard t={s.trends} month={s.month} onOpen={(k) => setEnv(k)} />}
 
       {!nest && s.payday && <>
         <div className="lbl">Payday</div>

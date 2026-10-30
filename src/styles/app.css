@@ -367,3 +367,7 @@ button.kv.mtx{width:100%; background:none; border:0; border-bottom:1px solid var
 .mname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
 .mcat{margin-left:8px; font-size:12px; font-weight:700; color:var(--ink-3); white-space:nowrap;}
 .mcat.todo{color:#1B1E26; background:var(--c-money); border-radius:100px; padding:1px 7px;}
+.mtrend{position:relative; height:6px; border-radius:100px; background:var(--tint); margin:2px 0 4px;}
+.mtrend > span{display:block; height:100%; border-radius:100px; background:var(--c-money);}
+.mtrend > i{position:absolute; top:-3px; width:2px; height:12px; border-radius:2px; background:var(--ink-2);}
+.msub{font-size:12.5px; color:var(--ink-3); font-weight:600;}

@@ -32,7 +32,15 @@ const txns = [
   t('biz', -400, '2026-10-20', { account_id: 'biz', merchant: 'Home Depot' }),
   t('hx', -12.34, '2026-10-05', { merchant: 'Corner Cafe' }),
   t('wm', -30, '2026-10-10', { merchant: 'Walmart', name: 'WAL-MART #1234' }),
+  t('hd', -80, '2026-10-12', { merchant: 'The Home Depot' }),
+  // July–September, for "compared with usual"
+  ...[['07', 300, 60, 20], ['08', 320, 80, 25], ['09', 280, 100, 30]].flatMap(([mm, g, d, h]) => [
+    t('g' + mm, -g, `2026-${mm}-10`, { merchant: 'WinCo Foods' }), t('d' + mm, -d, `2026-${mm}-12`, { merchant: 'Pizza Place' }), t('h' + mm, -h, `2026-${mm}-14`, { merchant: 'Ace Hardware' })]),
 ];
+budget.push(
+  { id: 'label:home depot', kind: 'label', key: 'home depot', categoryId: 'household', updated_at: at },
+  ...['07', '08', '09'].flatMap((mm) => [{ id: 'sort:d' + mm, kind: 'sort', txn: 'd' + mm, categoryId: 'dining-out', updated_at: at }, { id: 'sort:h' + mm, kind: 'sort', txn: 'h' + mm, categoryId: 'household', updated_at: at }]),
+);
 const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ item_id: 'i1', env: 'production', inst_name: 'Idaho Central Credit Union', status: 'ok', error: '', update_status: 'HISTORICAL_UPDATE_COMPLETE', last_sync: Date.parse('2026-10-29T15:30:00Z') }],
   accounts: [
     { account_id: 'joint', item_id: 'i1', name: 'Joint Checking', mask: '9123', type: 'depository', subtype: 'checking', current: 324.48, available: 300, updated: 0 },
@@ -65,7 +73,9 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
 
     const circle = p.locator('.qc', { hasText: '$348 left' });
     assert(await circle.count() === 1, `${theme}: Today's circle is groceries left, worked out from the bank`);
+    assert(await p.locator('.tabs >> text=Money').count() === 1 && await p.locator('.tabs >> text=Claude').count() === 0, 'Money has its own tab where Claude was');
     await circle.click(); await p.waitForTimeout(400);
+    assert(await p.locator('.tabs .tab.on', { hasText: 'Money' }).count() === 1, 'the circle opens the Money tab');
     assert(await p.locator('.money h1', { hasText: '$348' }).count() === 1, 'Money opens with groceries left');
     assert(await p.locator('a', { hasText: 'Open Bird Budgeting' }).count() === 0, 'no more Bird Budgeting link');
     assert(await p.locator('.money .kv', { hasText: 'To sort' }).locator('text=4').count() === 1, 'four to sort (Pizza Hut ×2, Venmo, Walmart: a store he files two ways); Starbucks sorted itself; Corner Cafe kept its Bird Budgeting envelope');
@@ -80,6 +90,13 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     assert(await p.locator('text=Bank · Today').count() === 1, 'says when the bank was last pulled');
     assert(!(await p.locator('.money').innerText()).match(/overdue|late|missed|Bank copy/i), 'no naggy words, no stale bank copy note');
     await shot('nest-money');
+
+    // Compared with usual (July–September): Household is ahead (Home Depot $80 vs a usual $25); Groceries and Dining aren't
+    const tr = p.locator('.lbl', { hasText: 'Compared with usual' }).locator('xpath=following-sibling::div[1]');
+    assert(await tr.locator('.mrow', { hasText: 'Household Supplies' }).locator('.mtag', { hasText: 'ahead' }).count() === 1 && await tr.locator('.mrow', { hasText: 'Household Supplies' }).locator('text=usual $25').count() === 1, 'Household Supplies: ahead of a usual $25');
+    assert(await tr.locator('.mrow', { hasText: 'Groceries' }).locator('.mtag').count() === 0 && await tr.locator('.mrow', { hasText: 'Groceries' }).locator('text=usual $300').count() === 1, 'Groceries: usual $300 (the middle of 280, 300, 320), not ahead');
+    assert(await tr.locator('text=October so far').count() === 1, 'month so far vs usual by now');
+    await tr.scrollIntoViewIfNeeded(); await shot('nest-trends'); await p.evaluate(() => scrollTo(0, 0));
 
     // Sort: one tap each; remembering Pizza Hut sorts the other Pizza Hut too
     await p.locator('button.mtx', { hasText: 'To sort' }).click(); await p.waitForTimeout(400);
@@ -99,7 +116,7 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     assert(await p.locator('.money .kv', { hasText: 'All sorted' }).count() === 1, 'To sort says all sorted');
 
     // An envelope: change what it gets
-    await p.locator('.mrow', { hasText: 'Dining Out' }).click(); await p.waitForTimeout(400);
+    await p.locator('.mrow', { hasText: 'Dining Out' }).first().click(); await p.waitForTimeout(400); // the Left this month row (trends has one too)
     const es = p.locator('.msheet');
     assert(await es.locator('h2', { hasText: 'Dining Out' }).count() === 1 && await es.locator('.kv', { hasText: 'Spent' }).locator('text=$54').count() === 1, 'Dining Out: both Pizza Hut purchases and Corner Cafe (from history), $54 spent');
     await es.locator('input[aria-label="Dining Out this month"]').fill('300');
@@ -111,7 +128,7 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     assert(await p.locator('.msheet h2', { hasText: 'Pizza Hut' }).count() === 1 && await p.locator('.msheet .date', { hasText: 'Sort' }).count() === 1, 'tapping a purchase opens it to re-sort');
     await p.locator('.msheet').last().locator('.sheet-x').click(); await p.waitForTimeout(300);
     await p.locator('.msheet').last().locator('.sheet-x').click(); await p.waitForTimeout(300);
-    assert(await p.locator('.money .mrow', { hasText: 'Dining Out' }).locator('text=$246').count() === 1, 'the Money screen shows the new amount');
+    assert(await p.locator('.money .mrow', { hasText: 'Dining Out' }).first().locator('text=$246').count() === 1, 'the Money screen shows the new amount');
     assert(await p.locator('.money h1', { hasText: '$318' }).count() === 1, 'groceries left now counts the Walmart run: $318');
 
     // All envelopes, by group
@@ -122,7 +139,7 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     // Purchases, searchable
     await p.locator('button.mtx', { hasText: 'Purchases' }).click(); await p.waitForTimeout(300);
     const ps = p.locator('.msheet');
-    assert(await ps.locator('button.mtx').count() === 8, 'every purchase on the budget account this month (not the business one)');
+    assert(await ps.locator('button.mtx').count() === 9, 'every purchase on the budget account this month (not the business one)');
     await ps.locator('input[aria-label="Search purchases"]').fill('pizza'); await p.waitForTimeout(200);
     assert(await ps.locator('button.mtx').count() === 2 && await ps.locator('text=2 · $42 out').count() === 1, 'search "pizza": 2 purchases, $42 out');
     await ps.locator('input[aria-label="Search purchases"]').fill('not spending'); await p.waitForTimeout(200);
@@ -132,7 +149,7 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
 
     // Settings → Bank: Joint Checking is the budget; the business account doesn't count
     if (theme === 'light') {
-      await p.click('[aria-label="Back to Today"]'); await p.waitForTimeout(300);
+      await p.click('.tabs >> text=Today'); await p.waitForTimeout(300);
       await p.click('[aria-label="Settings"]'); await p.waitForTimeout(500);
       const card = p.locator('.lbl', { hasText: /^Bank$/ }).locator('xpath=following-sibling::div[1]');
       // (Bank card shows only when cloud is on; the phone-only build skips it)

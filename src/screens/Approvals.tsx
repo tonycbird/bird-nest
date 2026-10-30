@@ -80,7 +80,8 @@ export default function Approvals() {
 
   return (
     <>
-      <header className="top"><div><div className="date">Suggestions</div><h1 className="sentence">Claude</h1></div></header>
+      <header className="top"><div><div className="date">Suggestions</div><h1 className="sentence">Claude</h1></div>
+        <button className="gear" aria-label="Back to Today" onClick={() => goTab("today")}><Icon n="close" size={20} tone={false} /></button></header>
       {CLOUD && !c.signedIn && (
         <div className="card" style={{ marginBottom: 12 }}>
           <p><strong><I n="sync" /> Claude isn't connected</strong></p>
