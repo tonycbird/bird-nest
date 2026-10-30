@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "../src/lib/db";
-import { budgetAccounts, importSetup, refreshNestMoney, setPlanAmount, sortPurchase, SKIP, toggleBudgetAccount } from "../src/lib/budget";
+import { budgetAccounts, carrySorts, importSetup, refreshNestMoney, setPlanAmount, sortPurchase, SKIP, toggleBudgetAccount, usePlan } from "../src/lib/budget";
 import { saveMoney, type MoneySummary } from "../src/lib/money";
 import type { Setup } from "../src/lib/money-core.js";
 
@@ -94,6 +94,35 @@ describe("his changes", () => {
     await setPlanAmount("2026-10", "groceries", 600);
     expect((await db.budget.get("plan:2026-10"))?.amounts).toMatchObject({ groceries: 600, dining: 250 });
     expect((await db.money.get("summary"))!.data.plan_own).toBe(true);
+  });
+});
+
+describe("the month's plan", () => {
+  beforeEach(async () => {
+    await importSetup(setup);
+    await db.txns.bulkPut([t("g9", -300, "2026-09-12", { merchant: "WinCo Foods" }), t("g", -152.36, "2026-10-27", { merchant: "WinCo Foods" })]);
+  });
+  test("a new month starts on the suggested plan, written down so it's his to change", async () => {
+    expect(await db.budget.get("plan:2026-11")).toBeUndefined();
+    await refreshNestMoney("2026-11-01");
+    const p = await db.budget.get("plan:2026-11");
+    expect(p).toMatchObject({ from: "suggested", amounts: { internet: 65 } });
+    await setPlanAmount("2026-11", "groceries", 640);
+    await refreshNestMoney("2026-11-02");
+    expect((await db.budget.get("plan:2026-11"))?.amounts?.groceries).toBe(640); // never rewritten
+  });
+  test("Use it: the suggested plan for a month, with undo", async () => {
+    const undo = await usePlan("2026-10", { groceries: 300, internet: 65 });
+    expect((await db.budget.get("plan:2026-10"))?.amounts).toEqual({ groceries: 300, internet: 65 });
+    await undo();
+    expect((await db.budget.get("plan:2026-10"))?.amounts).toEqual({ groceries: 500, dining: 250, internet: 65 });
+  });
+  test("a pending purchase he sorted keeps his pick when it posts under a new id", async () => {
+    await db.txns.put(t("pend", -23.4, "2026-10-28", { merchant: "Pizza Place", pending: true }));
+    await sortPurchase({ id: "pend", merchant: "Pizza Place", name: "" }, "groceries", false);
+    expect(await carrySorts([["post", "pend"], ["other", "nothing"]])).toBe(1);
+    expect(await db.budget.get("sort:post")).toMatchObject({ categoryId: "groceries" });
+    expect(await carrySorts([["post", "pend"]])).toBe(0); // once
   });
 });
 

@@ -115,7 +115,11 @@ const FAKE_PLAID = `window.Plaid = { create(o) { return { open() { window.__plai
 
     // Nest sorts the pending purchase; when it posts under a new id, it keeps the category
     await p.evaluate(async () => { const db = await new Promise((r) => { const q = indexedDB.open('bird-nest'); q.onsuccess = () => r(q.result); }); await new Promise((r) => { const tx = db.transaction('txns', 'readwrite'); const s = tx.objectStore('txns'); const g = s.get('t1'); g.onsuccess = () => { s.put({ ...g.result, category: 'groceries' }); }; tx.oncomplete = r; }); });
+    // …and his pick in the budget (that's what Money sorts by) moves with it too
+    await p.evaluate(async () => { const db = await new Promise((r) => { const q = indexedDB.open('bird-nest'); q.onsuccess = () => r(q.result); }); await new Promise((r) => { const tx = db.transaction('budget', 'readwrite'); tx.objectStore('budget').put({ id: 'sort:t1', kind: 'sort', txn: 't1', categoryId: 'groceries', updated_at: '2026-10-28T00:00:00Z' }); tx.oncomplete = r; }); });
     await card.locator('button', { hasText: 'Pull now' }).click(); await p.waitForTimeout(800);
+    const moved = await p.evaluate(async () => { const db = await new Promise((r) => { const q = indexedDB.open('bird-nest'); q.onsuccess = () => r(q.result); }); return await new Promise((r) => { const q = db.transaction('budget').objectStore('budget').get('sort:t3'); q.onsuccess = () => r(q.result); }); });
+    assert(moved && moved.categoryId === 'groceries', 'his pick on the pending purchase moves to the posted one');
     txns = await p.evaluate(async () => { const db = await new Promise((r) => { const q = indexedDB.open('bird-nest'); q.onsuccess = () => r(q.result); }); return await new Promise((r) => { const q = db.transaction('txns').objectStore('txns').getAll(); q.onsuccess = () => r(q.result); }); });
     assert(!txns.find((t) => t.id === 't1') && txns.find((t) => t.id === 't3')?.category === 'groceries' && txns.find((t) => t.id === 't3').pending === false, 'pending → posted keeps the category Nest gave it');
 

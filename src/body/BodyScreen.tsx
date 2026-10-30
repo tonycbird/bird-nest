@@ -26,10 +26,11 @@ export default function BodyScreen() {
       setSlot(Math.round(head.current?.getBoundingClientRect().bottom ?? 0), Math.max(0, Math.round(innerHeight - edge) + 4));
     };
     measure();
+    const raf = requestAnimationFrame(measure); // again once the tab switch has settled
     window.addEventListener("resize", measure);
     const ro = new ResizeObserver(measure);
     if (head.current) ro.observe(head.current);
-    return () => { window.removeEventListener("resize", measure); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", measure); ro.disconnect(); };
   }, []);
   // If the Fitness screens don't come up, say so instead of showing a blank page.
   const [slow, setSlow] = useState(false);

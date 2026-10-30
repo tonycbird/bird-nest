@@ -502,6 +502,160 @@ export function trends(sorted, envelopes, skipCats, todayISO) {
 
 /** Bird Budgeting's built-in group names (custom ones come from its `groups`). */
 export const GROUP_NAMES = { giving: "Giving & Ministry", housing: "Housing & Utilities", food: "Food & Groceries", transport: "Transportation", insurance: "Insurance & Medical", debtsave: "Debt & Savings", personal: "Personal & Family", fun: "Fun & Recreation", income: "Income" };
+/** EveryDollar's order: giving first, then the four walls (home, getting around, food), then the rest. */
+export const GROUP_ORDER = ["giving", "housing", "transport", "food", "personal", "insurance", "fun", "debtsave"];
+
+/* ---------- the month's budget (EveryDollar's zero-based budget) ---------- */
+
+const monthEnd = (month) => { const [y, m] = month.split("-").map(Number); return isoOf(new Date(y, m, 0)); };
+/** The month a paycheck pays for: the one most of its two weeks fall in (payday + 7 days). A paycheck on
+    Oct 30 pays November's first bills, so it's November's money; that's how the cash really gets used. */
+export const payMonth = (iso) => addDays(iso, 7).slice(0, 7);
+
+/** Money in for a month: its paychecks (what landed, else what's expected) plus anything else that came in
+    (a reimbursement, a side job) on a day that isn't a payday. A deposit counts as a paycheck when it's
+    sorted as income (or the bank calls it income) from 2 days before to 3 days after payday. */
+export function monthIncome(bills, month, sorted, income, todayISO) {
+  const first = `${month}-01`, last = monthEnd(month);
+  const days = paydays(bills, addDays(first, -20), addDays(last, 20));
+  const inc = income || new Set();
+  const isIn = (t) => t.amount > 0 && t.cat !== SKIP && ((t.cat && inc.has(t.cat)) || (!t.cat && /^INCOME_/.test(t.hint || "")));
+  const landed = new Map(days.map((p) => [p.date, 0]));
+  let extra = 0;
+  for (const t of (sorted || []).filter(isIn)) {
+    let best = null;
+    for (const p of days) { const g = dayNo(t.date) - dayNo(p.date); if (g >= -2 && g <= 3 && (!best || Math.abs(g) < Math.abs(dayNo(t.date) - dayNo(best.date)))) best = p; }
+    if (best) landed.set(best.date, money(landed.get(best.date) + t.amount));
+    else if (String(t.date).slice(0, 7) === month) extra = money(extra + t.amount);
+  }
+  const paychecks = days.filter((p) => payMonth(p.date) === month).map((p) => {
+    const got = landed.get(p.date) || 0;
+    const settled = !!todayISO && addDays(p.date, 3) < todayISO; // past the days it could still land
+    return { date: p.date, expected: p.amount, landed: got, amount: got > 0 && settled ? got : money(Math.max(got, p.amount)) };
+  });
+  const expected = money(paychecks.reduce((a, p) => a + p.expected, 0));
+  return { paychecks, extra, expected, total: money(paychecks.reduce((a, p) => a + p.amount, 0) + extra) };
+}
+
+/** What went out of each envelope in a month: purchases less refunds ("not spending" and income left out). */
+function spentBy(sorted, month, income) {
+  const out = {};
+  for (const t of sorted || []) {
+    if (String(t.date).slice(0, 7) !== month || !t.cat || t.cat === SKIP || (income && income.has(t.cat))) continue;
+    out[t.cat] = money((out[t.cat] || 0) - t.amount);
+  }
+  return out;
+}
+const monthsBefore = (month, n) => Array.from({ length: n }, (_, i) => monthAdd(month, i - n));
+/** His usual month per envelope: the middle of the last 3 full months (refunds count against it), or, if
+    more, the monthly average over the past year the bank has (so a gift or registration that comes once or
+    twice a year still gets a little each month: Ramsey's sinking fund). */
+export function usualSpend(sorted, todayISO, income) {
+  const months = monthsBefore(todayISO.slice(0, 7), 3);
+  const per = months.map((m) => spentBy(sorted, m, income));
+  const have = new Set((sorted || []).map((t) => String(t.date).slice(0, 7)));
+  const year = monthsBefore(todayISO.slice(0, 7), 12).filter((m) => have.has(m));
+  const perYear = year.map((m) => spentBy(sorted, m, income));
+  const keys = new Set(per.flatMap((p) => Object.keys(p)).concat(perYear.flatMap((p) => Object.keys(p))));
+  const out = {};
+  for (const k of keys) {
+    const mid = median(per.map((p) => Math.max(0, p[k] || 0)));
+    const avg = year.length >= 3 ? perYear.reduce((a, p) => a + Math.max(0, p[k] || 0), 0) / year.length : 0;
+    const u = money(Math.max(mid, avg));
+    if (u > 0) out[k] = u;
+  }
+  return { months, by: out };
+}
+
+const FEES = /overdraft|bank fee|service fee/i;
+const EMERGENCY = /emergency/i;
+const WANTS = /dining|restaurant|eating out|coffee|entertain|gift|personal spend|clothing|hobb|fun money|vacation|blow/i;
+const roundUp = (n) => (n <= 0 ? 0 : n < 100 ? Math.ceil(n / 5) * 5 : Math.ceil(n / 10) * 10);
+
+/** A realistic budget for a month, built from real life: bills at what they cost that month, everyday
+    envelopes at what they usually take (rounded up a little), bank fees at nothing (a budget that balances
+    has none), against the paychecks that pay for it. Over: wants and an extra payoff give up to a quarter
+    each, and anything still over is shown, not hidden. Under (a 3-paycheck month): the rest goes to the
+    Emergency Fund. `why` per envelope: bill · usual · target · spent · trim · extra · zero. */
+export function suggestPlan(d, month, todayISO, sorted) {
+  const income = d.income || incomeKeys(d.envelopes, d.groups);
+  const live = (d.envelopes || []).filter((e) => !e.archived && !income.has(e.key));
+  const inc = monthIncome(d.bills, month, sorted, income, todayISO).total;
+  const usual = usualSpend(sorted, todayISO, income).by;
+  const billsBy = {};
+  for (const { r } of billsBetween(d.bills, `${month}-01`, monthEnd(month))) if (r.categoryId) billsBy[r.categoryId] = money((billsBy[r.categoryId] || 0) + (Number(r.amount) || 0));
+  // Never less than what's already gone this month (a plan that's overspent the day it starts isn't real).
+  const already = spentBy(sorted, month, income);
+  const floor = (k) => (already[k] > 0 ? (billsBy[k] > 0 ? money(already[k]) : roundUp(already[k])) : 0);
+  const amounts = {}, why = {};
+  for (const e of live) {
+    let a = 0, w = null;
+    if (billsBy[e.key] > 0) { a = billsBy[e.key]; w = "bill"; }
+    else if (FEES.test(e.name)) { a = 0; w = usual[e.key] ? "zero" : null; }
+    else {
+      a = roundUp(usual[e.key] || 0); w = a ? "usual" : null;
+      if (Number(e.target) > a) { a = money(e.target); w = "target"; }
+    }
+    if (floor(e.key) > a) { a = floor(e.key); w = w === "bill" ? "bill" : "spent"; }
+    if (a > 0 || w) { amounts[e.key] = a; if (w) why[e.key] = w; }
+  }
+  const total = () => money(Object.values(amounts).reduce((x, y) => x + y, 0));
+  let gap = money(inc - total());
+  if (gap < 0) {
+    const flex = live.filter((e) => amounts[e.key] > 0 && (e.priority === "payoff" || ((why[e.key] === "usual" || why[e.key] === "target") && (WANTS.test(e.name) || e.group === "fun"))));
+    const pool = flex.reduce((x, e) => x + amounts[e.key], 0);
+    const share = pool > 0 ? Math.min(0.25, -gap / pool) : 0; // the same share from each, never more than a quarter
+    for (const e of flex) {
+      if (share <= 0) break;
+      const a = amounts[e.key], to = Math.max(Math.floor((a * (1 - share)) / 5) * 5, Math.ceil(a * 0.75 / 5) * 5, floor(e.key));
+      if (to < a) { amounts[e.key] = money(to); why[e.key] = "trim"; }
+    }
+    gap = money(inc - total());
+  }
+  let to = null;
+  if (gap > 0) {
+    const ef = live.find((e) => EMERGENCY.test(e.name));
+    if (ef) { amounts[ef.key] = money((amounts[ef.key] || 0) + gap); why[ef.key] = "extra"; to = ef.key; gap = 0; }
+  }
+  return { month, income: inc, amounts, why, over: gap < 0 ? -gap : 0, left: gap > 0 ? gap : 0, to };
+}
+
+/** One month, EveryDollar style: money in, every envelope's plan / spent / left (bills with their dates
+    and ✓), and what's left to budget (in − planned; the goal is $0). `plan` = {amounts, carry}. */
+export function budgetMonth(d, month, todayISO, sorted, plan, statusOf) {
+  const income = d.income || incomeKeys(d.envelopes, d.groups);
+  const inc = monthIncome(d.bills, month, sorted, income, todayISO);
+  const spent = spentBy(sorted, month, income);
+  const billRows = {};
+  for (const { r, date } of billsBetween(d.bills, `${month}-01`, monthEnd(month))) {
+    if (!r.categoryId) continue;
+    (billRows[r.categoryId] = billRows[r.categoryId] || []).push({ id: r.id, name: String(r.name || "").replace(/\s*\(.*?\)\s*/g, " ").trim().slice(0, 32), date, amount: money(r.amount), paid: !!statusOf?.(r, date) });
+  }
+  const amounts = plan?.amounts || {}, carry = plan?.carry || {};
+  const rows = (d.envelopes || []).filter((e) => !income.has(e.key) && (!e.archived || spent[e.key])).map((e) => {
+    const planned = money(amounts[e.key] || 0), avail = money(planned + (Number(carry[e.key]) || 0)), sp = spent[e.key] || 0;
+    const bills = billRows[e.key] || [];
+    return { key: e.key, name: e.name, group: e.group, order: e.order, planned, avail, spent: sp, left: money(avail - sp), bills, paid: bills.length > 0 && bills.every((b) => b.paid) };
+  });
+  const planned = money(rows.reduce((a, r) => a + r.planned, 0));
+  const custom = (d.groups || []).filter((g) => !g.isIncome).map((g) => g.id);
+  const order = [...GROUP_ORDER, ...custom];
+  const rank = (g) => { const i = order.indexOf(g); return i < 0 ? order.length : i; };
+  rows.sort((a, b) => rank(a.group) - rank(b.group) || a.order - b.order || a.name.localeCompare(b.name));
+  const toSort = (sorted || []).filter((t) => String(t.date).slice(0, 7) === month && !t.cat).length;
+  return {
+    month, income: inc, planned, toBudget: money(inc.total - planned), rows, toSort,
+    spent: money(rows.reduce((a, r) => a + r.spent, 0)), left: money(rows.reduce((a, r) => a + r.left, 0)),
+  };
+}
+
+/** The whole month's bills by date, with the paydays dropped in between (Money → Bills). */
+export function monthBills(bills, month, statusOf) {
+  const first = `${month}-01`, last = monthEnd(month);
+  const list = billsBetween(bills, first, last).map(({ r, date }) => ({ kind: "bill", id: r.id, name: String(r.name || "").replace(/\s*\(.*?\)\s*/g, " ").trim().slice(0, 32), date, amount: money(r.amount), cat: r.categoryId || "", paid: !!statusOf?.(r, date) }));
+  const pays = paydays(bills, first, last).map((p) => ({ kind: "pay", id: "pay" + p.date, name: "Paycheck", date: p.date, amount: p.amount, cat: "", paid: false }));
+  return [...list, ...pays].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.kind === "pay" ? -1 : 1));
+}
 
 /* ---------- the month's plan ---------- */
 
@@ -540,7 +694,7 @@ export function nestSummary(d, todayISO) {
   const asBird = (t) => ({ id: t.id, month: t.month, date: t.date, amount: t.amount, categoryId: t.cat && t.cat !== SKIP ? t.cat : "", transfer: t.cat === SKIP });
   const txns = sorted.map(asBird);
   const marks = d.marks || [];
-  const plan = planFor(month, d.plans, d.bills);
+  const plan = planOf(month, { ...d, income: ctx.income }, todayISO, sorted);
   const s = summarize({
     recurring: d.bills || [],
     categories: envelopes.map((e) => ({ id: e.key, name: e.name, group: e.group, archived: e.archived })),
@@ -549,22 +703,43 @@ export function nestSummary(d, todayISO) {
     transactions: txns,
     billMarks: marks,
   }, todayISO);
-  // Paid or not, for any bill in any month the paycheck card looks at (Bird Budgeting's rules, month by month).
-  const today = dateOf(todayISO), cache = new Map();
-  const statusOf = (r, date) => {
-    const m = date.slice(0, 7);
-    if (!cache.has(m)) {
-      const [y, mm] = m.split("-").map(Number);
-      const due = (d.bills || []).filter((b) => b.type === "expense" && billDaysInMonth(b, y, mm - 1).length);
-      cache.set(m, billStatuses(due, txns.filter((t) => t.month === m), marks.filter((k) => k.month === m), m, today));
-    }
-    return cache.get(m).some((x) => x.r.id === r.id && x.status === "paid");
-  };
+  const statusOf = paidCheck(d.bills, sorted, marks, todayISO);
   const optional = new Set(envelopes.filter((e) => e.priority === "payoff").map((e) => e.key));
   const paycheck = payPeriod({ bills: d.bills, income: ctx.income, optional }, todayISO, sorted, statusOf);
   const billCats = new Set((d.bills || []).filter((b) => b.type === "expense" && b.categoryId).map((b) => b.categoryId));
   const trend = trends(sorted, envelopes, new Set([...billCats, ...ctx.income]), todayISO);
-  return { ...s, source: "nest", sorted: how, plan_own: plan.own, paycheck, trends: trend };
+  // The month's envelopes as the Money tab shows them (refunds count back), so Today's "$X left" always matches.
+  const bm = budgetMonth({ ...d, income: ctx.income }, month, todayISO, sorted, plan, statusOf);
+  const cat = (r) => ({ id: r.key, name: r.name, budget: r.avail, spent: r.spent, left: r.left });
+  const everyday = bm.rows.filter((r) => r.avail > 0 && !billCats.has(r.key));
+  const isGroceries = (r) => r.key === "groceries" || /grocer/i.test(r.name);
+  const key = [...everyday.filter(isGroceries), ...everyday.filter((r) => !isGroceries(r)).sort((a, b) => b.avail - a.avail)].slice(0, 6).map(cat);
+  const left = { total: bm.left, budget: money(bm.rows.reduce((a, r) => a + r.avail, 0)), spent: bm.spent };
+  return { ...s, left, categories: key, groceries: key.find((c) => isGroceries({ key: c.id, name: c.name })) ?? null,
+    to_budget: bm.toBudget, source: "nest", sorted: how, plan_own: plan.own, paycheck, trends: trend };
+}
+
+/** Paid or not, for any bill in any month (Bird Budgeting's rules, month by month): a payment sorted to the
+    bill's envelope, or a paid-by-hand mark. `sorted` = budget-account purchases with their envelope. */
+export function paidCheck(bills, sorted, marks, todayISO) {
+  const today = dateOf(todayISO), cache = new Map();
+  const txns = (sorted || []).map((t) => ({ id: t.id, month: String(t.date).slice(0, 7), date: t.date, amount: t.amount, categoryId: t.cat && t.cat !== SKIP ? t.cat : "", transfer: t.cat === SKIP }));
+  return (r, date) => {
+    const m = date.slice(0, 7);
+    if (!cache.has(m)) {
+      const [y, mm] = m.split("-").map(Number);
+      const due = (bills || []).filter((b) => b.type === "expense" && billDaysInMonth(b, y, mm - 1).length);
+      cache.set(m, billStatuses(due, txns.filter((t) => t.month === m), (marks || []).filter((k) => k.month === m), m, today));
+    }
+    return cache.get(m).some((x) => x.r.id === r.id && x.status === "paid");
+  };
+}
+
+/** The month's plan: his own if he has one, else the suggested one (built from real life, see suggestPlan). */
+export function planOf(month, d, todayISO, sorted) {
+  const own = (d.plans || []).find((p) => p.month === month);
+  if (own) return { amounts: { ...(own.amounts || {}) }, carry: { ...(own.carry || {}) }, own: true };
+  return { amounts: suggestPlan(d, month, todayISO, sorted).amounts, carry: {}, own: false };
 }
 
 /* ---------- the one-time move from Bird Budgeting ---------- */

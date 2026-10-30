@@ -54,7 +54,7 @@ export function context(): Record<string, unknown> {
     open,
     look: html.dataset.theme, look_setting: getMode(), details: !html.classList.contains("quiet"),
     version: __BUILD__,
-    phone: navigator.userAgent, size: `${innerWidth}×${innerHeight}`, scroll: Math.round(scrollY),
+    phone: navigator.userAgent, size: `${innerWidth}×${innerHeight}`, scroll: Math.round(document.querySelector(".scroller")?.scrollTop ?? scrollY),
     standalone: matchMedia("(display-mode: standalone)").matches, online: navigator.onLine,
     local_time: new Date().toLocaleString("en-US"),
   };

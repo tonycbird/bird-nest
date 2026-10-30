@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./lib/db";
 import { cloud } from "./lib/sync";
@@ -58,8 +58,20 @@ export default function App() {
     return () => navigator.serviceWorker?.removeEventListener("message", msg);
   }, []);
 
-  // Scroll to top when switching tabs.
-  useEffect(() => { window.scrollTo(0, 0); }, [tab]);
+  // Scroll to top when switching tabs (the page itself never scrolls: .scroller does).
+  const scroller = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; }, [tab]);
+  // iPhone still nudges the page itself to show a field above the keyboard. Once typing is done, put it back,
+  // or the tab bar and the Body frame would sit off where they belong.
+  useEffect(() => {
+    const typing = () => !!document.activeElement?.matches("input, textarea, select, [contenteditable]");
+    const home = () => { if (!typing() && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0); };
+    const later = () => window.setTimeout(home, 120);
+    window.addEventListener("scroll", home, { passive: true });
+    window.addEventListener("focusout", later);
+    window.visualViewport?.addEventListener("resize", later);
+    return () => { window.removeEventListener("scroll", home); window.removeEventListener("focusout", later); window.visualViewport?.removeEventListener("resize", later); };
+  }, []);
 
 
   const T = (t: AppTab, icon: IconName, label: string, badge?: number) => {
@@ -74,6 +86,7 @@ export default function App() {
   return (
     <ToastProvider>
       <div className="app">
+        <div className="scroller" ref={scroller}>
         <main className="main" key={tab}>
           {tab === "today" && <Today pending={pending} online={online} onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}
           {tab === "head" && <HeadScreen />}
@@ -82,6 +95,7 @@ export default function App() {
           {tab === "settings" && <Settings email={c.email} online={online} />}
           {tab === "money" && <Money />}
         </main>
+        </div>
         <nav className="tabs" aria-label="Main">
           {T("today", "today", "Today")}
           {T("head", "head", "Head", inbox)}

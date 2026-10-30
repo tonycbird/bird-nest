@@ -5,7 +5,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, nowISO, type BudgetRow, type Txn } from "./db";
 import type { BankAccount, BankStatus } from "./bank";
-import { makeCtx, matchHistory, nestSummary, planFor, SKIP, sortOf, storeKeyFor, type Bill, type Envelope, type HistoryEntry, type Label, type Plan, type Setup } from "./money-core.js";
+import { budgetMonth, makeCtx, matchHistory, monthBills, nestSummary, paidCheck, planOf, SKIP, sortOf, storeKeyFor, suggestPlan, usualSpend, type Bill, type Envelope, type HistoryEntry, type Label, type Plan, type Setup } from "./money-core.js";
 import { today } from "./time";
 
 export { SKIP };
@@ -119,6 +119,25 @@ async function applyHistory(d: Loaded, txns: Txn[]): Promise<number> {
   return add.length;
 }
 
+/** Every budget-account purchase with its envelope (his pick, a rule, Plaid's hint, or none yet). */
+function sortAll(d: Loaded, txns: Txn[]) {
+  const ctx = makeCtx(d);
+  return { ctx, sorted: txns.filter((t) => d.budgetIds.has(t.account_id)).map((t) => ({ ...t, ...sortOf(t, ctx) })) };
+}
+
+/** A new month starts on the suggested plan (bills, his usual spending, the paychecks that pay for it),
+    written down so it's his to change. Only once there's a full month of the bank's history to go on. */
+async function startMonthPlan(d: Loaded, txns: Txn[], day: string): Promise<boolean> {
+  const month = day.slice(0, 7);
+  if (d.plans.some((p) => p.month === month)) return false;
+  if ((await db.budget.get("plan:" + month))) return false; // he removed it (deleted row): leave it
+  const { ctx, sorted } = sortAll(d, txns);
+  if (!sorted.some((t) => t.month < month)) return false;
+  const sg = suggestPlan({ ...d, income: ctx.income }, month, day, sorted);
+  await db.budget.put({ id: "plan:" + month, kind: "plan", month, amounts: sg.amounts, carry: {}, from: "suggested", updated_at: nowISO() });
+  return true;
+}
+
 /** Work the summary out again (after a pull, a sort, a plan change, or a new day). Quiet until there's
     a setup and the bank has purchases on a budget account. */
 export async function refreshNestMoney(day = today()): Promise<boolean> {
@@ -127,6 +146,7 @@ export async function refreshNestMoney(day = today()): Promise<boolean> {
   const txns = await db.txns.toArray();
   if (!txns.some((t) => d.budgetIds.has(t.account_id))) return false;
   if (await applyHistory(d, txns)) d = await load();
+  if (await startMonthPlan(d, txns, day)) d = await load();
   const s = nestSummary({ ...d, txns, accounts: d.budgetIds }, day);
   await db.money.put({ key: "summary", data: s, updated_at: nowISO() });
   return true;
@@ -142,16 +162,28 @@ export async function startMoney(): Promise<void> {
 /* ---------- what the Money screen needs live ---------- */
 
 export interface Purchase extends Txn { cat: string | null; how: "you" | "rule" | "hint" | null }
-export function useBudget() {
+/** One month of the budget, live: the plan (his, or the suggested one), every envelope's plan / spent /
+    left, money in, the month's bills, its purchases, his usual month, and the suggestion. */
+export function useBudget(month: string = today().slice(0, 7)) {
   return useLiveQuery(async () => {
     const d = await load();
-    const ctx = makeCtx(d);
-    const month = today().slice(0, 7);
-    const txns = (await db.txns.where("month").equals(month).toArray()).filter((t) => d.budgetIds.has(t.account_id));
-    const purchases: Purchase[] = txns.map((t) => ({ ...t, ...sortOf(t, ctx) })).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-    return { ...d, month, income: ctx.income, plan: planFor(month, d.plans, d.bills), purchases };
-  }, []);
+    const day = today();
+    const { ctx, sorted } = sortAll(d, await db.txns.toArray());
+    const dd = { ...d, income: ctx.income };
+    const plan = planOf(month, dd, day, sorted);
+    const statusOf = paidCheck(d.bills, sorted, d.marks, day);
+    const purchases: Purchase[] = sorted.filter((t) => t.month === month).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    return {
+      ...d, month, day, income: ctx.income, plan, purchases,
+      bm: budgetMonth(dd, month, day, sorted, plan, statusOf),
+      bills: monthBills(d.bills, month, statusOf),
+      usual: usualSpend(sorted, day, ctx.income).by,
+      suggestion: suggestPlan(dd, month, day, sorted),
+      months: [...new Set([...d.plans.map((p) => p.month), day.slice(0, 7)])].sort(), // the months he has a budget for
+    };
+  }, [month]);
 }
+export type BudgetView = NonNullable<ReturnType<typeof useBudget>>;
 
 /** Settings → Bank: how Bird Budgeting's history lines up with the bank's copy, over the dates both have. */
 export function useBirdCheck() {
@@ -184,13 +216,46 @@ export async function sortPurchase(t: Pick<Txn, "id" | "merchant" | "name">, cat
   };
 }
 
-/** Change what an envelope gets this month (the rest of the month's plan is kept as it is). */
-export async function setPlanAmount(month: string, key: string, amount: number): Promise<void> {
+async function planNow(month: string) {
   const d = await load();
-  const p = planFor(month, d.plans, d.bills);
+  const { ctx, sorted } = sortAll(d, await db.txns.toArray());
+  return planOf(month, { ...d, income: ctx.income }, today(), sorted);
+}
+
+/** Change what an envelope gets in a month (the rest of that month's plan is kept as it is). */
+export async function setPlanAmount(month: string, key: string, amount: number): Promise<void> {
+  const p = await planNow(month);
   p.amounts[key] = Math.max(0, Math.round(amount * 100) / 100);
   await db.budget.put({ id: "plan:" + month, kind: "plan", month, amounts: p.amounts, carry: p.carry, updated_at: nowISO() });
   await refreshNestMoney();
+}
+
+/** Use a whole plan for a month (the suggested one). Returns an undo. */
+export async function usePlan(month: string, amounts: Record<string, number>): Promise<() => Promise<void>> {
+  const before = await db.budget.get("plan:" + month);
+  const p = await planNow(month);
+  await db.budget.put({ id: "plan:" + month, kind: "plan", month, amounts: { ...amounts }, carry: p.carry, updated_at: nowISO() });
+  await refreshNestMoney();
+  return async () => {
+    const at = nowISO();
+    await db.budget.put(before ? { ...before, updated_at: at } : { id: "plan:" + month, kind: "plan", month, updated_at: at, deleted_at: at });
+    await refreshNestMoney();
+  };
+}
+
+/** A purchase that was pending posts under a new id: his pick moves with it. */
+export async function carrySorts(pairs: [string, string][]): Promise<number> {
+  if (!pairs.length) return 0;
+  const olds = await db.budget.bulkGet(pairs.map(([, was]) => "sort:" + was));
+  const news = await db.budget.bulkGet(pairs.map(([id]) => "sort:" + id));
+  const at = nowISO();
+  const add: BudgetRow[] = [];
+  pairs.forEach(([id], i) => {
+    const o = olds[i];
+    if (o && !o.deleted_at && o.categoryId && !news[i]) add.push({ id: "sort:" + id, kind: "sort", txn: id, categoryId: o.categoryId, ...(o.from ? { from: o.from } : {}), updated_at: at });
+  });
+  if (add.length) await db.budget.bulkPut(add);
+  return add.length;
 }
 
 /** Tap an account in Settings → Bank to count it in the budget, or not. */

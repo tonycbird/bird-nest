@@ -59,6 +59,7 @@ export async function refreshStatus(): Promise<BankStatus> {
 export async function pullBank(): Promise<number> {
   let since = Number((await db.bank.get("seq"))?.data ?? 0);
   let n = 0;
+  const posted: [string, string][] = []; // [new id, the pending id it replaces]
   for (let page = 0; page < 30; page++) {
     const r = await bankCall<{ rows: RawTxn[]; seq: number; more: boolean }>("changes", { since, limit: 1000 });
     await db.transaction("rw", db.txns, db.bank, async () => {
@@ -67,6 +68,7 @@ export async function pullBank(): Promise<number> {
       const put: Txn[] = [], del: string[] = [];
       for (const x of r.rows) {
         if (x.removed) { del.push(x.id); continue; }
+        if (x.pending_id && x.pending_id !== x.id) posted.push([x.id, x.pending_id]);
         const was = old.get(x.id) ?? (x.pending_id ? old.get(x.pending_id) : undefined);
         put.push({
           id: x.id, item_id: x.item_id, account_id: x.account_id, date: x.date, month: x.date.slice(0, 7), amount: x.amount,
@@ -83,7 +85,11 @@ export async function pullBank(): Promise<number> {
     since = r.seq;
     if (!r.more) break;
   }
-  if (n) { const { refreshNestMoney } = await import("./budget"); await refreshNestMoney(); }
+  if (n) {
+    const { carrySorts, refreshNestMoney } = await import("./budget");
+    await carrySorts(posted);
+    await refreshNestMoney();
+  }
   return n;
 }
 

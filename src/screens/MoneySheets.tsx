@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { setPlanAmount, SKIP, sortPurchase, useBudget, type Purchase } from "../lib/budget";
+import { setPlanAmount, SKIP, sortPurchase, useBudget, usePlan, type Purchase } from "../lib/budget";
 import { fmtMoney } from "../lib/money";
-import { mixedFor, storeKeyFor, tidyPayee } from "../lib/money-core.js";
+import { GROUP_NAMES, mixedFor, storeKeyFor, tidyPayee, type Trends, type Why } from "../lib/money-core.js";
 import { useToast } from "../lib/toast";
 import { I, Icon } from "../ui/Icon";
 
@@ -25,8 +25,8 @@ function Frame(props: { label: string; onClose: () => void; children: React.Reac
 }
 
 /** Sort purchases with one tap each. `ids` = just these (re-sorting); otherwise everything still unsorted, newest first. */
-export function SortSheet(props: { ids?: string[]; onClose: () => void }) {
-  const b = useBudget();
+export function SortSheet(props: { month?: string; ids?: string[]; onClose: () => void }) {
+  const b = useBudget(props.month);
   const toast = useToast();
   const [more, setMore] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -76,16 +76,19 @@ export function SortSheet(props: { ids?: string[]; onClose: () => void }) {
   );
 }
 
-/** One envelope this month: what it gets (tap to change), what's gone, and its purchases. */
-export function EnvelopeSheet(props: { envKey: string; onClose: () => void; onSort: (ids: string[]) => void }) {
-  const b = useBudget();
+/** One envelope in a month: what it gets (tap to change), what's gone, what's left, its bills and purchases. */
+export function EnvelopeSheet(props: { month?: string; envKey: string; onClose: () => void; onSort: (ids: string[]) => void }) {
+  const b = useBudget(props.month);
   const toast = useToast();
+  const row = b?.bm.rows.find((r) => r.key === props.envKey);
   const env = b?.envelopes.find((e) => e.key === props.envKey);
-  const planned = b?.plan.amounts[props.envKey] ?? 0;
+  const planned = row?.planned ?? 0;
   const [val, setVal] = useState<string | null>(null);
   if (!b || !env) return null;
   const items = b.purchases.filter((p) => p.cat === props.envKey);
-  const spent = Math.round(-items.reduce((a, p) => a + p.amount, 0) * 100) / 100;
+  const spent = row?.spent ?? 0, avail = row?.avail ?? planned, left = Math.round((avail - spent) * 100) / 100;
+  const carry = Math.round((avail - planned) * 100) / 100;
+  const usual = b.usual[props.envKey] ?? 0;
   const shown = val ?? String(planned);
 
   async function save() {
@@ -100,10 +103,18 @@ export function EnvelopeSheet(props: { envKey: string; onClose: () => void; onSo
   return (
     <Frame label={env.name} onClose={props.onClose}>
       <h2>{env.name}</h2>
-      <div className="kv"><span>This month</span>
-        <span className="mamt">$<input aria-label={`${env.name} this month`} inputMode="decimal" value={shown} onChange={(e) => setVal(e.target.value)} onBlur={() => void save()} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} /></span></div>
+      <div className="kv"><span>Planned</span>
+        <span className="mamt">$<input aria-label={`${env.name} planned`} inputMode="decimal" value={shown} onChange={(e) => setVal(e.target.value)} onBlur={() => void save()} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} /></span></div>
+      {Math.abs(carry) >= 0.01 && <div className="kv"><span className="muted">From last month</span><span className="muted mnum">{fmtMoney(carry)}</span></div>}
       <div className="kv"><span className="muted">Spent</span><span className="muted mnum">{fmtMoney(spent, true)}</span></div>
-      <div className="kv"><span>Left</span><b className={"mnum" + (planned - spent < 0 ? " mneg" : "")}>{fmtMoney(planned - spent, true)}</b></div>
+      <div className="kv"><span>Left</span><b className={"mnum" + (left < -0.5 ? " mneg" : "")}>{fmtMoney(left, true)}</b></div>
+      {usual > 0 && <div className="kv"><span className="muted">Usual month</span><span className="muted mnum">{fmtMoney(usual, true)}</span></div>}
+      {row && row.bills.length > 0 && <>
+        <div className="lbl">Bills</div>
+        {row.bills.map((x) => (
+          <div key={x.id + x.date} className="kv mbill"><span><span className="mday">{short(x.date)}</span>{x.name}</span><span className="mnum">{x.paid ? <I n="check" /> : null} {fmtMoney(x.amount)}</span></div>
+        ))}
+      </>}
       {items.length > 0 && <>
         <div className="lbl">Purchases</div>
         {items.map((p) => (
@@ -117,8 +128,8 @@ export function EnvelopeSheet(props: { envKey: string; onClose: () => void; onSo
 }
 
 /** Everything this month on the budget account, searchable by store, envelope or amount; tap one to re-sort. */
-export function PurchasesSheet(props: { onClose: () => void; onSort: (ids: string[]) => void }) {
-  const b = useBudget();
+export function PurchasesSheet(props: { month?: string; onClose: () => void; onSort: (ids: string[]) => void }) {
+  const b = useBudget(props.month);
   const [q, setQ] = useState("");
   if (!b) return null;
   const names = new Map(b.envelopes.map((e) => [e.key, e.name]));
@@ -138,6 +149,86 @@ export function PurchasesSheet(props: { onClose: () => void; onSort: (ids: strin
         </button>
       ))}
       {rows.length === 0 && <p className="quiet" style={{ marginTop: 10 }}>Nothing matches.</p>}
+    </Frame>
+  );
+}
+
+const WHY: Record<Why, string> = { bill: "bill", usual: "usual", target: "goal", spent: "spent so far", trim: "trimmed", extra: "extra", zero: "none" };
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const ago = (m: string, n: number) => { const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 - n, 1); return MON[d.getMonth()]; };
+
+/** The suggested budget for a month, next to what's planned now, with why (bill · usual · trimmed · extra). */
+export function SuggestSheet(props: { month: string; onClose: () => void }) {
+  const b = useBudget(props.month);
+  const toast = useToast();
+  if (!b) return null;
+  const sg = b.suggestion;
+  const now = b.plan.amounts;
+  const custom = new Map(b.groups.map((g) => [g.id, g.name]));
+  const rows = b.bm.rows.filter((r) => (sg.amounts[r.key] ?? 0) > 0 || (now[r.key] ?? 0) > 0 || sg.why[r.key]);
+  const groups = [...new Set(rows.map((r) => r.group))];
+  const total = Math.round(Object.values(sg.amounts).reduce((a, x) => a + x, 0) * 100) / 100;
+  const ref = b.day.slice(0, 7);
+  const same = rows.every((r) => Math.abs((sg.amounts[r.key] ?? 0) - (now[r.key] ?? 0)) < 0.01);
+
+  async function use() {
+    const undo = await usePlan(props.month, sg.amounts);
+    toast(`✓ ${MONTHS[Number(props.month.slice(5, 7)) - 1]} · suggested budget`, undo);
+    props.onClose();
+  }
+
+  return (
+    <Frame label="Suggested budget" onClose={props.onClose}>
+      <h2>Suggested budget</h2>
+      <p className="quiet">Bills as billed · everyday at your usual ({ago(ref, 3)}–{ago(ref, 1)}){sg.to ? " · the rest to the Emergency Fund" : ""}</p>
+      <div className="kv"><span>In</span><span className="mnum">{fmtMoney(sg.income, true)}</span></div>
+      <div className="kv"><span>Suggested</span><span className="mnum">{fmtMoney(total, true)}</span></div>
+      <div className="kv"><span>Left to budget</span>{sg.over > 0 ? <b className="mnum mneg">−{fmtMoney(sg.over, true)}</b> : sg.left > 0 ? <b className="mnum">{fmtMoney(sg.left, true)}</b> : <b className="mnum"><I n="check" /> $0</b>}</div>
+      {sg.over > 0 && <p className="quiet mnote">Wants trimmed up to ¼. The rest is your call.</p>}
+      {sg.left > 0 && <p className="quiet mnote">Give the rest a job.</p>}
+      {groups.map((g) => (
+        <section key={g}>
+          <div className="mgroup">{custom.get(g) ?? GROUP_NAMES[g] ?? "Other"}</div>
+          {rows.filter((r) => r.group === g).map((r) => {
+            const to = sg.amounts[r.key] ?? 0, was = now[r.key] ?? 0, why = sg.why[r.key];
+            return (
+              <div key={r.key} className="kv msug">
+                <span>{r.name}{why && <span className={"mwhy" + (why === "trim" || why === "extra" ? " on" : "")}>{WHY[why]}</span>}</span>
+                <span className="mnum">{Math.abs(to - was) >= 0.01 && <s className="mwas">{fmtMoney(was, true)}</s>} <b>{fmtMoney(to, true)}</b></span>
+              </div>
+            );
+          })}
+        </section>
+      ))}
+      <div className="sheet-actions">
+        <button className="btn" onClick={props.onClose}>Not now</button>
+        <button className="btn primary" disabled={same} onClick={() => void use()}>{same ? <><I n="check" /> In use</> : "Use it"}</button>
+      </div>
+    </Frame>
+  );
+}
+
+/** This month against his usual, per everyday envelope: a brass bar for what's gone, a tick for where
+    the usual month would be by today. "Ahead" only when clearly past it; nothing red, nothing naggy. */
+export function TrendsSheet({ t, month, onClose, onOpen }: { t: Trends; month: string; onClose: () => void; onOpen: (key: string) => void }) {
+  const rows = t.rows;
+  const label = (r: Trends["rows"][number]) => (r.usual > 0 ? `usual ${fmtMoney(r.usual, true)}` : "new this month");
+  return (
+    <Frame label="Compared with usual" onClose={onClose}>
+      <h2>Compared with usual</h2>
+      <div className="kv"><span className="muted">{MONTHS[Number(month.slice(5, 7)) - 1]} so far</span>
+        <span className="muted mnum">{fmtMoney(t.total.now, true)} · usual by now {fmtMoney(t.total.byNow, true)}</span></div>
+      {rows.map((r) => {
+        const top = Math.max(r.usual, r.now, 1);
+        return (
+          <div key={r.id} className="mrow tap" role="button" onClick={() => onOpen(r.id)}>
+            <div className="kv"><span>{r.name}{r.ahead && <span className="mtag">ahead</span>}</span><b className="mnum">{fmtMoney(r.now, true)}</b></div>
+            <div className="mtrend" aria-hidden="true"><span style={{ width: `${Math.round((r.now / top) * 100)}%` }} />{r.usual > 0 && <i style={{ left: `${Math.min(99, Math.round((r.byNow / top) * 100))}%` }} />}</div>
+            <div className="msub">{label(r)}</div>
+          </div>
+        );
+      })}
+      <p className="quiet" style={{ marginTop: 8 }}>Usual = the middle of the last 3 months. The tick is where a usual month is by today.</p>
     </Frame>
   );
 }

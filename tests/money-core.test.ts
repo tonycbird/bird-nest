@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import * as bird from "../claude/tools/money.mjs";
 import {
-  SKIP, buildSetup, hintEnvelope, isBankAdjustment, keywordEnvelope, learnMerchants, makeCtx, matchHistory, merchantKey, mixedFor, nestSummary, payPeriod, paydays,
+  SKIP, budgetMonth, buildSetup, hintEnvelope, monthBills, monthIncome, payMonth, planOf, suggestPlan, usualSpend, isBankAdjustment, keywordEnvelope, learnMerchants, makeCtx, matchHistory, merchantKey, mixedFor, nestSummary, payPeriod, paydays,
   planFor, ruleFor, sortOf, storeKeyFor, summarize, tidyPayee, trends,
 } from "../src/lib/money-core.js";
 
@@ -304,5 +304,116 @@ describe("compared with usual", () => {
   test("bills, 'not spending' and money coming in are left out", () => {
     expect(by.rent).toBeUndefined();
     expect(t.total.now).toBe(232);
+  });
+});
+
+describe("the month's budget (EveryDollar)", () => {
+  const pay = [
+    { id: "a", type: "income", name: "Anthony", amount: 1573.7, dueDay: 0, cadence: "biweekly", dueMonth: null, anchorDate: "2026-04-03", categoryId: "" },
+    { id: "b", type: "income", name: "Abigail", amount: 402.82, dueDay: 0, cadence: "biweekly", dueMonth: null, anchorDate: "2026-04-03", categoryId: "" },
+  ];
+  const bills = [...pay,
+    { id: "rent", type: "expense", name: "Mortgage / Rent", amount: 1670, dueDay: 2, cadence: "", dueMonth: null, anchorDate: "", categoryId: "rent" },
+    { id: "net", type: "expense", name: "Internet", amount: 65, dueDay: 28, cadence: "", dueMonth: null, anchorDate: "", categoryId: "internet" },
+    { id: "visa", type: "expense", name: "Visa Platinum", amount: 500, dueDay: 11, cadence: "", dueMonth: null, anchorDate: "", categoryId: "visa" },
+  ];
+  const env = [
+    { key: "rent", name: "Mortgage / Rent", group: "housing", order: 0, archived: false },
+    { key: "internet", name: "Internet", group: "housing", order: 1, archived: false },
+    { key: "groceries", name: "Groceries", group: "food", order: 0, archived: false },
+    { key: "dining", name: "Dining Out", group: "food", order: 1, archived: false },
+    { key: "gifts", name: "Gifts", group: "fun", order: 0, archived: false },
+    { key: "fees", name: "Overdraft Fees", group: "debtsave", order: 0, archived: false },
+    { key: "visa", name: "Visa Platinum", group: "debtsave", order: 1, archived: false, priority: "payoff" },
+    { key: "ef", name: "Emergency Fund", group: "debtsave", order: 2, archived: false },
+    { key: "income", name: "Income", group: "income", order: 0, archived: false },
+  ];
+  const r = (date, amount, cat, hint = "") => ({ id: date + cat + amount, date, amount, cat, hint });
+  const history = [
+    ...["07", "08", "09"].flatMap((m, i) => [r(`2026-${m}-05`, -[800, 900, 850][i], "groceries"), r(`2026-${m}-09`, -[100, 300, 200][i], "dining"), r(`2026-${m}-12`, -35, "fees")]),
+    r("2026-05-20", -240, "gifts"), r("2026-06-01", -10, "groceries"),
+  ];
+  const d = { envelopes: env, groups: [], bills, income: new Set(["income"]) };
+
+  test("a paycheck counts for the month most of its two weeks fall in (Oct 30 pays November)", () => {
+    expect(payMonth("2026-10-30")).toBe("2026-11");
+    expect(payMonth("2026-10-16")).toBe("2026-10");
+    expect(monthIncome(bills, "2026-11", [], new Set(["income"])).paychecks.map((p) => p.date)).toEqual(["2026-10-30", "2026-11-13"]);
+    expect(monthIncome(bills, "2027-01", [], new Set(["income"])).paychecks.length).toBe(3); // Dec 25, Jan 8, Jan 22
+  });
+  test("money in: what landed near payday, else what's expected; anything else that came in is extra", () => {
+    const sorted = [r("2026-10-16", 1580.5, "income"), r("2026-10-17", 402.82, null, "INCOME_WAGES"), r("2026-10-23", 300, "income"), r("2026-10-24", 50, SKIP)];
+    const m = monthIncome(bills, "2026-10", sorted, new Set(["income"]), "2026-10-29");
+    expect(m.paychecks).toEqual([
+      { date: "2026-10-02", expected: 1976.52, landed: 0, amount: 1976.52 },
+      { date: "2026-10-16", expected: 1976.52, landed: 1983.32, amount: 1983.32 },
+    ]);
+    expect(m.extra).toBe(300);
+    expect(m.total).toBe(4259.84);
+  });
+  test("usual: the middle of the last 3 full months, or the year's monthly average if more (gifts)", () => {
+    const u = usualSpend(history, "2026-10-29", new Set(["income"])).by;
+    expect(u.groceries).toBe(850);
+    expect(u.dining).toBe(200);
+    expect(u.gifts).toBe(48); // $240 once, over the 5 months the bank has
+  });
+  test("suggested: bills as they are, everyday at usual (rounded up), no bank fees; over → wants trimmed up to a quarter", () => {
+    const sg = suggestPlan(d, "2026-11", "2026-10-29", history);
+    expect(sg.income).toBe(3953.04);
+    expect(sg.amounts.rent).toBe(1670);
+    expect(sg.amounts.internet).toBe(65);
+    expect(sg.amounts.groceries).toBe(850);
+    expect(sg.amounts.fees).toBe(0);
+    expect(sg.why.fees).toBe("zero");
+    expect(sg.why.visa).toBe("bill");
+    expect(sg.to).toBe("ef"); // two paychecks cover it: the rest has a job
+    expect(sg.amounts.ef).toBeGreaterThan(0);
+    expect(sg.left).toBe(0);
+    // a thin month: everything else squeezed
+    const lean = suggestPlan({ ...d, bills: [pay[0], ...bills.slice(2)] }, "2026-11", "2026-10-29", history);
+    expect(lean.why.visa).toBe("trim");
+    expect(lean.amounts.visa).toBe(375); // a quarter off, no more
+    expect(lean.amounts.dining).toBe(150);
+    expect(lean.amounts.groceries).toBe(850); // needs aren't trimmed
+    expect(lean.over).toBeGreaterThan(0); // and what's still over is shown, not hidden
+    expect(lean.to).toBe(null);
+  });
+  test("this month: never less than what's already gone", () => {
+    const sg = suggestPlan(d, "2026-10", "2026-10-20", [...history, r("2026-10-03", -61.5, "gifts"), r("2026-10-04", -500, "dining")]);
+    expect(sg.amounts.gifts).toBe(65);
+    expect(sg.why.gifts).toBe("spent");
+    expect(sg.amounts.dining).toBe(500); // not trimmed below it either
+  });
+  test("a 3-paycheck month: the extra goes to the Emergency Fund, and the month adds up to $0", () => {
+    const sg = suggestPlan(d, "2027-01", "2026-12-20", history);
+    expect(sg.why.ef).toBe("extra");
+    const total = Object.values(sg.amounts).reduce((a, x) => a + x, 0);
+    expect(Math.round(total * 100) / 100).toBe(sg.income);
+  });
+  test("the month: plan, spent (refunds count back), left; bills with dates and ✓; left to budget", () => {
+    const sorted = [r("2026-11-02", -1670, "rent"), r("2026-11-05", -120, "groceries"), r("2026-11-06", 20, "groceries"), r("2026-11-07", -9, null), r("2026-11-08", -40, SKIP)];
+    const plan = { amounts: { rent: 1670, internet: 65, groceries: 850, dining: 150 }, carry: { dining: 25 } };
+    const bm = budgetMonth(d, "2026-11", "2026-11-09", sorted, plan, (b) => b.id === "rent");
+    const by = Object.fromEntries(bm.rows.map((x) => [x.key, x]));
+    expect(by.groceries).toMatchObject({ planned: 850, spent: 100, left: 750 });
+    expect(by.dining).toMatchObject({ planned: 150, avail: 175, left: 175 });
+    expect(by.rent).toMatchObject({ paid: true, bills: [{ id: "rent", date: "2026-11-02", paid: true }] });
+    expect(by.internet.paid).toBe(false);
+    expect(bm.planned).toBe(2735);
+    expect(bm.toBudget).toBe(1218.04);
+    expect(bm.toSort).toBe(1);
+    expect(bm.rows.map((x) => x.group)[0]).toBe("housing"); // EveryDollar order: home before food
+    expect(bm.rows.some((x) => x.key === "income")).toBe(false);
+  });
+  test("the month's bills by date, paydays in between", () => {
+    const list = monthBills(bills, "2026-11", (b) => b.id === "rent");
+    expect(list.map((x) => `${x.date.slice(8)} ${x.kind} ${x.name}${x.paid ? " ✓" : ""}`)).toEqual([
+      "02 bill Mortgage / Rent ✓", "11 bill Visa Platinum", "13 pay Paycheck", "27 pay Paycheck", "28 bill Internet"]);
+  });
+  test("a month he planned is his; a month he hasn't is the suggested one", () => {
+    expect(planOf("2026-10", { ...d, plans: [{ month: "2026-10", amounts: { groceries: 500 } }] }, "2026-10-29", history)).toEqual({ amounts: { groceries: 500 }, carry: {}, own: true });
+    const p = planOf("2026-11", { ...d, plans: [] }, "2026-10-29", history);
+    expect(p.own).toBe(false);
+    expect(p.amounts.rent).toBe(1670);
   });
 });

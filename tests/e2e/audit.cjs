@@ -60,14 +60,14 @@ function checks() {
     }
     if (clippedOut) continue;
     // Below the fold behind a fixed bar is fine while the page can still scroll down to it.
-    const canScrollMore = () => { const se = document.scrollingElement; return se.scrollTop + innerHeight < se.scrollHeight - 2; };
+    const canScrollMore = () => { const se = document.querySelector('.scroller') || document.scrollingElement; return se.scrollTop + se.clientHeight < se.scrollHeight - 2; };
     const hit = document.elementFromPoint(cx, cy);
     if (hit && hit !== el && !el.contains(hit) && !hit.contains(el) && !(el.tagName === 'INPUT' && el.labels && [...el.labels].some((l) => l.contains(hit)))) {
       const cover = hit.closest('.tabs, .tflag, .toast, .timer-pill, .bulkbar, .scrim, .flow-foot, nav, header') || hit;
       // A bar pinned to the top or bottom over content that can still scroll out from under it is fine.
       let pinned = false;
       for (let e = cover; e && e !== document.body; e = e.parentElement) { const ps = getComputedStyle(e).position; if (ps === 'fixed' || ps === 'sticky') { pinned = true; break; } }
-      const se = document.scrollingElement;
+      const se = document.querySelector('.scroller') || document.scrollingElement;
       if (pinned && ((r.top > H * 0.5 && canScrollMore()) || (r.top < H * 0.5 && se.scrollTop > 0))) continue;
       out.push({ kind: 'covered', msg: `"${label(el)}" is under ${(cover.className || cover.tagName).toString().split(' ')[0]}`, detail: where(el) });
     }
@@ -181,7 +181,7 @@ const go = async (p, tab) => { await p.goto(URL); await p.waitForTimeout(650); i
 const headView = async (p, v) => { await go(p, 'Head'); await p.click(`.hn >> text=${v}`); await p.waitForTimeout(300); };
 const STEPS = [
   ['today', async (p) => { await go(p); }],
-  ['today-bottom', async (p) => { await go(p); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(200); }],
+  ['today-bottom', async (p) => { await go(p); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); await p.waitForTimeout(200); }],
   ['today-all-steps', async (p) => { await go(p); await p.click('.tr.open [aria-label^="Show all"]'); }],
   ['today-block-menu', async (p) => { await go(p); await p.click('.tr.open [aria-label^="More for"]'); }],
   ['today-other-block', async (p) => { await go(p); await p.locator('.tr:not(.open):not(.cal) .bc-main').nth(1).click(); }],
@@ -200,22 +200,22 @@ const STEPS = [
   ['dump-sorted', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); await p.click('.flow-foot >> text=Sort'); }],
   ['dump-sorted-bottom', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); await p.click('.flow-foot >> text=Sort'); await p.locator('.flow-body').evaluate((e) => { e.scrollTop = 99999; }); await p.waitForTimeout(150); }],
   ['money', async (p) => { await go(p, 'Money'); }],
-  ['money-bottom', async (p) => { await go(p, 'Money'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
+  ['money-bottom', async (p) => { await go(p, 'Money'); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ['settings', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); }],
-  ['settings-bottom', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
-  ['settings-trash', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.click('button >> text=Show'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
+  ['settings-bottom', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
+  ['settings-trash', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.click('button >> text=Show'); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ['testing-flag', async (p) => { await go(p); await p.click('[aria-label="Settings"]'); await p.locator('.kv', { hasText: 'Testing mode' }).locator('input').click(); await p.waitForTimeout(500); await p.click('.tabs >> text=Today'); }],
   ['testing-report', async (p) => { await go(p); await p.click('.tflag'); }],
   ['claude', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); }],
   ['claude-preview', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); await p.locator('.prop').first().click(); }],
-  ['claude-bottom', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
+  ['claude-bottom', async (p) => { await go(p); await p.click('.qc >> text=Claude'); await p.waitForTimeout(400); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ...['Inbox', 'Today', 'Ahead', 'Anytime', 'Projects', 'Waiting', 'Someday', 'Groceries', 'Done', 'Find'].map((v) => ['head-' + v.toLowerCase(), async (p) => { await headView(p, v); }]),
   ['head-today-more', async (p) => { await headView(p, 'Today'); await p.click('[aria-label=More]'); }],
   ['head-select', async (p) => { await headView(p, 'Inbox'); await p.click('[aria-label="Select tasks"]'); await p.locator('.task').first().click(); }],
   ['head-settings', async (p) => { await go(p, 'Head'); await p.click('[aria-label="Head settings"]'); }],
-  ['head-settings-bottom', async (p) => { await go(p, 'Head'); await p.click('[aria-label="Head settings"]'); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
+  ['head-settings-bottom', async (p) => { await go(p, 'Head'); await p.click('[aria-label="Head settings"]'); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ['project', async (p) => { await headView(p, 'Projects'); await p.locator('.pcard').first().click(); }],
-  ['project-bottom', async (p) => { await headView(p, 'Projects'); await p.locator('.pcard').first().click(); await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); }],
+  ['project-bottom', async (p) => { await headView(p, 'Projects'); await p.locator('.pcard').first().click(); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); }],
   ['project-menu', async (p) => { await headView(p, 'Projects'); await p.locator('.pcard').first().click(); await p.click('[aria-label="Project options"]'); }],
   ['area', async (p) => { await headView(p, 'Projects'); await p.locator('.proj-row').first().click(); }],
   ['task-detail', async (p) => { await headView(p, 'Today'); await p.locator('.task').first().click(); }],

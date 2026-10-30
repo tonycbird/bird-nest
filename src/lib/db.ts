@@ -87,7 +87,7 @@ export interface BudgetRow {
   // bill
   type?: "expense" | "income"; amount?: number; dueDay?: number; cadence?: string; dueMonth?: number | null; anchorDate?: string; categoryId?: string; variesBy?: number;
   // sort (his pick for one purchase; from "bird" when it came from Bird Budgeting's history)
-  txn?: string; from?: "bird";
+  txn?: string; from?: "bird" | "suggested"; // a plan: "suggested" when Nest wrote it at the start of the month
   // mark (a bill paid by hand: no bank row to show it)
   billId?: string; date?: string;
   // history (Bird Budgeting's rows: [date, cents, envelope, short name])

@@ -28,6 +28,8 @@ export interface MoneySummary {
   source?: "nest";
   sorted?: { you: number; rule: number; hint: number };
   plan_own?: boolean;
+  /** Phase 7: in − planned this month (EveryDollar's "left to budget"; the goal is $0). */
+  to_budget?: number;
   paycheck?: import("./money-core.js").Paycheck | null;
   trends?: import("./money-core.js").Trends;
 }

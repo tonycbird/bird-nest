@@ -73,7 +73,7 @@ const URL0 = process.env.URL || 'http://localhost:4181/';
     assert(await p.locator('.kv', { hasText: 'Fri, Oct 30' }).count() + await p.locator('.kv', { hasText: 'Oct 30' }).count() >= 1, 'next payday shown');
     assert(await p.locator('.mbill', { hasText: 'Electric' }).locator('.mflag').count() === 1, 'a bill the bank copy should show, unpaid, gets a !');
     assert(await p.locator('.mbill.unseen', { hasText: 'Phone' }).count() === 1, 'a bill after the bank copy ends is quiet, not flagged');
-    assert(await p.locator('text=Bank copy through Oct 9.').count() === 1, 'says how far the bank copy goes');
+    assert(await p.locator('text=Bank copy through Oct 9').count() === 1, 'says how far the bank copy goes');
     assert(await p.locator('.kv', { hasText: 'To sort' }).locator('text=1').count() === 1, 'one transaction to sort');
     assert(await p.locator('a[href*="claude.ai/code/artifact"]', { hasText: 'Open Bird Budgeting' }).count() === 1, 'a way to Bird Budgeting');
     assert(!(await p.locator('.money').innerText()).match(/overdue|late|missed/i), 'no naggy words');

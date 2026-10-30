@@ -45,10 +45,30 @@ export interface TrendRow { id: string; name: string; now: number; usual: number
 export interface Trends { months: string[]; frac: number; rows: TrendRow[]; total: { now: number; usual: number; byNow: number } }
 export function trends(sorted: { date: string; amount: number; cat: string | null }[], envelopes: Envelope[], skipCats: Set<string>, todayISO: string): Trends;
 export function planFor(month: string, plans: Plan[], bills: Bill[]): { amounts: Record<string, number>; carry: Record<string, number>; own: boolean };
+export const GROUP_ORDER: string[];
+export function payMonth(iso: string): string;
+export interface SortedTxn { id?: string; date: string; amount: number; cat: string | null; hint?: string }
+export interface MonthPaycheck { date: string; expected: number; landed: number; amount: number }
+export interface MonthIncome { paychecks: MonthPaycheck[]; extra: number; expected: number; total: number }
+export function monthIncome(bills: Bill[], month: string, sorted: SortedTxn[], income: Set<string>, todayISO?: string): MonthIncome;
+export function usualSpend(sorted: SortedTxn[], todayISO: string, income?: Set<string>): { months: string[]; by: Record<string, number> };
+export type Why = "bill" | "usual" | "target" | "spent" | "trim" | "extra" | "zero";
+export interface Suggestion { month: string; income: number; amounts: Record<string, number>; why: Record<string, Why>; over: number; left: number; to: string | null }
+interface PlanInput { envelopes: Envelope[]; groups?: BudgetGroup[]; bills: Bill[]; plans?: Plan[]; income?: Set<string> }
+export function suggestPlan(d: PlanInput, month: string, todayISO: string, sorted: SortedTxn[]): Suggestion;
+export interface BudgetBill { id: string; name: string; date: string; amount: number; paid: boolean }
+export interface BudgetRowOut { key: string; name: string; group: string; order: number; planned: number; avail: number; spent: number; left: number; bills: BudgetBill[]; paid: boolean }
+export interface BudgetMonth { month: string; income: MonthIncome; planned: number; toBudget: number; rows: BudgetRowOut[]; toSort: number; spent: number; left: number }
+export function budgetMonth(d: PlanInput, month: string, todayISO: string, sorted: SortedTxn[], plan: { amounts: Record<string, number>; carry?: Record<string, number> } | null, statusOf?: (r: Bill, date: string) => boolean): BudgetMonth;
+export interface MonthBillLine { kind: "bill" | "pay"; id: string; name: string; date: string; amount: number; cat: string; paid: boolean }
+export function monthBills(bills: Bill[], month: string, statusOf?: (r: Bill, date: string) => boolean): MonthBillLine[];
+export function paidCheck(bills: Bill[], sorted: SortedTxn[], marks: any[], todayISO: string): (r: Bill, date: string) => boolean;
+export function planOf(month: string, d: PlanInput, todayISO: string, sorted: SortedTxn[]): { amounts: Record<string, number>; carry: Record<string, number>; own: boolean };
+export function billStatuses(bills: Bill[], monthTxns: any[], marks: any[], monthStr: string, today: Date): { r: Bill; status: string; amount: number; day: number }[];
 export function nestSummary(d: {
   envelopes: Envelope[]; groups: BudgetGroup[]; plans: Plan[]; bills: Bill[]; labels: Label[];
   sorts: Map<string, string>; txns: SortTxn[]; accounts: Set<string>; marks?: any[]; mixed?: Record<string, Record<string, number>>;
-}, todayISO: string): MoneySummary & { source: "nest"; sorted: { you: number; rule: number; hint: number }; plan_own: boolean; paycheck: Paycheck | null; trends: Trends };
+}, todayISO: string): MoneySummary & { source: "nest"; to_budget: number; sorted: { you: number; rule: number; hint: number }; plan_own: boolean; paycheck: Paycheck | null; trends: Trends };
 export function buildSetup(bb: any, made?: string): Setup;
 export function summarize(data: any, todayISO: string): MoneySummary;
 export function billDaysInMonth(r: any, y: number, m: number): number[];
