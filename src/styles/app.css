@@ -22,7 +22,7 @@ input,textarea,select{font-family:inherit;}
 .ii{display:inline-block; vertical-align:-.24em; margin:0 .08em;}
 
 .app{height:100%; display:flex; flex-direction:column; padding-top:env(safe-area-inset-top,0px);}
-.scroller{flex:1; min-height:0; overflow-x:hidden; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain;}
+.scroller{flex:1; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:contain;}
 .scroller > .main{min-height:100%;}
 .main{flex:1; width:100%; max-width:560px; margin:0 auto;
   padding:14px max(16px, env(safe-area-inset-left,0px)) calc(118px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-right,0px));}
@@ -84,7 +84,7 @@ input,textarea,select{font-family:inherit;}
 
 .toast{position:fixed; left:16px; right:16px; margin:0 auto; width:fit-content; bottom:calc(104px + env(safe-area-inset-bottom,0px)); background:var(--ink); color:var(--bg);
   padding:11px 16px; border-radius:100px; display:flex; gap:12px; align-items:center; box-shadow:var(--shadow-lift); z-index:60; font-size:15px; font-weight:600; max-width:calc(100vw - 32px); animation:rise .2s ease;}
-.toast button{border:0; background:none; color:var(--accent-ink); font-weight:800; padding:0;}
+.toast button{border:0; background:none; color:var(--accent-ink); font-weight:800; padding:10px 8px; margin:-10px -8px;} /* a thumb-sized Undo, same look */
 :root[data-theme="dark"] .toast button{color:#0E7C70;}
 .offline{font-size:12px; font-weight:700; color:var(--warn-ink);}
 .kv{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line);}
@@ -211,7 +211,7 @@ html.quiet .detail{display:none !important;}
 .scrim{position:fixed; inset:0; background:var(--scrim); z-index:20; display:flex; align-items:flex-end; justify-content:center; animation:fade .15s ease;}
 @keyframes fade{from{opacity:0}}
 @keyframes rise{from{transform:translateY(16px); opacity:0}}
-.sheet{width:100%; max-width:560px; max-height:92vh; overflow:auto; background:var(--bg); border-radius:28px 28px 0 0; padding:10px 16px calc(18px + env(safe-area-inset-bottom,0px)); animation:rise .2s ease;}
+.sheet{width:100%; max-width:560px; max-height:92vh; overflow:auto; overscroll-behavior:contain; background:var(--bg); border-radius:28px 28px 0 0; padding:10px 16px calc(18px + env(safe-area-inset-bottom,0px)); animation:rise .2s ease;}
 .sheet.has-x{position:relative;}
 .sheet.has-x > h2, .sheet.has-x > :is(div,section):first-of-type > h2{padding-right:44px;}
 .sheet-x{position:absolute; top:14px; right:12px; width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:var(--surface-2, var(--surface)); color:var(--ink-2); border:0; z-index:2;}
@@ -261,10 +261,14 @@ html.quiet .detail{display:none !important;}
 .body-head{display:flex; align-items:center; gap:6px;}
 .body-head .hnav{margin:0 -4px 8px;}
 /* Off the Body tab the frame is display:none. (iPhone Safari still painted a visibility:hidden frame
-   as a white sheet over the whole app.) Its scripts keep running, so the rest timer keeps going. */
-.bodyframe{display:none; position:fixed; left:0; right:0; width:100%; border:0; z-index:3; background:var(--bg); color-scheme:light dark;}
+   as a white sheet over the whole app.) Its scripts keep running, so the rest timer keeps going.
+   On Body it sits in the page's own column under the chips (not floating over it): iPhone lost taps,
+   then drew nothing, in a floating frame. */
+.bodyframe{display:none; flex:1 1 auto; min-height:0; width:100%; border:0; background:var(--bg); color-scheme:light dark;}
 .bodyframe.on{display:block;}
-.body-err{margin-top:16px; text-align:center; position:relative; z-index:4;} /* above the frame, or a broken Body hides its own Reload */
+.app.body-on .scroller{flex:none; overflow:hidden;}
+.app.body-on .scroller > .main{min-height:0; padding-bottom:6px;}
+.body-err{margin-top:16px; text-align:center;}
 .timer-pill{position:fixed; z-index:6; left:50%; transform:translateX(-50%); bottom:calc(100px + env(safe-area-inset-bottom,0px));
   border:0; border-radius:999px; padding:10px 16px; background:var(--c-body); color:var(--glyph); font:700 14px var(--sans); box-shadow:var(--shadow-lift); white-space:nowrap; display:flex; align-items:center; gap:6px;}
 .timer-pill b{font-size:16px;}
@@ -296,6 +300,9 @@ html.quiet .detail{display:none !important;}
 /* The toast moves out of the way: above the rest-timer pill, and to the top inside the step player. */
 body:has(.timer-pill) .toast{bottom:calc(152px + env(safe-area-inset-bottom,0px));}
 body:has(.player) .toast{bottom:auto; top:calc(72px + env(safe-area-inset-top,0px));}
+/* With a sheet open the toast goes to the top, so it never sits over the sheet's last rows (sorting toasts after every tap). */
+body:has(.scrim):not(:has(.qa-sheet)) .toast{bottom:auto; top:calc(14px + env(safe-area-inset-top,0px)); pointer-events:none;}
+body:has(.scrim):not(:has(.qa-sheet)) .toast button{pointer-events:auto;} /* a tap on the dim area still closes the sheet; Undo still works */
 
 /* ---------- Motion (Phase 5): small and quick, never in the way. Off when the iPhone asks for less motion. ---------- */
 @keyframes enter{from{opacity:0; transform:translateY(6px)}}

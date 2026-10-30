@@ -5,6 +5,7 @@ import { nowHHMM } from "../lib/time";
 import { useToast } from "../lib/toast";
 import { I, Icon, iconName, type IconName } from "../ui/Icon";
 import { colorFor, KIND_COLOR, KIND_DEFAULT_ICON } from "../ui/colors";
+import { Layer } from "../ui/Layer";
 
 const KINDS: { k: Kind; label: string }[] = [
   { k: "body", label: "Body" }, { k: "head", label: "Head" }, { k: "life", label: "Life" }, { k: "money", label: "Money" },
@@ -51,7 +52,7 @@ export default function BlockSheet(props: { day: string; block?: RiverBlock; sta
   }
 
   return (
-    <div className="scrim" onClick={props.onClose}>
+    <Layer><div className="scrim" onClick={props.onClose}>
       <div className="sheet has-x" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={b ? "Edit block" : "New block"}>
         <button className="sheet-x" aria-label="Close" onClick={props.onClose}><Icon n="close" size={18} tone={false} /></button>
         <h2>{b ? "Edit block" : "New block"}</h2>
@@ -101,6 +102,6 @@ export default function BlockSheet(props: { day: string; block?: RiverBlock; sta
           <button className="btn primary" disabled={!title.trim() || !start} onClick={save}>Save</button>
         </div>
       </div>
-    </div>
+    </div></Layer>
   );
 }

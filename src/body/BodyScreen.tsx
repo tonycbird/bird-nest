@@ -2,13 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { reloadFresh } from "../lib/update";
 import { appNav, goTab } from "../head/useHead";
 import { toast } from "../lib/toast";
-import { fitApi, fitState, setFrame, type FitPlan } from "./host";
+import { fitApi, fitDoc, fitState, setFrame, type FitPlan } from "./host";
 import { missingFromRiver, putPlanOnRiver } from "./river-body";
 import { I, Icon, type IconName } from "../ui/Icon";
 
 const SECTIONS: [string, IconName, string][] = [["workout", "lift", "Workout"], ["stretch", "stretch", "Stretch"], ["meals", "meal", "Meals"], ["settings", "settings", "Setup"]];
 
-/* Where the frame should sit: under the Body chips, above Nest's tab bar. */
+/* Where the frame should stop: above Nest's tab bar (it sits under the Body chips by itself). */
 const slot = { top: 0, bottom: 0 };
 const slotSubs = new Set<() => void>();
 function setSlot(top: number, bottom: number) { if (slot.top !== top || slot.bottom !== bottom) { slot.top = top; slot.bottom = bottom; slotSubs.forEach((f) => f()); } }
@@ -35,6 +35,8 @@ export default function BodyScreen() {
   // If the Fitness screens don't come up, say so instead of showing a blank page.
   const [slow, setSlow] = useState(false);
   useEffect(() => { const t = window.setTimeout(() => setSlow(true), 8000); return () => window.clearTimeout(t); }, []);
+  // Loaded, but nothing drawn (a blank page is worse than a message with a way out).
+  const blank = st.ready && fitDoc()?.querySelector("#view")?.childElementCount === 0;
   return (
     <>
     <div className="body-head" ref={head}>
@@ -47,9 +49,9 @@ export default function BodyScreen() {
       </div>
       <button className="iconbtn" aria-label="Gym check-in barcode" onClick={() => fitApi()?.checkIn()}><I n="barcode" /></button>
     </div>
-    {(st.error || (slow && !st.ready)) && (
+    {(st.error || (slow && !st.ready) || (slow && blank)) && (
       <div className="card body-err">
-        <p><strong>Body didn't load.</strong></p>
+        <p><strong>{blank && !st.error ? "Body came up empty." : "Body didn't load."}</strong></p>
         {st.error && <p className="quiet" style={{ marginTop: 4 }}>{st.error}</p>}
         <button className="btn primary" style={{ marginTop: 10 }} onClick={() => reloadFresh()}><I n="refresh" /> Reload</button>
       </div>
@@ -88,7 +90,7 @@ export function BodyFrame() {
       title="Body"
       src="/body.html"
       className={"bodyframe" + (active ? " on" : "")}
-      style={active ? { top: slot.top, height: `calc(100% - ${slot.top + slot.bottom}px)` } : undefined}
+      style={active ? { marginBottom: slot.bottom } : undefined}
       onLoad={() => setFrame(ref.current?.contentWindow ?? null)}
     />
   );

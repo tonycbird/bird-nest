@@ -138,7 +138,7 @@ function Budget({ s }: { s: MoneySummary }) {
   );
 }
 
-const shown = (r: BudgetRowOut) => r.planned > 0 || r.avail > 0 || Math.abs(r.spent) > 0.004;
+const shown = (r: BudgetRowOut) => r.planned >= 0.5 || r.avail >= 0.5 || Math.abs(r.spent) > 0.004; // a few cents planned is nothing planned
 
 /** Every envelope, by group: what's left (a bar for spending; a date or ✓ for a bill). */
 function Envelopes({ b, showEmpty, onOpen }: { b: BudgetView; showEmpty: boolean; onOpen: (k: string) => void }) {
@@ -166,13 +166,13 @@ function EnvelopeRow({ r, onOpen }: { r: BudgetRowOut; onOpen: () => void }) {
       <div className="mrow tap" role="button" onClick={onOpen}>
         <div className="kv"><span>{r.name}{due.length > 0 && <span className="mwhen">{short(due[0].date)}</span>}</span>
           {r.paid
-            ? <span className="mpaid"><I n="check" /> {fmtMoney(r.spent || r.planned, true)}</span>
+            ? <span className="mpaid"><I n="check" /> {r.left < -0.5 ? <b className="mnum mneg">{fmtMoney(r.left, true)}</b> : fmtMoney(r.spent || r.planned, true)}</span>
             : <b className={"mnum" + (r.left < -0.5 ? " mneg" : "")}>{fmtMoney(r.left, true)}</b>}
         </div>
       </div>
     );
   }
-  const pct = r.avail > 0 ? Math.min(1, Math.max(0, r.spent / r.avail)) : r.spent > 0 ? 1 : 0;
+  const pct = r.avail >= 0.5 ? Math.min(1, Math.max(0, r.spent / r.avail)) : 1; // nothing planned: an empty bar, never a full one
   return (
     <div className="mrow tap" role="button" onClick={onOpen}>
       <div className="kv"><span>{r.name}</span><span><b className={"mnum" + (r.left < -0.5 ? " mneg" : "")}>{fmtMoney(r.left, true)}</b> <span className="mof">of {fmtMoney(r.avail, true).slice(1)}</span></span></div>
@@ -202,7 +202,7 @@ function Bills({ b, paycheck }: { b: BudgetView; paycheck: Paycheck | null }) {
         {bills.length > 0 && <div className="kv mnext"><span className="muted">Paid {paid.length} of {bills.length}</span>
           <span className="muted mnum">{fmtMoney(paid.reduce((a, x) => a + x.amount, 0), true)} of {fmtMoney(bills.reduce((a, x) => a + x.amount, 0), true)}</span></div>}
       </div>
-      {bills.some((x) => !x.paid && x.date < day) && <p className="quiet mnote"><span className="mflag">!</span> not seen paid yet · sort its payment to the bill's envelope</p>}
+      {bills.some((x) => !x.paid && x.date < day) && <p className="quiet mnote"><span className="mflag">!</span> not seen paid · sort its payment to the bill</p>}
     </>
   );
 }

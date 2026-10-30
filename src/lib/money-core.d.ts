@@ -50,7 +50,7 @@ export function payMonth(iso: string): string;
 export interface SortedTxn { id?: string; date: string; amount: number; cat: string | null; hint?: string }
 export interface MonthPaycheck { date: string; expected: number; landed: number; amount: number }
 export interface MonthIncome { paychecks: MonthPaycheck[]; extra: number; expected: number; total: number }
-export function monthIncome(bills: Bill[], month: string, sorted: SortedTxn[], income: Set<string>, todayISO?: string): MonthIncome;
+export function monthIncome(bills: Bill[], month: string, sorted: SortedTxn[], income: Set<string>, todayISO?: string, envelopes?: Envelope[]): MonthIncome;
 export function usualSpend(sorted: SortedTxn[], todayISO: string, income?: Set<string>): { months: string[]; by: Record<string, number> };
 export type Why = "bill" | "usual" | "target" | "spent" | "trim" | "extra" | "zero";
 export interface Suggestion { month: string; income: number; amounts: Record<string, number>; why: Record<string, Why>; over: number; left: number; to: string | null }

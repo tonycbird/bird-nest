@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { nowStep, toggleStep, type RiverBlock } from "../lib/river";
 import { I, Icon } from "../ui/Icon";
 import { blockLook } from "../ui/colors";
+import { Layer } from "../ui/Layer";
 
 /** One block, one step at a time: a big step, a big ✓, the next step faded underneath. */
 export default function StepPlayer(props: { block: RiverBlock; nextBlock: RiverBlock | null; onClose: () => void; onNext: (id: string) => void }) {
@@ -39,7 +40,7 @@ export default function StepPlayer(props: { block: RiverBlock; nextBlock: RiverB
   const style = { ["--k" as string]: look.color };
 
   return (
-    <div className="player" style={style} role="dialog" aria-label={`${b.title}, step by step`}>
+    <Layer><div className="player" style={style} role="dialog" aria-label={`${b.title}, step by step`}>
       <div className="ph">
         <span className="p-ic"><Icon n={look.icon} size={21} /></span>
         <b>{b.title}</b>
@@ -78,6 +79,6 @@ export default function StepPlayer(props: { block: RiverBlock; nextBlock: RiverB
           </div>
         </>
       )}
-    </div>
+    </div></Layer>
   );
 }

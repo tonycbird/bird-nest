@@ -16,6 +16,7 @@ import { placeTimedTasks } from "../head/river-bridge";
 import { placeBillBlocks, useMoney } from "../lib/money";
 import { acceptEvent, acceptedOn } from "../lib/calendar-accept";
 import { justDone, markJustDone } from "../lib/motion";
+import { Layer } from "../ui/Layer";
 import { I, Icon } from "../ui/Icon";
 import { blockLook, colorFor, taskIcon } from "../ui/colors";
 
@@ -193,7 +194,7 @@ export default function Today(props: Props) {
       )}
 
       {menu && (
-        <div className="scrim" onClick={() => setMenu(null)}>
+        <Layer><div className="scrim" onClick={() => setMenu(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <h2><span className="ring on" style={k(blockLook(menu).color)}><Icon n={blockLook(menu).icon} size={17} /></span>{menu.title}</h2>
             <div className="menu">
@@ -207,7 +208,7 @@ export default function Today(props: Props) {
               <button className="danger" onClick={async () => { const u = await softDelete(menu.id); setMenu(null); toast("🗑 In Trash", u); }}><I n="trash" /> Delete</button>
             </div>
           </div>
-        </div>
+        </div></Layer>
       )}
 
       {sheet && <BlockSheet day={day} block={sheet.block} start={sheet.start} onClose={() => setSheet(null)} />}

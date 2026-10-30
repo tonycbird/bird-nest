@@ -4,23 +4,30 @@ import { fmtMoney } from "../lib/money";
 import { GROUP_NAMES, mixedFor, storeKeyFor, tidyPayee, type Trends, type Why } from "../lib/money-core.js";
 import { useToast } from "../lib/toast";
 import { I, Icon } from "../ui/Icon";
+import { Layer } from "../ui/Layer";
 
 /* Money (Phase 7): the two sheets behind the Money screen. One sorts purchases one at a time with a
    tap; the other shows an envelope's month and lets him change what it gets. */
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const short = (iso: string) => `${MON[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
-export const titleOf = (p: Pick<Purchase, "merchant" | "name">) => (p.merchant || tidyPayee(p.name) || p.name || "Purchase").slice(0, 40);
+/** A purchase's name, cut at a word (with …) when it's long. */
+export const titleOf = (p: Pick<Purchase, "merchant" | "name">) => {
+  const t = (p.merchant || tidyPayee(p.name) || p.name || "Purchase").trim();
+  if (t.length <= 32) return t;
+  const cut = t.slice(0, 32), sp = cut.lastIndexOf(" ");
+  return (sp > 16 ? cut.slice(0, sp) : cut).replace(/[\s,.-]+$/, "") + "…";
+};
 const amt = (n: number) => (n > 0 ? "+" : "") + fmtMoney(Math.abs(n));
 
 function Frame(props: { label: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="scrim" onClick={props.onClose}>
-      <div className="sheet has-x msheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={props.label}>
+    <Layer><div className="scrim" onClick={props.onClose}>
+      <div className="sheet has-x msheet money" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={props.label}>
         <button className="sheet-x" aria-label="Close" onClick={props.onClose}><Icon n="close" size={18} tone={false} /></button>
         {props.children}
       </div>
-    </div>
+    </div></Layer>
   );
 }
 
@@ -135,7 +142,7 @@ export function PurchasesSheet(props: { month?: string; onClose: () => void; onS
   const names = new Map(b.envelopes.map((e) => [e.key, e.name]));
   const qq = q.trim().toLowerCase().replace(/^\$/, "");
   const label = (p: Purchase) => (p.cat === SKIP ? "Not spending" : (p.cat && names.get(p.cat)) || "To sort");
-  const rows = b.purchases.filter((p) => !qq || titleOf(p).toLowerCase().includes(qq) || p.name.toLowerCase().includes(qq) || label(p).toLowerCase().includes(qq) || Math.abs(p.amount).toFixed(2).includes(qq));
+  const rows = b.purchases.filter((p) => !qq || (p.merchant || "").toLowerCase().includes(qq) || titleOf(p).toLowerCase().includes(qq) || p.name.toLowerCase().includes(qq) || label(p).toLowerCase().includes(qq) || Math.abs(p.amount).toFixed(2).includes(qq));
   const out = Math.round(-rows.filter((p) => p.amount < 0 && p.cat !== SKIP).reduce((a, p) => a + p.amount, 0) * 100) / 100;
   return (
     <Frame label="Purchases" onClose={props.onClose}>

@@ -515,17 +515,22 @@ export const payMonth = (iso) => addDays(iso, 7).slice(0, 7);
 /** Money in for a month: its paychecks (what landed, else what's expected) plus anything else that came in
     (a reimbursement, a side job) on a day that isn't a payday. A deposit counts as a paycheck when it's
     sorted as income (or the bank calls it income) from 2 days before to 3 days after payday. */
-export function monthIncome(bills, month, sorted, income, todayISO) {
+export function monthIncome(bills, month, sorted, income, todayISO, envelopes) {
   const first = `${month}-01`, last = monthEnd(month);
   const days = paydays(bills, addDays(first, -20), addDays(last, 20));
   const inc = income || new Set();
   const isIn = (t) => t.amount > 0 && t.cat !== SKIP && ((t.cat && inc.has(t.cat)) || (!t.cat && /^INCOME_/.test(t.hint || "")));
   const landed = new Map(days.map((p) => [p.date, 0]));
+  const cap = new Map(days.map((p) => [p.date, p.amount + (p.upside || 0) + 25])); // a paycheck can't be more than this
   let extra = 0;
-  for (const t of (sorted || []).filter(isIn)) {
+  // Paychecks first (the main income envelope, or what the bank calls wages), then anything else that came in.
+  const nameOf = new Map((envelopes || []).map((e) => [e.key, e.name]));
+  const wage = (t) => (/^INCOME_WAGES/.test(t.hint || "") || /^(income|paychecks?|payroll|wages)$/i.test(String(nameOf.get(t.cat) || "")) ? 0 : 1);
+  const list = (sorted || []).filter(isIn).sort((a, b) => wage(a) - wage(b) || (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  for (const t of list) {
     let best = null;
     for (const p of days) { const g = dayNo(t.date) - dayNo(p.date); if (g >= -2 && g <= 3 && (!best || Math.abs(g) < Math.abs(dayNo(t.date) - dayNo(best.date)))) best = p; }
-    if (best) landed.set(best.date, money(landed.get(best.date) + t.amount));
+    if (best && landed.get(best.date) + t.amount <= cap.get(best.date)) landed.set(best.date, money(landed.get(best.date) + t.amount));
     else if (String(t.date).slice(0, 7) === month) extra = money(extra + t.amount);
   }
   const paychecks = days.filter((p) => payMonth(p.date) === month).map((p) => {
@@ -580,7 +585,7 @@ const roundUp = (n) => (n <= 0 ? 0 : n < 100 ? Math.ceil(n / 5) * 5 : Math.ceil(
 export function suggestPlan(d, month, todayISO, sorted) {
   const income = d.income || incomeKeys(d.envelopes, d.groups);
   const live = (d.envelopes || []).filter((e) => !e.archived && !income.has(e.key));
-  const inc = monthIncome(d.bills, month, sorted, income, todayISO).total;
+  const inc = monthIncome(d.bills, month, sorted, income, todayISO, d.envelopes).total;
   const usual = usualSpend(sorted, todayISO, income).by;
   const billsBy = {};
   for (const { r } of billsBetween(d.bills, `${month}-01`, monthEnd(month))) if (r.categoryId) billsBy[r.categoryId] = money((billsBy[r.categoryId] || 0) + (Number(r.amount) || 0));
@@ -611,6 +616,9 @@ export function suggestPlan(d, month, todayISO, sorted) {
       if (to < a) { amounts[e.key] = money(to); why[e.key] = "trim"; }
     }
     gap = money(inc - total());
+    // Rounding to $5 can trim a few dollars too many: give them back to the biggest trimmed envelope.
+    const back = flex.filter((e) => why[e.key] === "trim").sort((a, b) => amounts[b.key] - amounts[a.key])[0];
+    if (gap > 0 && back) { amounts[back.key] = money(amounts[back.key] + gap); gap = 0; }
   }
   let to = null;
   if (gap > 0) {
@@ -624,7 +632,7 @@ export function suggestPlan(d, month, todayISO, sorted) {
     and ✓), and what's left to budget (in − planned; the goal is $0). `plan` = {amounts, carry}. */
 export function budgetMonth(d, month, todayISO, sorted, plan, statusOf) {
   const income = d.income || incomeKeys(d.envelopes, d.groups);
-  const inc = monthIncome(d.bills, month, sorted, income, todayISO);
+  const inc = monthIncome(d.bills, month, sorted, income, todayISO, d.envelopes);
   const spent = spentBy(sorted, month, income);
   const billRows = {};
   for (const { r, date } of billsBetween(d.bills, `${month}-01`, monthEnd(month))) {

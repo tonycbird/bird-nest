@@ -73,6 +73,20 @@ type FitStateT = ReturnType<typeof fitState.get>;
 const patch = (p: Partial<FitStateT>) => fitState.set((s) => ({ ...s, ...p }));
 let frameWin: (Window & { __fit?: FitApi }) | null = null;
 export const fitApi = (): FitApi | null => frameWin?.__fit ?? null;
+/** The Fitness page itself (same site), for checking it really drew something. */
+export const fitDoc = (): Document | null => { try { return frameWin?.document ?? null; } catch { return null; } };
+/** Plain facts about the Body frame, for a Testing report. */
+export function fitFrameFacts(): Record<string, unknown> {
+  const f = document.querySelector("iframe.bodyframe") as HTMLIFrameElement | null;
+  const r = f?.getBoundingClientRect();
+  const doc = fitDoc();
+  return {
+    frame: f ? { shown: getComputedStyle(f).display !== "none", rect: r ? [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)] : null } : "none",
+    loaded: doc?.readyState ?? null, view: doc?.querySelector("#view")?.childElementCount ?? null,
+    api: !!fitApi(), ready: fitState.get().ready, error: fitState.get().error || null,
+    starting: (() => { try { return localStorage.getItem("nest:body-loading"); } catch { return "?"; } })(),
+  };
+}
 export function setFrame(w: Window | null) { frameWin = w as typeof frameWin; if (!w) patch({ ready: false }); }
 
 let changedT = 0;

@@ -351,6 +351,13 @@ describe("the month's budget (EveryDollar)", () => {
     expect(m.extra).toBe(300);
     expect(m.total).toBe(4259.84);
   });
+  test("a reimbursement that lands on payday is extra, not part of the paycheck", () => {
+    const envs = [{ key: "income", name: "Income", group: "income" }, { key: "petty", name: "Petty Cash & Reimbursements", group: "income" }];
+    const sorted = [r("2026-10-02", 1500, "petty"), r("2026-10-02", 1573.7, "income"), r("2026-10-02", 402.82, "income")];
+    const m = monthIncome(bills, "2026-10", sorted, new Set(["income", "petty"]), "2026-10-29", envs);
+    expect(m.paychecks[0]).toMatchObject({ date: "2026-10-02", landed: 1976.52 });
+    expect(m.extra).toBe(1500);
+  });
   test("usual: the middle of the last 3 full months, or the year's monthly average if more (gifts)", () => {
     const u = usualSpend(history, "2026-10-29", new Set(["income"])).by;
     expect(u.groceries).toBe(850);
@@ -377,6 +384,12 @@ describe("the month's budget (EveryDollar)", () => {
     expect(lean.amounts.groceries).toBe(850); // needs aren't trimmed
     expect(lean.over).toBeGreaterThan(0); // and what's still over is shown, not hidden
     expect(lean.to).toBe(null);
+    // only a little over: the trims are just enough, and rounding never turns into "extra"
+    const near = suggestPlan({ ...d, envelopes: env.filter((e) => e.key !== "groceries") }, "2026-11", "2026-10-29", [...history, r("2026-09-20", -2000, "dining"), r("2026-08-20", -2000, "dining"), r("2026-07-20", -2000, "dining")]);
+    const total = Math.round(Object.values(near.amounts).reduce((a, x) => a + x, 0) * 100) / 100;
+    expect(near.why.dining).toBe("trim");
+    expect(near.why.ef).toBeUndefined();
+    expect(total).toBe(near.income);
   });
   test("this month: never less than what's already gone", () => {
     const sg = suggestPlan(d, "2026-10", "2026-10-20", [...history, r("2026-10-03", -61.5, "gifts"), r("2026-10-04", -500, "dining")]);

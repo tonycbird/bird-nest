@@ -37,6 +37,10 @@ body{font-feature-settings:"tnum" 1; transition:background-color .4s ease, color
 /* Nest shows the four sections as chips above this frame, so the old tab bar hides
    and everything that sat above it drops to the bottom. */
 #tabbar{display:none!important}
+/* Nest has the gym check-in button in its own row above the frame: one is enough. */
+.today-h .checkin{display:none}
+/* Section links ("Meals · 3,700 left ›") get a thumb-sized tap area without changing how they look. */
+.sec-h .link{padding:12px 0 12px 12px;margin:-12px 0 -12px -12px}
 #app{padding-bottom:28px}
 body:has(.timer:not([hidden])) #app{padding-bottom:96px}
 .actionbar{bottom:0;padding-bottom:12px}

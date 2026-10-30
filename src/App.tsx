@@ -85,7 +85,7 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <div className="app">
+      <div className={"app" + (tab === "body" ? " body-on" : "")}>
         <div className="scroller" ref={scroller}>
         <main className="main" key={tab}>
           {tab === "today" && <Today pending={pending} online={online} onSettings={() => goTab("settings")} onApprovals={() => goTab("ok")} />}

@@ -1,7 +1,7 @@
 import { db, nowISO, uid, type Report } from "./db";
 import { cut } from "./text";
 import { appNav, nav } from "../head/useHead";
-import { fitState } from "../body/host";
+import { fitFrameFacts, fitState } from "../body/host";
 import { getMode } from "./theme";
 
 /* Testing mode. While it's on, Nest keeps a short trail of taps and any errors it catches,
@@ -48,7 +48,7 @@ export function context(): Record<string, unknown> {
   return {
     tab: a.tab,
     head: a.tab === "head" ? { view: n.view, id: n.id } : undefined,
-    body: a.tab === "body" ? { section: f.tab, depth: f.depth } : undefined,
+    body: a.tab === "body" ? { section: f.tab, depth: f.depth, ...fitFrameFacts() } : undefined,
     overlay: n.overlay?.name ?? null,
     task_open: !!n.selected,
     open,
