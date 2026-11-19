@@ -49,6 +49,9 @@ const PROBE = `(() => {
   const errs = []; p.on('pageerror', (e) => errs.push('PAGE ' + e.message));
   p.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
   await p.goto(URL); await p.waitForTimeout(600);
+  // This file checks the workout on the River, so his usual week stays off here (week.test.ts covers it).
+  await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: true, calendars: null, week: false }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); const all = await new Promise((res) => { const q = db.transaction('blocks').objectStore('blocks').getAll(); q.onsuccess = () => res(q.result); }); await new Promise((res) => { const tx = db.transaction('blocks', 'readwrite'); for (const x of all) if (x.source_type === 'week') tx.objectStore('blocks').delete(x.id); tx.oncomplete = res; }); });
+  await p.reload(); await p.waitForTimeout(600);
 
   // Head first run, so there is a grocery list to merge into.
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);
@@ -88,32 +91,32 @@ const PROBE = `(() => {
   const groc2 = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { r.result.transaction('tasks').objectStore('tasks').count().onsuccess = (e) => res(e.target.result); }; }); });
   assert(groc2 >= groc.length, 'sending twice adds no duplicates');
 
-  // Today: a gym day's workout is on the River by itself (warm-up, the lifts, cool-down). No circle to tap.
+  // Today: a gym day's workout is on the River by itself (warm-up, the lifts, cool-down). Nothing to tap.
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(1200);
   assert(await p.evaluate(() => getComputedStyle(document.querySelector('iframe.bodyframe')).display) === 'none', 'off the Body tab the frame is not displayed at all (iPhone white-screen fix)');
-  const titles = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
+  await p.click('.whole-t'); await p.waitForTimeout(300);
+  const titles = await p.locator('.tr .bc-main b').allInnerTexts();
   assert(titles.includes('Warm-up') && titles.includes('Cool-down') && titles.length === 3, 'the workout landed on the River by itself: ' + titles.join(' · '));
-  assert(await p.locator('.quick [aria-label^="Put "]').count() === 0, 'no "put it on today" circle: it is already there');
-  // Taken off, it stays off (and the circle offers it back).
-  const wu = p.locator('.tr', { hasText: 'Warm-up' });
-  if (!(await p.locator('.tr.open', { hasText: 'Warm-up' }).count())) { await wu.locator('.bc-main').first().click(); await p.waitForTimeout(250); }
-  await p.locator('.tr.open', { hasText: 'Warm-up' }).locator('[aria-label^="More for"]').click(); await p.click('.menu >> text=Delete'); await p.waitForTimeout(600);
+  // Taken off, it stays off; Undo brings it back.
+  await p.locator('.tr', { hasText: 'Warm-up' }).locator('.bc-main').click(); await p.waitForTimeout(250);
+  await p.click('.menu >> text=Delete'); await p.waitForTimeout(600);
   await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await p.waitForTimeout(900);
-  assert(await p.locator('.tr:not(.cal) .bc-main b', { hasText: 'Warm-up' }).count() === 0, 'a part he takes off stays off');
-  assert(await p.locator('.quick [aria-label^="Put "]').count() === 1, 'and the Body circle offers it back');
-  await p.click('.quick [aria-label^="Put "]'); await p.waitForTimeout(800);
-  assert(await p.locator('.tr:not(.cal) .bc-main b', { hasText: 'Warm-up' }).count() === 1, 'one tap puts it back');
+  assert(await p.locator('.tr .bc-main b', { hasText: 'Warm-up' }).count() === 0, 'a part he takes off stays off');
+  await p.click('.toast >> text=Undo'); await p.waitForTimeout(600);
+  assert(await p.locator('.tr .bc-main b', { hasText: 'Warm-up' }).count() === 1, 'Undo puts it back');
   const main = titles.find((t) => t !== 'Warm-up' && t !== 'Cool-down');
   await p.locator('.tr', { hasText: main }).locator('.bc-main').click(); await p.waitForTimeout(300);
-  await p.locator('.tr.open [aria-label^="Show all"]').click(); await p.waitForTimeout(200);
-  const steps = await p.locator('.tr.open .steps li').count();
+  await p.click('.menu >> text=Change time or steps'); await p.waitForTimeout(300);
+  const steps = await p.locator('.steprow input[placeholder="Step"]').evaluateAll((xs) => xs.filter((x) => x.value.trim()).length);
   assert(steps >= 3 && steps <= 7, `workout block has ${steps} lift steps (max 7)`);
-  const v1 = await p.locator('.tr.open .steps .v').first().innerText();
+  const v1 = await p.locator('.steprow input[placeholder="3×10"]').first().inputValue();
   assert(/\d+ × \d/.test(v1), 'first lift step shows the scheme and target: ' + v1);
   await shot(p, '05-river-workout');
+  await p.click('[aria-label="Close"]'); await p.waitForTimeout(200);
 
   // 🏋 Log opens the logger; logging every set of the first lift ticks step 1 on the River.
-  await p.click('.tr.open [aria-label^="More for"]'); await p.click('.menu >> text=Open in Body'); await p.waitForTimeout(700);
+  await p.locator('.tr', { hasText: main }).locator('.bc-main').click(); await p.waitForTimeout(250);
+  await p.click('.menu >> text=Open in Body'); await p.waitForTimeout(700);
   assert(await f.locator('[data-a="openEx"]').count() > 0, '🏋 Log opens the workout in Body');
   await shot(p, '06-body-workout-detail');
   await f.locator('[data-a="openEx"]').first().click(); await p.waitForTimeout(400);
@@ -131,6 +134,7 @@ const PROBE = `(() => {
 
   // Rest timer shows on Today too, and keeps true time (it runs on end time, so a locked phone doesn't stop it).
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(600);
+  if (!(await p.locator('.tl').count())) { await p.click('.whole-t'); await p.waitForTimeout(300); }
   assert(await p.locator('.timer-pill').count() === 1, 'rest timer pill shows on Today');
   const pill1 = await p.locator('.timer-pill').innerText();
   const firstStep = await p.locator('.tr', { hasText: main }).locator('.bc-main small').innerText();
@@ -141,9 +145,8 @@ const PROBE = `(() => {
   assert(/done/.test(pill2), `timer finished on true time (${pill1.replace(/\n/g, ' ')} → ${pill2.replace(/\n/g, ' ')})`);
 
   // Warm-up ticked on the River → checked off in Body.
-  if (!(await p.locator('.tr.open', { hasText: 'Warm-up' }).count())) { await p.locator('.tr', { hasText: 'Warm-up' }).locator('.bc-main').click(); await p.waitForTimeout(200); }
-  for (let i = 0; i < 3; i++) { const c = p.locator('.tr.open', { hasText: 'Warm-up' }).locator('.bc-cur'); if (await c.count()) { await c.click(); await p.waitForTimeout(250); } }
-  await p.waitForTimeout(400);
+  await p.locator('.tr', { hasText: 'Warm-up' }).locator('.bc-main').click(); await p.waitForTimeout(250);
+  await p.click('.menu >> text=Mark done'); await p.waitForTimeout(700);
   const warmed = await p.frames().find((x) => x.url().includes('/body')).evaluate(() => !!Store.m['2026-10'].warm['2026-10-15']);
   assert(warmed, 'finishing Warm-up on the River checks it off in Body');
 

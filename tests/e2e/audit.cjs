@@ -125,14 +125,12 @@ function checks() {
 
 /* ---------- seed data ---------- */
 async function seed(p) {
-  // Start from an empty River (the sample day below fills it); the workout landing by itself is tested in phase3.
+  // His usual week fills the River by itself; the workout landing by itself is tested in phase3.
   await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: false, calendars: null }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); });
   await p.reload(); await p.waitForTimeout(700);
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);
   if (SEED) { await p.setInputFiles('input[type=file]', SEED); await p.waitForTimeout(900); }
-  await p.click('.tabs >> text=Today'); await p.waitForTimeout(300);
-  await p.click('text=Sample day'); await p.waitForTimeout(600);
-  await p.click('[aria-label="Mark Warm up + stretch done"]').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('.tabs >> text=Today'); await p.waitForTimeout(600);
   await p.evaluate(async () => {
     const db = await new Promise((res, rej) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); r.onerror = rej; });
     const put = (store, row) => new Promise((res, rej) => { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(row); tx.oncomplete = res; tx.onerror = rej; });
@@ -168,6 +166,7 @@ async function seed(p) {
   });
   await p.reload(); await p.waitForTimeout(1200);
   // A block that runs past midnight.
+  await p.click('.whole-t'); await p.waitForTimeout(200);
   await p.click('.tl-foot >> text=Block'); await p.waitForTimeout(200);
   await p.fill('.sheet input[placeholder="Block name"]', 'Night shift');
   await p.fill('.sheet input[aria-label="Start"]', '22:30'); await p.fill('.sheet input[aria-label="End"]', '00:30');
@@ -185,20 +184,19 @@ const headView = async (p, v) => { await go(p, 'Head'); await p.click(`.hn >> te
 const STEPS = [
   ['today', async (p) => { await go(p); }],
   ['today-bottom', async (p) => { await go(p); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); await p.waitForTimeout(200); }],
-  ['today-all-steps', async (p) => { await go(p); await p.click('.tr.open [aria-label^="Show all"]'); }],
-  ['today-block-menu', async (p) => { await go(p); await p.click('.tr.open [aria-label^="More for"]'); }],
-  ['today-other-block', async (p) => { await go(p); await p.locator('.tr:not(.open):not(.cal) .bc-main').nth(1).click(); }],
-  ['today-tomorrow', async (p) => { await go(p); await p.locator('.wd').nth(3).click(); }],
-  ['today-empty-day', async (p) => { await go(p); await p.locator('.wd').nth(6).click(); }],
-  ['block-sheet-new', async (p) => { await go(p); await p.click('.tl-foot >> text=Block'); }],
-  ['block-sheet-gap', async (p) => { await go(p); await p.click('.tl-gap button'); }],
-  ['step-player', async (p) => { await go(p); await p.click('.tr.open .go'); }],
-  ['step-player-done', async (p) => { await go(p); await p.click('.tr.open .go'); for (let i = 0; i < 6; i++) { const b = p.locator('.pbig'); if (await b.count()) { await b.click(); await p.waitForTimeout(150); } } }],
+  ['today-whole-day', async (p) => { await go(p); await p.click('.whole-t'); }],
+  ['today-block-menu', async (p) => { await go(p); await p.click('.whole-t'); await p.locator('.tr .bc-main').first().click(); }],
+  ['today-other-block', async (p) => { await go(p); await p.click('.whole-t'); await p.locator('.tr .bc-main').nth(3).click(); }],
+  ['today-tomorrow', async (p) => { await go(p); await p.click('.whole-t'); await p.click('.whole-day'); }],
+  ['block-sheet-new', async (p) => { await go(p); await p.click('.whole-t'); await p.click('.tl-foot >> text=Block'); }],
+  ['block-sheet-free', async (p) => { await go(p); await p.click('.now-acts >> text=Block'); }],
+  ['step-player', async (p) => { await go(p); await p.click('.whole-t'); await p.locator('.tr .ring.play').first().click(); }],
+  ['step-player-done', async (p) => { await go(p); await p.click('.whole-t'); await p.locator('.tr .ring.play').first().click(); for (let i = 0; i < 6; i++) { const b = p.locator('.pbig'); if (await b.count()) { await b.click(); await p.waitForTimeout(150); } } }],
   ['quick-add', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.keyboard.type('Call Smith tomorrow 3pm @Phone ~15m'); }],
   ['quick-add-grocery', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> nth=-1'); }],
   ['quick-add-many', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.fill('textarea.qa-input', LONG); await p.waitForTimeout(200); }],
   ['dump-real', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.fill('textarea.qa-input', LONG); await p.click('.qa-many'); await p.waitForTimeout(300); await p.click('.flow-foot >> text=Sort'); await p.waitForTimeout(200); }],
-  ['today-night', async (p) => { await go(p); await p.locator('.tr', { hasText: 'Night shift' }).first().scrollIntoViewIfNeeded(); await p.waitForTimeout(150); }],
+  ['today-night', async (p) => { await go(p); await p.click('.whole-t'); await p.locator('.tr', { hasText: 'Night shift' }).first().scrollIntoViewIfNeeded(); await p.waitForTimeout(150); }],
   ['dump-write', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); }],
   ['dump-sorted', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); await p.click('.flow-foot >> text=Sort'); }],
   ['dump-sorted-bottom', async (p) => { await go(p); await p.click('[aria-label="Quick add"]'); await p.click('.seg >> text=Dump'); await p.fill('textarea.dump', 'call dave tomorrow, pay avista today, out of milk eggs and diapers, maybe someday build a garden box, I am tired'); await p.click('.flow-foot >> text=Sort'); await p.locator('.flow-body').evaluate((e) => { e.scrollTop = 99999; }); await p.waitForTimeout(150); }],

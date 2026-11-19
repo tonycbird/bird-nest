@@ -62,8 +62,10 @@ async function fakeSupabase(route) {
   // Nest opens straight to Today, signed out. Nothing is locked.
   assert(await p.locator('.tabs').count() === 1 && await p.locator('text=Welcome home.').count() === 0, 'Nest opens without signing in');
   await p.click('.tabs >> text=Head'); await p.click('button >> text=Start fresh'); await p.waitForTimeout(300);
-  await p.click('.tabs >> text=Today'); await p.click('text=Sample day'); await p.waitForTimeout(400);
-  const before = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
+  // His usual week fills the River by itself (Saturday: Morning, the drive, Work 2–8…).
+  await p.click('.tabs >> text=Today'); await p.waitForTimeout(600); await p.click('.whole-t'); await p.waitForTimeout(300);
+  const before = await p.locator('.tr .bc-main b').allInnerTexts();
+  assert(before.includes('Morning') && before.includes('Work'), 'his usual Saturday is on the River: ' + before.join(', '));
 
   // The tab bar is Today · Head · ＋ · Body · Money; Claude is connected from Settings.
   assert(await p.locator('.tabs >> text=Money').count() === 1 && await p.locator('.tabs >> text=Claude').count() === 0, 'Money has the Claude tab\'s place');
@@ -89,25 +91,13 @@ async function fakeSupabase(route) {
   assert(st('p-mail') === 'applied', 'the mail task went straight in (marked applied)');
   assert(st('p-plan') === 'declined' && st('p-gym') === 'declined', 'the day plan and the gym booking were set aside');
   assert(['applied', 'declined'].includes(st('p-groc')), 'groceries settled too (' + st('p-groc') + ')');
-  const after = await p.locator('.tr:not(.cal) .bc-main b').allInnerTexts();
+  if (!(await p.locator('.tl').count())) { await p.click('.whole-t'); await p.waitForTimeout(300); }
+  const after = await p.locator('.tr .bc-main b').allInnerTexts();
   assert(before.every((x) => after.includes(x)) && !after.includes('Smith quote'), `the River wasn't replaced (${after.join(', ')})`);
-  // His own calendar's event became a block by itself; the shared one stays a small line.
-  assert(await p.locator('.tr:not(.calline) .bc-main b', { hasText: 'Coffee with Landyn' }).count() === 1, 'his own event is on the River by itself');
-  assert(await p.locator('.calline >> text=Dentist').count() === 1, 'a shared event shows as a small line');
-  assert(await p.locator('.allday >> text=Payday').count() === 1, 'all-day item shows as a small chip');
+  // His own calendar's event became a block by itself; shared ones and all-day items stay in Google Calendar.
+  assert(await p.locator('.tr .bc-main b', { hasText: 'Coffee with Landyn' }).count() === 1, 'his own event is on the River by itself');
+  assert(await p.locator('text=Dentist').count() === 0 && await p.locator('text=Payday').count() === 0, "a shared event and an all-day item don't clutter Today");
   await shot(p, '42-river-fills-itself');
-  // A quick tap only says how; holding makes it yours.
-  await p.locator('.calline', { hasText: 'Dentist' }).click(); await p.waitForTimeout(300);
-  assert(await p.locator('.toast >> text=Hold to make it yours').count() === 1, 'a tap explains: hold');
-  assert(await p.locator('.calline', { hasText: 'Dentist' }).count() === 1, 'a tap alone does nothing');
-  const hold = async (loc) => { const bx = await loc.boundingBox(); await p.mouse.move(bx.x + bx.width / 2, bx.y + bx.height / 2); await p.mouse.down(); await p.waitForTimeout(800); await p.mouse.up(); await p.waitForTimeout(500); };
-  await hold(p.locator('.calline', { hasText: 'Dentist' }));
-  assert(await p.locator('.calline', { hasText: 'Dentist' }).count() === 0 && await p.locator('.tr:not(.calline) .bc-main b', { hasText: 'Dentist' }).count() === 1, 'holding a calendar line makes it a block');
-  await hold(p.locator('.calchip', { hasText: 'Payday' }));
-  assert(await p.locator('.calchip', { hasText: 'Payday' }).count() === 0, 'holding an all-day chip accepts it');
-  const payday = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.find((t) => t.title === 'Payday')); }; }); });
-  assert(payday && payday.calId, 'the all-day item is a task for the day');
-  await shot(p, '43-calendar-accepted');
 
   // Head got the mail task with its link.
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);
@@ -117,8 +107,9 @@ async function fakeSupabase(route) {
   // Offline: the app keeps working, edits wait, then go up.
   await ctx.setOffline(true);
   await p.click('.tabs >> text=Today'); await p.waitForTimeout(200);
-  if (!(await p.locator('.tr.open', { hasText: 'Legs' }).count())) await p.locator('.tr', { hasText: 'Legs' }).locator('.bc-main').click();
-  await p.locator('.tr.open .bc-cur').first().click(); await p.waitForTimeout(300);
+  await p.waitForTimeout(300);
+  assert(await p.locator('.now h2 >> text=Morning').count() === 1, "5 AM Saturday: Now is his Morning");
+  await p.locator('.now-steps .now-row:not(.ok)').first().click(); await p.waitForTimeout(300);
   const stepsBefore = [...server.rows.values()].filter((r) => r.tbl === 'steps' && r.data.done_at).length;
   await ctx.setOffline(false);
   await p.evaluate(() => window.dispatchEvent(new Event('online'))); await p.waitForTimeout(1500);

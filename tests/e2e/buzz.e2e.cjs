@@ -49,14 +49,18 @@ const STUB = () => {
   const sub = await waitFor(() => last('subscribe'));
   assert(sub && sub.body.sub.endpoint === 'https://web.push.apple.com/fake-address' && /^n_/.test(sub.body.device) && sub.body.key.length >= 32, 'turning on sends this phone\'s push address with its own id and key');
   await p.waitForTimeout(400);
-  assert(await p.locator('.kv >> text=Rest timer done').count() === 1 && await p.locator('.kv >> text=Shutdown · 7').count() === 1, 'switches for rest timer and shutdown (7 PM)');
+  assert(await p.locator('.kv >> text=Rest timer done').count() === 1 && await p.locator('.kv >> text=Shutdown · 7').count() === 1 && await p.locator('.kv >> text=Morning · 4:30').count() === 1, 'switches for morning (4:30), rest timer and shutdown (7 PM)');
   const sd = await waitFor(() => calls.find((c) => c.op === 'schedule' && c.body.replace === 'shutdown:'));
   assert(sd, 'shutdown week sent');
   const ids = sd.body.items.map((i) => i.id);
-  assert(ids[0] === 'shutdown:2026-10-21' && ids.length === 6 && !ids.includes('shutdown:2026-10-26'), 'tonight first, then the week, skipping the off day (Monday): ' + ids.join(' '));
+  assert(ids.join(' ') === 'shutdown:2026-10-21 shutdown:2026-10-22 shutdown:2026-10-23 shutdown:2026-10-25 shutdown:2026-10-27', 'tonight first, then the week: none on Saturday (work till 8) or his day off (Monday): ' + ids.join(' '));
   const first = new Date(sd.body.items[0].at);
   assert(first.toISOString() === '2026-10-22T02:00:00.000Z', 'shutdown at 7:00 PM Pacific');
   assert(sd.body.items[0].url === '/?open=shutdown' && sd.body.items[0].title === 'Shutdown', 'shutdown buzz opens Shutdown');
+  const mo = await waitFor(() => calls.find((c) => c.op === 'schedule' && c.body.replace === 'morning:'));
+  const m0 = mo && mo.body.items[0];
+  assert(m0 && m0.id === 'morning:2026-10-22' && new Date(m0.at).toISOString() === '2026-10-22T11:30:00.000Z' && /work 8–4:30/i.test(m0.title) && m0.url === '/?open=today', 'morning buzz: tomorrow 4:30 AM with the day in a line (' + (m0 && m0.title) + ' · ' + (m0 && m0.body) + ')');
+  assert(mo.body.items.length === 6, 'the week ahead (this morning has passed)');
   await p.locator('.card', { hasText: 'Rest timer done' }).scrollIntoViewIfNeeded(); await shot('buzz-on');
 
   // Rest timer: start → planned at its end; +15 → moved; skip → cancelled

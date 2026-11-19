@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 /** subKey: the helper's public key this phone subscribed with (a new key needs a new subscription). */
-export interface PushPrefs { device: string; key: string; on: boolean; rest: boolean; shutdown: boolean; subKey?: string }
+export interface PushPrefs { device: string; key: string; on: boolean; rest: boolean; shutdown: boolean; morning: boolean; subKey?: string }
 const LS = "nest:push";
 
 function rand(n: number): string {
@@ -20,9 +20,9 @@ function b64uBytes(s: string): Uint8Array<ArrayBuffer> {
 function load(): PushPrefs {
   try {
     const v = JSON.parse(localStorage.getItem(LS) || "null") as Partial<PushPrefs> | null;
-    if (v?.device && v.key) return { on: false, rest: true, shutdown: true, ...v } as PushPrefs;
+    if (v?.device && v.key) return { on: false, rest: true, shutdown: true, morning: true, ...v } as PushPrefs;
   } catch { /* storage blocked */ }
-  return { device: "n_" + rand(18), key: rand(32), on: false, rest: true, shutdown: true };
+  return { device: "n_" + rand(18), key: rand(32), on: false, rest: true, shutdown: true, morning: true };
 }
 
 /* A tiny store so Settings redraws when buzzing turns on or off. */

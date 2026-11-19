@@ -192,7 +192,7 @@ export function SuggestSheet(props: { month: string; onClose: () => void }) {
       <p className="quiet">Bills as billed · everyday at your usual ({ago(ref, 3)}–{ago(ref, 1)}){sg.to ? " · the rest to the Emergency Fund" : ""}</p>
       <div className="kv"><span>In</span><span className="mnum">{fmtMoney(sg.income, true)}</span></div>
       <div className="kv"><span>Suggested</span><span className="mnum">{fmtMoney(total, true)}</span></div>
-      <div className="kv"><span>Left to budget</span>{sg.over > 0 ? <b className="mnum mneg">−{fmtMoney(sg.over, true)}</b> : sg.left > 0 ? <b className="mnum">{fmtMoney(sg.left, true)}</b> : <b className="mnum"><I n="check" /> $0</b>}</div>
+      <div className="kv"><span>Left to budget</span>{sg.over > 0 ? <b className="mnum mneg">{fmtMoney(sg.over, true)} over</b> : sg.left > 0 ? <b className="mnum">{fmtMoney(sg.left, true)}</b> : <b className="mnum"><I n="check" /> $0</b>}</div>
       {sg.over > 0 && <p className="quiet mnote">Wants trimmed up to ¼. The rest is your call.</p>}
       {sg.left > 0 && <p className="quiet mnote">Give the rest a job.</p>}
       {groups.map((g) => (

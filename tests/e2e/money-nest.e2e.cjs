@@ -71,11 +71,11 @@ const status = { ok: true, keys_sandbox: true, keys_production: true, items: [{ 
     }, { budget, txns, status });
     await p.reload(); await p.waitForTimeout(1200);
 
-    const circle = p.locator('.qc', { hasText: '$348 left' });
-    assert(await circle.count() === 1, `${theme}: Today's circle is groceries left, worked out from the bank`);
+    const circle = p.locator('.tmoney', { hasText: '$348 left' });
+    assert(await circle.count() === 1, `${theme}: Today's money line is groceries left, worked out from the bank`);
     assert(await p.locator('.tabs >> text=Money').count() === 1 && await p.locator('.tabs >> text=Claude').count() === 0, 'Money has its own tab where Claude was');
     await circle.click(); await p.waitForTimeout(400);
-    assert(await p.locator('.tabs .tab.on', { hasText: 'Money' }).count() === 1, 'the circle opens the Money tab');
+    assert(await p.locator('.tabs .tab.on', { hasText: 'Money' }).count() === 1, 'the money line opens the Money tab');
     // The budget first: October runs on the Oct 2 and Oct 16 paychecks (Oct 30's pays November)
     assert(await p.locator('.mmonth', { hasText: 'October' }).count() === 1, 'the month shows at the top');
     assert(await p.locator('.money h1', { hasText: '$307' }).locator('text=left to budget').count() === 1, 'left to budget: $3,147 in − $2,840 planned = $307');

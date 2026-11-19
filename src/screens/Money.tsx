@@ -169,8 +169,8 @@ function EnvelopeRow({ r, onOpen }: { r: BudgetRowOut; onOpen: () => void }) {
       <div className="mrow tap" role="button" onClick={onOpen}>
         <div className="kv"><span>{r.name}{due.length > 0 && <span className="mwhen">{short(due[0].date)}</span>}</span>
           {r.paid
-            ? <span className="mpaid"><I n="check" /> {r.left < -0.5 ? <b className="mnum mneg">{fmtMoney(r.left, true)}</b> : fmtMoney(r.spent || r.planned, true)}</span>
-            : <b className={"mnum" + (r.left < -0.5 ? " mneg" : "")}>{fmtMoney(r.left, true)}</b>}
+            ? <span className="mpaid"><I n="check" /> {r.left < -0.5 ? <b className="mnum mneg">{fmtMoney(-r.left, true)} over</b> : fmtMoney(r.spent || r.planned, true)}</span>
+            : r.left < -0.5 ? <b className="mnum mneg">{fmtMoney(-r.left, true)} over</b> : <b className="mnum">{fmtMoney(r.left, true)}</b>}
         </div>
       </div>
     );
@@ -178,7 +178,7 @@ function EnvelopeRow({ r, onOpen }: { r: BudgetRowOut; onOpen: () => void }) {
   const pct = r.avail >= 0.5 ? Math.min(1, Math.max(0, r.spent / r.avail)) : 1; // nothing planned: an empty bar, never a full one
   return (
     <div className="mrow tap" role="button" onClick={onOpen}>
-      <div className="kv"><span>{r.name}</span><span><b className={"mnum" + (r.left < -0.5 ? " mneg" : "")}>{fmtMoney(r.left, true)}</b> <span className="mof">of {fmtMoney(r.avail, true).slice(1)}</span></span></div>
+      <div className="kv"><span>{r.name}</span><span>{r.left < -0.5 ? <b className="mnum mneg">{fmtMoney(-r.left, true)} over</b> : <b className="mnum">{fmtMoney(r.left, true)}</b>} <span className="mof">of {fmtMoney(r.avail, true).slice(1)}</span></span></div>
       <div className={"mbar" + (r.left < -0.5 ? " over" : "")} aria-hidden="true"><span style={{ width: `${Math.round((1 - pct) * 100)}%` } as CSSProperties} /></div>
     </div>
   );
@@ -222,7 +222,7 @@ function PaycheckCard({ p }: { p: Paycheck }) {
       <div className="lbl"><I n="calendar" /> This paycheck</div>
       <div className="card mpay tap" role="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <div className="kv"><span className="muted">{span(p.start, p.end)}</span><span className="muted">{p.daysLeft === 1 ? "Last day" : `${p.daysLeft} days left`}</span></div>
-        <div className="mpay-hero"><b className={p.left < 0 ? "mneg" : ""}>{fmtMoney(p.left, true)}</b> <span className="soft">left</span>
+        <div className="mpay-hero">{p.left < 0 ? <><b className="mneg">{fmtMoney(-p.left, true)}</b> <span className="soft">short</span></> : <><b>{fmtMoney(p.left, true)}</b> <span className="soft">left</span></>}
           {p.daysLeft > 1 && p.left > 0 && <span className="soft"> · {fmtMoney(p.perDay, true)}/day</span>}</div>
         <div className="mpay-math">In {fmtMoney(p.in, true)} · Bills {fmtMoney(p.billsTotal, true)} · Spent {fmtMoney(p.spent, true)}</div>
         {open && <div className="mpay-bills">
@@ -245,7 +245,7 @@ function PaycheckCard({ p }: { p: Paycheck }) {
 
 const pct = (c: { budget: number; spent: number }) => (c.budget > 0 ? Math.min(1, Math.max(0, c.spent / c.budget)) : 0);
 function Bar({ c, big }: { c: MoneyCategory; big?: boolean }) {
-  return <div className={"mbar" + (big ? " big" : "")} aria-hidden="true"><span style={{ width: `${Math.round((1 - pct(c)) * 100)}%` } as CSSProperties} /></div>;
+  return <div className={"mbar" + (big ? " big" : "") + (c.left < -0.5 ? " over" : "")} aria-hidden="true"><span style={{ width: `${Math.round((1 - pct(c)) * 100)}%` } as CSSProperties} /></div>;
 }
 
 function BirdSummary({ s }: { s: MoneySummary }) {
@@ -265,7 +265,7 @@ function BirdSummary({ s }: { s: MoneySummary }) {
         <div className="lbl">Left this month</div>
         <div className="card">
           {others.map((c) => (
-            <div key={c.id} className="mrow"><div className="kv"><span>{c.name}</span><b className={c.left < 0 ? "mneg" : ""}>{fmtMoney(c.left, true)}</b></div><Bar c={c} /></div>
+            <div key={c.id} className="mrow"><div className="kv"><span>{c.name}</span>{c.left < -0.5 ? <b className="mneg">{fmtMoney(-c.left, true)} over</b> : <b>{fmtMoney(c.left, true)}</b>}</div><Bar c={c} /></div>
           ))}
           <div className="kv"><span className="muted">All envelopes</span><span className="muted">{fmtMoney(s.left.total, true)} left</span></div>
         </div>

@@ -1,4 +1,4 @@
-/* Money (Phase 6): the summary Claude leaves shows as a circle on Today, a Money screen, and a bill block.
+/* Money (Phase 6): the summary Claude leaves shows as a line on Today, a Money screen, and a bill block.
    Run:  npx vite build --outDir <dir> && npx vite preview --outDir <dir> --port 4181 &
          URL=http://localhost:4181/ node tests/e2e/money.e2e.cjs */
 const { chromium } = require('playwright');
@@ -52,7 +52,7 @@ const URL0 = process.env.URL || 'http://localhost:4181/';
       // No summary yet: Money says what's coming, nothing breaks
       await p.evaluate(() => { location.hash = ''; });
       await p.evaluate(() => window.dispatchEvent(new Event('nest-test')));
-      assert(await p.locator('.qc >> text=left').count() === 0, 'no money circle before the first summary');
+      assert(await p.locator('.tmoney').count() === 0, 'no money line before the first summary');
     }
 
     // Claude's morning summary arrives (written straight into the phone's copy, as the sync would)
@@ -61,8 +61,9 @@ const URL0 = process.env.URL || 'http://localhost:4181/';
       await new Promise((res, rej) => { const tx = db.transaction('money', 'readwrite'); tx.objectStore('money').put({ key: 'summary', data: s, updated_at: '2026-10-21T12:02:00Z' }); tx.oncomplete = res; tx.onerror = rej; });
     }, summary);
     await p.reload(); await p.waitForTimeout(900);
-    const circle = p.locator('.qc', { hasText: '$348 left' });
-    assert(await circle.count() === 1, `${theme}: Today shows groceries left as a circle`);
+    const circle = p.locator('.tmoney', { hasText: '$348 left' });
+    assert(await circle.count() === 1, `${theme}: Today shows groceries left in one line`);
+    await p.click('.whole-t'); await p.waitForTimeout(300);
     const bill = p.locator('.tr', { hasText: 'Pay Internet' });
     assert(await bill.count() === 1, `${theme}: Internet (due today) is a money block on the River`);
     await shot('money-today');
@@ -92,6 +93,7 @@ const URL0 = process.env.URL || 'http://localhost:4181/';
         await new Promise((res) => { const tx = db.transaction('blocks', 'readwrite'); tx.objectStore('blocks').put(blk); tx.oncomplete = res; });
       });
       await p.reload(); await p.waitForTimeout(900);
+      await p.click('.whole-t'); await p.waitForTimeout(300);
       assert(await p.locator('.tr', { hasText: 'Pay Internet' }).count() === 0, 'a deleted bill block stays deleted');
     }
     await ctx.close();

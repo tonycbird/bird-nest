@@ -5,7 +5,8 @@ import { db } from "../lib/db";
 import { counts, download, exportAll, markBackedUp, restoreAll, saveJSON, validate, type Backup } from "../lib/backup";
 import { restoreBlock, trash } from "../lib/river";
 import { DEFAULT_TZ } from "../lib/dayKey";
-import { keyLabel } from "../lib/time";
+import { addDays, keyLabel, today } from "../lib/time";
+import { WEEKDAY, blocksFor, dayShape, dowOf, loadWeek, resetWeek } from "../lib/week";
 import { CLOUD } from "../lib/supabase";
 import { cloud, cloudCounts, restoreFromCloud, signOut as cloudSignOut, stuckRows, syncNow } from "../lib/sync";
 import SignIn from "./SignIn";
@@ -93,7 +94,7 @@ export default function Settings(props: { email: string; online: boolean }) {
         <div className="kv"><span>Stored</span><span className="muted">On this phone</span></div>
         <div className="kv"><span>Blocks · steps</span><span className="muted">{stats.blocks} · {stats.steps}</span></div>
         <div className="kv"><span>Tasks</span><span className="muted">{stats.tasks}</span></div>
-        <div className="kv"><span>Last backup</span><span className="muted" style={stale ? { color: "var(--warn-ink)", fontWeight: 700 } : undefined}>{ago(last)}</span></div>
+        <div className="kv"><span>Last backup</span><span className="muted" style={stale ? { color: "var(--warn-ink)", fontWeight: 700 } : undefined}>{stale && <I n="warn" />} {ago(last)}</span></div>
       </div>
       {stale && <p className="quiet" style={{ marginTop: 8 }}>Back up weekly. Save it to Files or iCloud.</p>}
       <div className="stack" style={{ marginTop: 10 }}>
@@ -222,12 +223,38 @@ function DayCard() {
     <>
       <div className="lbl">Your day</div>
       <div className="card">
+        <label className="kv"><span><I n="river" /> Your usual week</span><input type="checkbox" checked={p.week} onChange={(e) => set({ week: e.target.checked })} /></label>
         <label className="kv"><span><I n="lift" /> Workout on gym days</span><input type="checkbox" checked={p.workout} onChange={(e) => set({ workout: e.target.checked })} /></label>
         {names.map((n) => (
           <label key={n} className="kv"><span className="kv-name"><I n="calendar" /> {n}</span><input type="checkbox" checked={picked.has(n)} onChange={(e) => flip(n, e.target.checked)} /></label>
         ))}
       </div>
       <p className="quiet" style={{ marginTop: 8 }}>These land on your River by themselves.</p>
+      {p.week && <WeekCard />}
+    </>
+  );
+}
+
+/** His week at a glance. Changes happen on the River: tap a block → Every Wednesday. */
+function WeekCard() {
+  const toast = useToast();
+  const changed = useSetting<unknown>("week", null);
+  const week = useLiveQuery(() => loadWeek(), [changed], null);
+  if (!week) return null;
+  const t = today();
+  const start = addDays(t, -dowOf(t));
+  return (
+    <>
+      <div className="card" style={{ marginTop: 10 }}>
+        {WEEKDAY.map((name, i) => {
+          const d = addDays(start, i);
+          const gym = blocksFor(week, d).find((b) => b.gym);
+          const shape = dayShape(week, d, gym ? { title: "Gym", start: gym.end } : null);
+          return <div key={name} className="kv"><span className="kv-name"><b style={{ fontWeight: 750 }}>{name.slice(0, 3)}</b> · {shape.title}</span></div>;
+        })}
+      </div>
+      <p className="quiet" style={{ marginTop: 8 }}>To change a day, tap a block on Today, then "Every …".</p>
+      {changed != null && <button className="btn" style={{ width: "100%", marginTop: 8 }} onClick={async () => toast("↺ Back to your usual week", await resetWeek(today()))}><I n="undo" /> Back to the week you first gave</button>}
     </>
   );
 }

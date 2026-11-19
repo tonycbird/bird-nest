@@ -41,3 +41,30 @@ describe("rest buzz", () => {
     expect(restBuzz(null, now)).toBeNull();
   });
 });
+
+describe("morning buzz and his week (Nov 19)", async () => {
+  const { morningBuzzes } = await import("../src/lib/buzz");
+  const { defaultWeek } = await import("../src/lib/week");
+  const week = defaultWeek();
+  const wed = new Date(2026, 10, 18, 3, 0).getTime(); // Wed Nov 18, 3:00 AM
+  test("one buzz each morning at 4:30 with the day's shape and the first step", () => {
+    const b = morningBuzzes(week, "2026-11-18", wed, (d) => (d === "2026-11-18" ? { title: "Shoulders & Abs", start: "06:00" } : null));
+    expect(b).toHaveLength(7);
+    expect(b[0]).toMatchObject({ id: "morning:2026-11-18", title: "Shoulders & Abs at 6 · work 8–4:30 · study 7:30", body: "First: Morning — water + coffee.", url: "/?open=today", tag: "morning" });
+    expect(new Date(b[0].at).getHours()).toBe(4);
+    expect(new Date(b[0].at).getMinutes()).toBe(30);
+    expect(b.find((x) => x.id === "morning:2026-11-24")?.title).toBe("Handyman jobs · study 7:30");
+    for (const x of b) expect(x.title.length).toBeLessThanOrEqual(60); // the helper keeps 60
+  });
+  test("not today once 4:30 has passed", () => {
+    expect(morningBuzzes(week, "2026-11-18", new Date(2026, 10, 18, 5, 0).getTime(), () => null)[0].id).toBe("morning:2026-11-19");
+  });
+  test("shutdown follows the week: none on Saturday (work till 8), none on his off day", () => {
+    const sat = C.weekday("2026-11-21"), mon = C.weekday("2026-11-23");
+    const b = shutdownBuzzes({ shutdownTime: "19:30", offDays: [mon] }, "2026-11-18", wed, 7, week);
+    expect(b.map((x) => x.id)).toEqual(["shutdown:2026-11-18", "shutdown:2026-11-19", "shutdown:2026-11-20", "shutdown:2026-11-22", "shutdown:2026-11-24"]);
+    expect(new Date(b[0].at).getHours()).toBe(19);
+    expect(new Date(b[0].at).getMinutes()).toBe(0); // the week's 7:00, not Head's 7:30
+    void sat;
+  });
+});

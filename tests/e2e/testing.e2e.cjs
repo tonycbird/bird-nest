@@ -68,9 +68,8 @@ const SHOTS = process.env.SHOTS;
 
   // ---- Sheets close with a swipe down ----
   await p.click('.gear[aria-label="Back to Today"]'); await p.waitForTimeout(300);
-  await p.click('text=Sample day'); await p.waitForTimeout(500);
-  await p.click('.tr >> nth=1 >> .bc-main'); await p.waitForTimeout(200);
-  await p.locator('.tr.open [aria-label^="More for"]').click(); await p.waitForTimeout(300);
+  await p.click('.whole-t'); await p.waitForTimeout(400);
+  await p.click('.tr >> nth=1 >> .bc-main'); await p.waitForTimeout(300);
   const box = await p.locator('.sheet').boundingBox();
   await p.touchscreen.tap(box.x + box.width / 2, box.y + 8); await p.waitForTimeout(500);
   assert(await p.locator('.sheet').count() === 0, 'tapping the grab bar closes a sheet');

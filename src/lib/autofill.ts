@@ -3,6 +3,7 @@
      The rest (a whole-day plan, recaps, gym bookings…) is set aside quietly; Nest builds the day itself.
    - On a gym day the workout goes on the River by itself (warm-up, lifts, cool-down), today and tomorrow.
    - Events from the calendars he picks become River blocks by themselves.
+   - His usual week (src/lib/week.ts) fills the rest: Morning, the drive, Work, Home, Study, Wind down.
    Each lands once: anything he takes off the River stays off (its deleted copy remembers). */
 import { liveQuery } from "dexie";
 import { db, type CalEvent, type Proposal } from "./db";
@@ -11,12 +12,13 @@ import { acceptEvent } from "./calendar-accept";
 import { addDays, today } from "./time";
 import { fitApi, fitState } from "../body/host";
 import { putPlanOnRiver } from "../body/river-body";
+import { fillWeek, loadWeek } from "./week";
 
 /** What goes in by itself. Everything else Claude suggests is set aside. */
 export const AUTO_APPLY = new Set(["task", "grocery", "ramble_split"]);
 
-export interface DayPrefs { workout: boolean; calendars: string[] | null }
-export const DAY_DEFAULTS: DayPrefs = { workout: true, calendars: null };
+export interface DayPrefs { workout: boolean; calendars: string[] | null; week: boolean }
+export const DAY_DEFAULTS: DayPrefs = { workout: true, calendars: null, week: true };
 export async function dayPrefs(): Promise<DayPrefs> {
   return { ...DAY_DEFAULTS, ...(((await db.settings.get("day"))?.value as Partial<DayPrefs> | undefined) ?? {}) };
 }
@@ -79,6 +81,26 @@ export async function fillCalendar(day: string): Promise<number> {
   return n;
 }
 
+/** When Body's workout starts that day ("06:00"); null on a rest day; undefined while Body is still starting. */
+function gymStart(day: string): string | null | undefined {
+  const api = fitApi();
+  if (!api || !fitState.get().ready) return undefined;
+  try {
+    const plan = api.plan(day);
+    if (!plan?.workout) return null;
+    const starts = plan.blocks.map((b) => b.start).filter((x): x is number => x != null);
+    return starts.length ? hhmmOf(Math.min(...starts)) : null;
+  } catch { return undefined; }
+}
+const hhmmOf = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** His usual week on the River (today and tomorrow), unless he turned it off. */
+export async function fillUsual(day: string): Promise<number> {
+  const prefs = await dayPrefs();
+  if (!prefs.week) return 0;
+  return fillWeek(day, prefs.workout ? gymStart(day) : null, await loadWeek()); // no workout on the River → no drive to the gym either
+}
+
 let running = false, again = false;
 export async function fillDays(): Promise<void> {
   if (running) { again = true; return; }
@@ -87,7 +109,7 @@ export async function fillDays(): Promise<void> {
     do {
       again = false;
       const t = today();
-      for (const day of [t, addDays(t, 1)]) { await fillWorkout(day).catch(() => 0); await fillCalendar(day).catch(() => 0); }
+      for (const day of [t, addDays(t, 1)]) { await fillWorkout(day).catch(() => 0); await fillCalendar(day).catch(() => 0); await fillUsual(day).catch(() => 0); }
     } while (again);
   } finally { running = false; }
 }
@@ -102,6 +124,7 @@ export function startAutofill(): void {
   fitState.subscribe(() => { const r = fitState.get().ready; if (r && !wasReady) soon(); wasReady = r; });
   liveQuery(() => db.calendar.count()).subscribe({ next: soon, error: () => undefined });
   liveQuery(() => db.settings.get("day")).subscribe({ next: soon, error: () => undefined });
+  liveQuery(() => db.settings.get("week")).subscribe({ next: soon, error: () => undefined });
   liveQuery(() => db.proposals.where("status").equals("pending").count()).subscribe({ next: (n) => { if (n) void settleProposals(); }, error: () => undefined });
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") soon(); });
   soon();

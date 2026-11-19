@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { blocksFor, loadWeek } from "../lib/week";
+import { today } from "../lib/time";
 import { helperReady, pushSupport, setPushPrefs, testPush, turnOffPush, turnOnPush, usePushPrefs, type TurnOnResult } from "../lib/push";
 import { useHeadSettings } from "../head/useHead";
 import { shortTime } from "../lib/time";
@@ -11,7 +14,7 @@ const WHY: Partial<Record<TurnOnResult, string>> = {
   failed: "Couldn't turn it on. Try again in a minute.",
 };
 
-/** Settings → Buzz: the rest timer and shutdown, even with the phone locked. */
+/** Settings → Buzz: morning, the rest timer and shutdown, even with the phone locked. */
 export function BuzzCard() {
   const p = usePushPrefs();
   const head = useHeadSettings();
@@ -20,6 +23,7 @@ export function BuzzCard() {
   const [why, setWhy] = useState("");
   const [ready, setReady] = useState<"ok" | "nokey" | "mismatch" | null>(null);
   const support = pushSupport();
+  const wake = useLiveQuery(async () => blocksFor(await loadWeek(), today())[0]?.start ?? null, [], null);
   useEffect(() => { if (p.on) void helperReady().then(setReady); }, [p.on]);
 
   async function on() {
@@ -37,11 +41,12 @@ export function BuzzCard() {
         {support === "install" && <p className="quiet">Open Nest from your Home Screen to turn this on.</p>}
         {support === "browser" && <p className="quiet">This browser can't buzz.</p>}
         {support === "ok" && !p.on && <>
-          <p className="quiet" style={{ marginBottom: 10 }}>Rest timer and shutdown, even when your phone is locked.</p>
+          <p className="quiet" style={{ marginBottom: 10 }}>Morning, rest timer and shutdown, even when your phone is locked.</p>
           <button className="btn primary" style={{ width: "100%" }} disabled={busy} onClick={() => void on()}><I n="bell" /> {busy ? "Turning on…" : "Turn on buzzing"}</button>
           {why && <p className="quiet" style={{ marginTop: 8, color: "var(--warn-ink)" }}>{why}</p>}
         </>}
         {support === "ok" && p.on && <>
+          <label className="kv"><span><I n="morning" /> Morning{wake ? ` · ${shortTime(wake)}` : ""}</span><input type="checkbox" checked={p.morning !== false} onChange={(e) => setPushPrefs({ morning: e.target.checked })} /></label>
           <label className="kv"><span><I n="timer" /> Rest timer done</span><input type="checkbox" checked={p.rest} onChange={(e) => setPushPrefs({ rest: e.target.checked })} /></label>
           <label className="kv"><span><I n="shutdown" /> Shutdown · {shortTime(head.shutdownTime)}</span><input type="checkbox" checked={p.shutdown} onChange={(e) => setPushPrefs({ shutdown: e.target.checked })} /></label>
           {ready === "nokey" && <p className="quiet" style={{ marginTop: 8, color: "var(--warn-ink)" }}>Almost: the push helper isn't ready yet.</p>}

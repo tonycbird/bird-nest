@@ -49,6 +49,7 @@ export default function App() {
     const open = (href: string) => {
       const what = new URL(href, location.origin).searchParams.get("open");
       if (what === "body") goTab("body");
+      else if (what === "today") goTab("today");
       else if (what === "shutdown") { goTab("head"); openOverlay("shutdown"); }
     };
     if (location.search.includes("open=")) { open(location.href); history.replaceState(null, "", location.pathname); }

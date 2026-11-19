@@ -1,5 +1,19 @@
 # Progress
 
+## Phase 8 — Daily coach · built Nov 19 (cloud), waiting for his push
+Nov 17 he said Nest works but he doesn't feel like using it ("I don't find this information useful"). His picks: Daily coach; he opens Google Calendar and the ICCU app / Bird Budgeting; one morning buzz; red-green color blind.
+
+- [x] His usual week (`src/lib/week.ts`): up at 4:30 (Morning: water + coffee, Bible + prayer, look over today); gym drive on gym days (ends when Body's workout starts; none when "Workout on gym days" is off); work Wed/Thu 8–4:30, Fri 11–5, Sat 2–8, Sun 6:30–5 with 20-min drives; Tuesday handyman jobs; Monday day off; Home · Abby + baby after work; Shutdown 7; Study 7:30 (not Saturday); Wind down 8:30 (gym bag the night before a gym day), lights out by 9. Lands on the River today + tomorrow, once each; what he takes off stays off
+- [x] Today = coach (`src/lib/coach.ts`, `src/screens/Today.tsx`): big Now card by the clock (most specific block wins), steps tick in place, Start / All done, "Start shutdown"; Free time and Rest/Done-for-today states; Next + Later lines; one money line (groceries left); Whole day on a tap (today / tomorrow), blocks that went by are quiet
+- [x] Tasks that fit now, inside the card: calls on the drive, jobs on handyman day, class things at study, anything in free time (2–3 at most). Tick = done (Undo)
+- [x] Block menu: Change time or steps · Every Wednesday (keeps it for that weekday; untouched blocks today/tomorrow follow) · Not on Wednesdays · Skip today · Mark done. Settings → Your day: "Your usual week" switch, the week at a glance, "Back to the week you first gave"
+- [x] Morning buzz at the day's first block (4:30) with the day in a line ("Shoulders & Abs at 6 · work 8–4:30 · study 7:30") and the first step; opens Today. Shutdown buzz follows the week (none Saturday, none on off days). Settings → Buzz: Morning switch
+- [x] Cut: week strip, circles row (QuickRow.tsx deleted), faded calendar lines + all-day chips, Sample day / Copy day, the day's sentence, the recap card
+- [x] Red-green safe: "$X over" in words + striped bar; paycheck "$X short"; stale backup gets a ⚠ icon
+- [x] Tests: 236 unit (week + coach 10, buzz +3), all e2e incl. new coach.e2e (22), audit 390 light + 375 dark: no new findings
+- [ ] Phone check: Now card through a real Wednesday; the 4:30 buzz; a call on the drive; Every Wednesday on a block
+- Known, older than this: testing.e2e sometimes logs a Dexie NotFoundError ("objectStore not found") during the brain-dump put-away (≈1 in 3 runs, also on the Oct 30 build). Unhandled, no visible effect yet; worth a look
+
 ## Phase 7 — Assistant mode · planned Oct 29 (next)
 Anthony saw Claude's ideas every morning and passed on all of them. Goal: things land in the right place by themselves, nothing to approve.
 

@@ -13,15 +13,15 @@ const assert = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log(
   const errs=[]; p.on('pageerror', e=>errs.push('PAGE '+e.message));
   await p.goto((process.env.URL || 'http://localhost:4180/')); await p.waitForTimeout(700);
   // These checks start from an empty River: keep the workout from landing on it by itself (that's tested in phase3).
-  await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: false, calendars: null }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); });
+  await p.evaluate(async () => { const db = await new Promise((res) => { const r = indexedDB.open('bird-nest'); r.onsuccess = () => res(r.result); }); await new Promise((res) => { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'day', value: { workout: false, calendars: null, week: false }, updated_at: new Date().toISOString() }); tx.oncomplete = res; }); const all = await new Promise((res) => { const q = db.transaction('blocks').objectStore('blocks').getAll(); q.onsuccess = () => res(q.result); }); await new Promise((res) => { const tx = db.transaction('blocks', 'readwrite'); for (const x of all) if (x.source_type === 'week') tx.objectStore('blocks').delete(x.id); tx.oncomplete = res; }); });
   await p.reload(); await p.waitForTimeout(700);
   // Quick add from Today tab → lands today, appears in tray
   await p.click('[aria-label="Quick add"]'); await p.keyboard.type('Call Smith ~15m'); await p.keyboard.press('Enter'); await p.waitForTimeout(500);
-  assert(await p.locator('.quick [aria-label="Call Smith"]').count() === 1, 'quick add from Today lands in the circles at the top');
-  await p.click('.quick [aria-label="Call Smith"]'); await p.click('[aria-label="More actions"]'); await p.click(".menu >> text=Put on today's River"); await p.waitForTimeout(500); await p.mouse.click(195, 30); await p.waitForTimeout(300);
-  assert(await p.locator('.tr >> text=Call Smith').count() === 1, 'the task goes on the timeline');
+  assert(await p.locator('.now-fits >> text=Call Smith').count() === 1, 'quick add from Today shows up in the Now card (free time)');
+  await p.click('.now-fits >> text=Call Smith'); await p.click('[aria-label="More actions"]'); await p.click(".menu >> text=Put on today's River"); await p.waitForTimeout(500); await p.mouse.click(195, 30); await p.waitForTimeout(300);
+  assert(await p.locator('.now h2 >> text=Call Smith').count() === 1, "the task goes on the River and is what's now");
   // finish the block → task done
-  for (let i=0;i<3;i++){ const c = p.locator('.tr.open .bc-cur'); if (await c.count()) { await c.first().click(); await p.waitForTimeout(200); } }
+  for (let i=0;i<3;i++){ const c = p.locator('.now-steps .now-row:not(.ok)'); if (await c.count()) { await c.first().click(); await p.waitForTimeout(250); } }
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(300);
   // Head first run → Start fresh
   await p.click('button >> text=Start fresh'); await p.waitForTimeout(500);
@@ -45,7 +45,7 @@ const assert = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log(
   await p.fill('.day-planner input', 'Pick up trailer'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
   await p.click("text=Put on tomorrow's River"); await p.waitForTimeout(500);
   await p.click('.flow-foot >> text=Done');
-  await p.click('.tabs >> text=Today'); await p.click('[aria-label="Friday Oct 16"]'); await p.waitForTimeout(400);
+  await p.click('.tabs >> text=Today'); await p.click('.whole-t'); await p.click('.whole-day >> text=Tomorrow'); await p.waitForTimeout(400);
   assert(await p.locator('.tr >> text=Pick up trailer').count() === 1, "tomorrow's River got the block");
   // Shutdown in the evening → quiet screen on Head
   await p.clock.setFixedTime(new Date('2026-10-16T02:30:00Z')); // 7:30 PM PT Oct 15
