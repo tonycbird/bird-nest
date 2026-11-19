@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as C from "../core/clearhead.js";
+import { parseQuick } from "../ranges";
 import * as H from "../store";
 import { toast } from "../../lib/toast";
 import type { Area, HeadData, HeadSettings, Task } from "../types";
@@ -103,7 +104,7 @@ export function QuickAdd(props: { mode?: string; defaults?: Partial<Task> }) {
   }, [text]);
   const file = useRef<HTMLInputElement>(null);
   const groceryArea = C.areaList(data).find((a) => a.listMode === "groceries");
-  const parsed = useMemo(() => C.parseQuickAdd(text, parseCtx(data, s, ignore)), [text, ignore, data, s]);
+  const parsed = useMemo(() => parseQuick(text, parseCtx(data, s, ignore)), [text, ignore, data, s]);
   useEffect(() => { ta.current?.focus(); }, [mode]);
   const speech = useSpeech((said) => setText((t) => (t ? t + " " : "") + said));
 

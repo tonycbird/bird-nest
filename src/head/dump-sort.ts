@@ -1,5 +1,6 @@
 import { normTitle, sameTask } from "./same";
 import * as C from "./core/clearhead.js";
+import { parseQuick } from "./ranges";
 import type { Area, HeadData, HeadSettings, Project, RepeatRule } from "./types";
 
 /* Brain dump sorter. One messy block of text in (typed or dictated, run-on is fine). Out comes a plan:
@@ -815,13 +816,15 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
     let pp = dateWords(p).replace(/^((?:plan|plan out|map out|organize|prep for|prepare for|schedule out|think through)\s+)((?:next|this|the)\s+(?:week|month|weekend)|tomorrow)\b/i,
       (_m, v: string, what: string) => { keep.push(what); return v + "\u0001" + (keep.length - 1); })
       // "text Abby about Friday": Friday is what it's about, not when.
+      .replace(/\b(about|regarding|for)\s+((?:this|next|the)\s+)?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}\/\d{1,2})(?=\s+(?:details|plans?|meeting|appointment|appt|job|visit|event|hang|hangs|thing)\b)/gi,
+        (_m, a: string, pre: string | undefined, d: string) => { keep.push((pre ?? "") + d); return a + " \u0001" + (keep.length - 1); })
       .replace(/\b(about|regarding)\s+((?:this|next)\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|the weekend|this weekend)\b/gi,
         (_m, a: string, pre: string | undefined, d: string) => { keep.push((pre ?? "") + d); return a + " \u0001" + (keep.length - 1); });
     // "text Aaron and see if he can help Saturday": Saturday is about the help, not when to text.
     const msg = PEOPLE_VERB.test(pp) ? pp.search(/\s(?:and )?(?:see|ask|check)\s+(?:if|whether)\b|\sif\s|\swhether\s|\s(?:that|saying|to say)\s|\sand (?:ask|tell) (?:him|her|them)\b/i) : -1;
     let tail = "";
     if (msg > 0) { tail = pp.slice(msg); pp = pp.slice(0, msg); }
-    const parsed = C.parseQuickAdd(pp, ctx);
+    const parsed = parseQuick(pp, ctx); // "rehearsal tonight 6-7" → 6 PM for an hour
     const f = parsed.fields;
     const saidDay = parsed.tokens.some((t) => t.type === "when" || t.type === "due");
     // "and see if he can help Saturday" → ": can he help Saturday?"

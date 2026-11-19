@@ -23,6 +23,7 @@ export interface Block extends Row {
   done_at: string | null;
   source_type?: "task" | "groceries" | "workout" | "calendar" | "bill" | "week" | null;  // made from Head (a task, grocery items), Body (a workout part), a calendar event, a bill, or his usual week
   source_id?: string | null;    // task id; grocery task ids joined by ","; "YYYY-MM-DD|warm|main|cool|…" for Body; the calendar event id; "YYYY-MM-DD|<key>" for the week
+  slot?: boolean;               // a task Nest gave a time to (morning dump); it slides to the next open time if it runs over
 }
 
 export interface Step extends Row {

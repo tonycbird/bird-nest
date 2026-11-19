@@ -243,3 +243,17 @@ html.quiet .task .t-meta span:nth-child(n+4){display:none;}
 .dproj .d-in{width:100%; border:0; background:none; padding:2px 0; font:inherit; color:var(--ink); outline:none; text-overflow:ellipsis;}
 .dproj-name{font-size:18px !important; font-weight:800 !important; letter-spacing:-.01em;}
 .dproj .tlist{border-radius:0 0 18px 18px; border-top:1px solid var(--line);}
+
+/* Brain dump → "Your day": today with its new times */
+.plan{display:flex; flex-direction:column; gap:2px; margin-bottom:14px;}
+.pl-row{display:flex; align-items:center; gap:10px; min-height:44px; padding:0 6px; border-radius:12px;}
+.pl-row.new{background:var(--surface); box-shadow:var(--shadow);}
+.pl-t{width:42px; flex:none; font-size:13.5px; font-weight:700; color:var(--ink-2); font-variant-numeric:tabular-nums;}
+.pl-ic{width:26px; height:26px; border-radius:50%; flex:none; background:var(--k); color:var(--glyph); display:flex; align-items:center; justify-content:center;}
+.pl-name{flex:1; min-width:0; font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.pl-row:not(.new) .pl-name{color:var(--ink-2); font-weight:550;}
+.pl-row.new{padding-top:6px; padding-bottom:6px;}
+.pl-row.new .pl-name{white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.25;}
+.pl-acts{display:flex; gap:4px; flex:none;}
+.pl-acts .iconbtn.sm{width:36px; height:36px;}
+.pl-where{font-size:12.5px; font-weight:650; color:var(--ink-3); white-space:nowrap;}

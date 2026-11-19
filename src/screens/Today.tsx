@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import Dexie from "dexie";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as C from "../head/core/clearhead.js";
 import { db } from "../lib/db";
@@ -13,6 +14,7 @@ import { completeTask } from "../head/store";
 import { placeTimedTasks } from "../head/river-bridge";
 import { fmtMoney, isCurrent, placeBillBlocks, useMoney } from "../lib/money";
 import { dur, endOf, fitOf, moment, startMin, tasksThatFit } from "../lib/coach";
+import { slideUnfinished } from "../lib/slots";
 import { WEEKDAY, dowOf, dropEvery, keepEvery, loadWeek, weekKeyOf, blocksFor } from "../lib/week";
 import { justDone, markJustDone } from "../lib/motion";
 import { Layer } from "../ui/Layer";
@@ -27,6 +29,9 @@ import type { Task } from "../head/types";
 interface Props { online: boolean; onSettings: () => void; }
 
 const k = (color: string) => ({ ["--k" as string]: color }) as CSSProperties;
+/* These effects can fire while another write is still open (a live query redraws Today mid-transaction);
+   run them on their own, or they'd borrow that write's tables and fail ("objectStore not found"). */
+const outside = <T,>(fn: () => Promise<T>) => Dexie.ignoreTransaction(fn);
 
 function dateParts(key: string) {
   const [y, mo, d] = key.split("-").map(Number);
@@ -62,11 +67,14 @@ export default function Today(props: Props) {
   // Head tasks with a time today land on the River at that time, by themselves.
   const timed = useLiveQuery(() => db.tasks.where("when").equals(todayKey).filter((t) => !!t.time && t.status === "open").primaryKeys(), [todayKey], [] as string[]);
   const timedSig = timed.join(",");
-  useEffect(() => { if (timedSig) void placeTimedTasks(todayKey); }, [timedSig, todayKey]);
+  useEffect(() => { if (timedSig) void outside(() => placeTimedTasks(todayKey)); }, [timedSig, todayKey]);
   // Bills due today become small money blocks, once each.
   const { summary: money } = useMoney();
   const billSig = money?.today === todayKey ? money.due_today.map((b) => b.id).join(",") : "";
-  useEffect(() => { if (billSig) void placeBillBlocks(todayKey); }, [billSig, todayKey]);
+  useEffect(() => { if (billSig) void outside(() => placeBillBlocks(todayKey)); }, [billSig, todayKey]);
+
+  // A task Nest gave a time that ran over (not done) moves to the next open time in the same stretch.
+  useEffect(() => { void outside(() => slideUnfinished(todayKey, nowMin)); }, [todayKey, nowMin]);
 
   const list = blocks ?? [];
   const m = useMemo(() => moment(list, nowMin), [list, nowMin]);
@@ -179,6 +187,8 @@ function Coach(props: { m: ReturnType<typeof moment>; nowMin: number; blocks: Ri
   const n = b.steps.length;
   const shown = n > 4 && cur ? b.steps.slice(Math.max(0, Math.min(b.steps.indexOf(cur), n - 4)), Math.max(0, Math.min(b.steps.indexOf(cur), n - 4)) + 4) : b.steps.slice(0, 4);
   const isShutdown = b.icon === "shutdown";
+  const isMorning = b.icon === "morning";
+  const isTask = b.source_type === "task" && n === 0;
   async function tick(id: string) { markJustDone(b!.id); const r = await toggleStep(id); if (r.blockDone) toast("✓ Block done", r.undo); }
   async function finish() { markJustDone(b!.id); toast("✓ Done", await completeBlock(b!.id)); }
   return (
@@ -203,6 +213,8 @@ function Coach(props: { m: ReturnType<typeof moment>; nowMin: number; blocks: Ri
         </ol>
       )}
       {taskRows}
+      {isMorning && <button className="now-dump" onClick={() => openOverlay("dump")}><Icon n="head" size={18} tone={false} /><span><b>Empty your head</b><small>Talk it out. Nest gives each thing its time.</small></span><Icon n="chevR" size={16} tone={false} /></button>}
+      {isTask && <div className="now-acts"><button className="go" onClick={() => void finish()}><Icon n="tick" size={16} tone={false} />Done</button></div>}
       {(isShutdown || n > 1) && (
         <div className="now-acts">
           {isShutdown

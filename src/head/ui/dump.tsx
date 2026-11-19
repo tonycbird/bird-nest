@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { once } from "../../lib/once";
 import * as C from "../core/clearhead.js";
 import * as H from "../store";
@@ -13,11 +13,18 @@ import { putTaskOnRiver } from "../river-bridge";
 import { openMenu } from "./actions";
 import { useDictation } from "./ramble";
 import { I, Icon, type IconName } from "../../ui/Icon";
-import { colorFor, taskIcon } from "../../ui/colors";
+import { colorFor, taskIcon, blockLook } from "../../ui/colors";
+import { useLiveQuery } from "dexie-react-hooks";
+import { loadDay, type RiverBlock } from "../../lib/river";
+import { minutes, nowHHMM, shortTime } from "../../lib/time";
+import { moveSlot, slotTasks, WAITS, type Slotted } from "../../lib/slots";
+import { endOf } from "../../lib/coach";
 
 /* Brain dump: get everything out of your head in one place, then let Nest separate it.
    1) Write or talk, run-on is fine.  2) Nest splits it into things and sorts each one:
-   today, a date, no date yet, shopping, someday, or just a thought.  3) Fix anything, put it all away. */
+   today, a date, no date yet, shopping, someday, or just a thought.  3) Fix anything, put it all away.
+   4) (＋ → Dump, Nov 19) Today's things get a time: work things their own slots inside Work, around meetings;
+      calls wait for the drive, home things for free time. "Your day" shows it; move any with a tap. */
 
 const DRAFT = "nest-dump-draft";
 const loadDraft = () => { try { return localStorage.getItem(DRAFT) || ""; } catch { return ""; } };
@@ -37,19 +44,28 @@ const SECTIONS: { d: DumpDest; label: string; icon: IconName; color: string }[] 
   { d: "thought", label: "Thoughts", icon: "talk", color: "var(--c-cal)" },
 ];
 
-function useDump(onDone?: (ids: string[]) => void) {
+function useDump(onDone?: (ids: string[]) => void, planToday = false) {
   const { data } = useHeadData();
   const s = useHeadSettings();
   const [text, setText] = useState(loadDraft);
   const [items, setItems] = useState<DumpItem[] | null>(null);
   const [projects, setProjects] = useState<DumpProject[]>([]);
+  const [planned, setPlanned] = useState<(Slotted & { ids: string[] }) | null>(null);
+  const planning = useRef(false);
   const later = useDeferredValue(text);
   useEffect(() => { saveDraft(text); }, [text]);
   const found = useMemo(() => (later.trim() ? sortDump(later, data, s).length : 0), [later, data, s]);
   const dict = useDictation((said) => setText((x) => (x && !/\s$/.test(x) ? x + " " : x) + said));
   const kept = (items ?? []).filter((i) => i.keep);
 
-  const sort = () => { dict.stop(); const plan = planDump(text, data, s); setItems(plan.items); setProjects(plan.projects); };
+  // Before noon, a dump is for today: things with no day said land in Today (move any with the arrow).
+  const sort = () => {
+    dict.stop();
+    const plan = planDump(text, data, s);
+    const morning = planToday && new Date().getHours() < 12;
+    setItems(morning ? plan.items.map((i) => (i.dest === "later" && !i.when && !i.projectId && !i.newProject ? moveItem(i, "today") : i)) : plan.items);
+    setProjects(plan.projects);
+  };
   const update = (id: string, patch: Partial<DumpItem> | ((it: DumpItem) => DumpItem)) =>
     setItems((xs) => (xs ?? []).map((x) => (x.id === id ? (typeof patch === "function" ? patch(x) : { ...x, ...patch }) : x)));
   const updateProject = (key: string, patch: Partial<DumpProject>) => setProjects((ps) => ps.map((p) => (p.key === key ? { ...p, ...patch } : p)));
@@ -70,6 +86,7 @@ function useDump(onDone?: (ids: string[]) => void) {
       made.push(id);
     }
     const into: Record<string, number> = {};
+    const loose: string[] = []; // today, no time: these get a time below
     let order = Date.now();
     for (const it of kept) {
       if (it.dest === "thought") continue;
@@ -88,6 +105,7 @@ function useDump(onDone?: (ids: string[]) => void) {
       if (projectId) { const name = projectId && (data.projects.get(projectId)?.name ?? projects.find((x) => projectIds.get(x.key) === projectId)?.name); if (name) into[name] = (into[name] ?? 0) + 1; }
       // A time today puts it on the River now (later days get there on their own).
       if (it.time && when === today) river.push(await putTaskOnRiver(t.id, today));
+      else if (when === today) loose.push(t.id);
     }
     const thoughts = kept.filter((i) => i.dest === "thought");
     if (thoughts.length) {
@@ -97,17 +115,31 @@ function useDump(onDone?: (ids: string[]) => void) {
     const where = Object.entries(into).sort((x, y) => y[1] - x[1]).map(([n, c]) => `${c} to ${n}`);
     const todayN = kept.filter((i) => i.dest === "today").length;
     const parts = [...where, ...(todayN ? [`${todayN} today`] : [])].slice(0, 2);
-    toast(`✓ ${kept.length} put away${parts.length ? " · " + parts.join(" · ") : ""}`, async () => {
+    const undoAll = async () => {
       for (const u of river) await u();
       for (const id of ids) await H.deleteTask(id);
       for (const id of made) await H.deleteProject(id);
-    });
+    };
     saveDraft("");
     setText("");
     back();
+    if (planToday && loose.length) {
+      const names = (t: { areaId: string | null; projectId: string | null }) => ({ area: (t.areaId && data.areas.get(t.areaId)?.name) || "", project: (t.projectId && data.projects.get(t.projectId)?.name) || "" });
+      const r = await slotTasks(loose, today, minutes(nowHHMM()), names);
+      const bits = [r.placed.length ? `${r.placed.length} on your day` : "", r.over.length ? `${r.over.length} to tomorrow` : ""].filter(Boolean);
+      toast(`✓ ${kept.length} put away${bits.length ? " · " + bits.join(" · ") : ""}`, async () => {
+        if (planning.current) { planning.current = false; setPlanned(null); onDone?.([]); } // still on "Your day": close it
+        await r.undo(); await undoAll();
+      });
+      planning.current = true;
+      setPlanned({ ...r, ids });
+      return;
+    }
+    toast(`✓ ${kept.length} put away${parts.length ? " · " + parts.join(" · ") : ""}`, undoAll);
     onDone?.(ids);
   }
-  return { text, setText, items, setItems, projects, updateProject, back, found, kept, sort, update, putAway, dict };
+  const done = () => { const ids = planned?.ids ?? []; planning.current = false; setPlanned(null); onDone?.(ids); };
+  return { text, setText, items, setItems, projects, updateProject, back, found, kept, sort, update, putAway, dict, planned, done };
 }
 type Dump = ReturnType<typeof useDump>;
 
@@ -233,10 +265,72 @@ function Row({ it, data, grouped, onChange, onMove }: { it: DumpItem; data: Retu
   );
 }
 
+/** After putting away: today with its new times. Tap ↑ ↓ to swap, ⋯ for tomorrow or no time. */
+function PlanStep({ p }: { p: Slotted }) {
+  const { data } = useHeadData();
+  const day = C.today() as string;
+  const blocks = useLiveQuery(() => loadDay(day), [day], [] as RiverBlock[]);
+  const mine = new Set(p.placed.map((x) => x.block));
+  const now = minutes(nowHHMM());
+  const ahead = blocks.filter((b) => b.status !== "skipped" && (mine.has(b.id) || endOf(b) > now));
+  const first = blocks.filter((b) => mine.has(b.id)).map((b) => b.start).sort()[0];
+  const shown = first ? ahead.filter((b) => b.start >= first || endOf(b) > minutes(first)) : ahead;
+  async function more(b: RiverBlock) {
+    await openMenu(b.title, [
+      { text: "Tomorrow", icon: "arrow", run: async () => toast("↪ Tomorrow", await moveSlot(b.id, "tomorrow")) },
+      { text: "No time · whenever it fits", icon: "inbox", run: async () => toast("Off the clock", await moveSlot(b.id, "untime")) },
+    ] as never);
+  }
+  const title = (id: string) => data.tasks.get(id)?.title ?? "";
+  return (
+    <>
+      <h2>Your day</h2>
+      <p className="lede">{p.placed.length ? `${p.placed.length} got a time.` : "Nothing needed a time."}{p.over.length ? ` ${p.over.length} moved to tomorrow.` : ""}</p>
+      <div className="plan">
+        {shown.map((b) => {
+          const look = blockLook(b);
+          const isNew = mine.has(b.id);
+          return (
+            <div key={b.id} className={"pl-row" + (isNew ? " new" : "")} style={{ ["--k" as string]: look.color } as CSSProperties}>
+              <span className="pl-t">{shortTime(b.start)}</span>
+              <span className="pl-ic"><Icon n={look.icon} size={15} /></span>
+              <span className="pl-name">{b.title}</span>
+              {isNew && <span className="pl-acts">
+                <button className="iconbtn sm" aria-label={`Earlier: ${b.title}`} onClick={async () => toast("↑ Earlier", await moveSlot(b.id, "earlier"))}><Icon n="chevU" size={16} tone={false} /></button>
+                <button className="iconbtn sm" aria-label={`Later: ${b.title}`} onClick={async () => toast("↓ Later", await moveSlot(b.id, "later"))}><Icon n="chevD" size={16} tone={false} /></button>
+                <button className="iconbtn sm" aria-label={`More for ${b.title}`} onClick={() => void more(b)}><Icon n="more" size={16} tone={false} /></button>
+              </span>}
+            </div>
+          );
+        })}
+      </div>
+      {p.waiting.length > 0 && (
+        <section className="hsec dsec">
+          <div className="sec-head">Waiting for their place · {p.waiting.length}</div>
+          {p.waiting.map((w) => <div key={w.id} className="pl-row"><span className="pl-ic" style={{ ["--k" as string]: colorFor(taskIcon(title(w.id)), "head") } as CSSProperties}><Icon n={taskIcon(title(w.id))} size={15} /></span><span className="pl-name">{title(w.id)}</span><span className="pl-where">{WAITS[w.lane]}</span></div>)}
+        </section>
+      )}
+      {p.over.length > 0 && (
+        <section className="hsec dsec">
+          <div className="sec-head">Tomorrow · {p.over.length}</div>
+          {p.over.map((id) => <div key={id} className="pl-row"><span className="pl-ic" style={{ ["--k" as string]: "var(--c-rest)" } as CSSProperties}><Icon n="morning" size={15} /></span><span className="pl-name">{title(id)}</span></div>)}
+        </section>
+      )}
+    </>
+  );
+}
+
 /** The full-screen Brain dump (＋ → Dump, Head → Dump). */
 export function DumpFlow() {
-  const d = useDump(() => closeOverlay());
+  const d = useDump(() => closeOverlay(), true);
   const sorting = d.items !== null;
+  if (d.planned) {
+    return (
+      <FlowShell title="Brain dump" foot={<><span className="grow" /><button className="btn primary" onClick={d.done}><I n="tick" /> Looks good</button></>}>
+        <PlanStep p={d.planned} />
+      </FlowShell>
+    );
+  }
   const foot = sorting
     ? <><button className="btn" onClick={d.back}><I n="chevL" /> Back</button><span className="grow" />
         <button className="btn primary" disabled={!d.kept.length} onClick={() => void once("dump-put", d.putAway)}><I n="tick" /> Put away {d.kept.length || ""}</button></>

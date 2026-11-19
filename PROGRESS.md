@@ -1,6 +1,18 @@
 # Progress
 
-## Phase 8 — Daily coach · built Nov 19 (cloud), waiting for his push
+## Phase 8b — Morning dump gives today its times · built Nov 19 (cloud), waiting for his push
+He dumps his day in the morning ("today I have a ton of tasks for work") and asked for the best way to turn that into tasks with their times. His OK: "Lets do this."
+
+- [x] Morning card: "Empty your head" opens the dump. Before noon, things said with no day are for today (project steps keep no date)
+- [x] Put away → "Your day": work things get their own times inside Work (Handyman jobs on Tuesday; else the rest of the day), in the order said, around meetings, as long as said ("30 min", "for an hour", "1.5 hours"; else 30 min). Calls wait for the drive, home things for free time, class things for study. What doesn't fit moves to tomorrow and says so. ↑ ↓ swap, ⋯ Tomorrow / No time; Looks good. One Undo takes back the whole dump
+- [x] Now card: a task with a time shows Done; one that ran over without a tick slides to the next open time in the same stretch (never past it)
+- [x] Thrown-at-me things said with a time: "Dance rehearsal tonight 6-7", "6–7pm", "6pm-7pm", "9:30 to 11" → that time, that long (quick add and the dump; `src/head/ranges.ts`, Clearhead's parser left as it was). "Text Thomas about Dec 2 details" keeps Dec 2 as the topic
+- [x] Fixed the old rare error during the dump's put-away (Dexie "objectStore not found"): Today's background writes (timed tasks, bill blocks, sliding) ran inside another write's transaction when a live query redrew Today mid-write. They now run on their own (`Dexie.ignoreTransaction`). 6 of 6 clean runs (was about 1 in 3)
+- [x] Template `claude/tasks/morning.md`: new appointments he adds (with someone, no place or details) → a "Text <name> for <date> details" task, due 2 days before. **Live morning run NOT updated — needs his OK**
+- [x] Tests: 248 unit (slots + ranges 12), all e2e incl. new dump-day.e2e (19)
+- [ ] Phone check: a real morning dump; tonight's rehearsal via ＋
+
+## Phase 8 — Daily coach · built Nov 19, pushed ("Today is a coach", Mac 7e9ed67)
 Nov 17 he said Nest works but he doesn't feel like using it ("I don't find this information useful"). His picks: Daily coach; he opens Google Calendar and the ICCU app / Bird Budgeting; one morning buzz; red-green color blind.
 
 - [x] His usual week (`src/lib/week.ts`): up at 4:30 (Morning: water + coffee, Bible + prayer, look over today); gym drive on gym days (ends when Body's workout starts; none when "Workout on gym days" is off); work Wed/Thu 8–4:30, Fri 11–5, Sat 2–8, Sun 6:30–5 with 20-min drives; Tuesday handyman jobs; Monday day off; Home · Abby + baby after work; Shutdown 7; Study 7:30 (not Saturday); Wind down 8:30 (gym bag the night before a gym day), lights out by 9. Lands on the River today + tomorrow, once each; what he takes off stays off
@@ -12,7 +24,7 @@ Nov 17 he said Nest works but he doesn't feel like using it ("I don't find this 
 - [x] Red-green safe: "$X over" in words + striped bar; paycheck "$X short"; stale backup gets a ⚠ icon
 - [x] Tests: 236 unit (week + coach 10, buzz +3), all e2e incl. new coach.e2e (22), audit 390 light + 375 dark: no new findings
 - [ ] Phone check: Now card through a real Wednesday; the 4:30 buzz; a call on the drive; Every Wednesday on a block
-- Known, older than this: testing.e2e sometimes logs a Dexie NotFoundError ("objectStore not found") during the brain-dump put-away (≈1 in 3 runs, also on the Oct 30 build). Unhandled, no visible effect yet; worth a look
+- [x] Known older error during the dump's put-away: fixed in 8b
 
 ## Phase 7 — Assistant mode · planned Oct 29 (next)
 Anthony saw Claude's ideas every morning and passed on all of them. Goal: things land in the right place by themselves, nothing to approve.

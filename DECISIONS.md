@@ -110,3 +110,8 @@
 | 2026-11-19 | Cut from Today: week strip, circles row, faded calendar lines and all-day chips, sample/copy day, the day's sentence | Less is more. Shared calendars stay in Google Calendar; his own events still land as blocks. |
 | 2026-11-19 | One morning buzz at the start of his day (4:30) with the day's shape; shutdown follows the week (none on Saturday) | His pick: "Morning buzz". He works till 8 on Saturday. |
 | 2026-11-19 | Red-green safe: over budget says "over" and gets stripes; a short paycheck says "short" | Anthony is red-green color blind. Nothing means something by red vs green alone. |
+| 2026-11-19 | The morning dump gives today its times: work things their own slots inside Work, in the order said, around meetings; calls, home and class things wait for their place; overflow to tomorrow | He dumps his day each morning and wants each thing at its time. Slots, not a checklist: "tell me exactly what to do each block". |
+| 2026-11-19 | Before noon, a dump's undated things are for today (not project steps) | A morning dump is about today; he can still move any with the arrow. |
+| 2026-11-19 | Time ranges and spoken lengths are read by a Nest wrapper (`ranges.ts`), not by changing Clearhead's parser | The parser must keep matching Clearhead (parity tests). Masking keeps the colored marks lined up. |
+| 2026-11-19 | A slotted task that runs over slides once its time is up, only within the same stretch | Keeps the Now card honest without nagging past work hours. |
+| 2026-11-19 | DB writes started from Today's effects run outside any open transaction | A live query can redraw Today mid-write; the effect then borrowed that write's tables (the rare "objectStore not found"). |

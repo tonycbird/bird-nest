@@ -123,6 +123,11 @@ html.quiet .detail{display:none !important;}
 .now-acts .go{flex:1; min-width:0; height:50px; border-radius:25px; border:0; background:var(--accent); color:var(--on-accent); font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; gap:8px; white-space:nowrap;}
 .now-acts .sec{height:50px; border-radius:25px; border:0; background:var(--tint); color:var(--ink-2); font-weight:750; font-size:15px; padding:0 18px; display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap;}
 
+.now-dump{display:flex; align-items:center; gap:12px; width:100%; border:0; border-radius:18px; background:var(--surface-2); color:var(--ink); padding:12px 14px; text-align:left;}
+.now-dump > span{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.now-dump b{font-size:15.5px; font-weight:800;}
+.now-dump small{font-size:13px; font-weight:550; color:var(--ink-3);}
+.now-dump > .i{color:var(--ink-2); flex:none;}
 .nx-list{display:flex; flex-direction:column; margin:12px 0 0;}
 .nx{display:flex; align-items:center; gap:10px; width:100%; min-height:52px; border:0; background:none; padding:0 4px; text-align:left; color:var(--ink); border-radius:14px;}
 .nx-l{width:56px; flex:none; font-size:11.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);}

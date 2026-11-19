@@ -35,8 +35,10 @@ const SHOTS = process.env.SHOTS;
   assert((await p.locator('.dsec', { hasText: 'No date yet' }).locator('input.d-in').evaluateAll((els) => els.map((e) => e.value))).includes('Build a garden box'), 'moving an item works');
   // Leave one out
   await p.locator('.drow').filter({ has: p.locator('input.d-in') }).nth(await p.locator('input.d-in').evaluateAll((els) => els.findIndex((e) => e.value === 'Eggs'))).locator('.ck').click();
-  await p.click('.flow-foot >> text=Put away'); await p.waitForTimeout(500);
-  assert(await p.locator('.flow').count() === 0, 'Put away closes the dump');
+  await p.click('.flow-foot >> text=Put away'); await p.waitForTimeout(700);
+  assert(await p.locator('.flow h2 >> text=Your day').count() === 1, "Put away shows today's things with their times");
+  await p.click('.flow-foot >> text=Looks good'); await p.waitForTimeout(400);
+  assert(await p.locator('.flow').count() === 0, 'Looks good closes the dump');
   const counts = await p.evaluate(async () => { const r = indexedDB.open('bird-nest'); return await new Promise((res) => { r.onsuccess = () => { const q = r.result.transaction('tasks').objectStore('tasks').getAll(); q.onsuccess = () => res(q.result.map((t) => ({ title: t.title, when: t.when, grocery: !!t.grocery, someday: !!t.someday }))); }; }); });
   const has = (t) => counts.find((x) => x.title === t);
   assert(has('Pay Avista')?.when === '2026-10-21', 'today item has today');

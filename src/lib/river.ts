@@ -14,6 +14,7 @@ export interface StepInput { label: string; value?: string | null; done?: boolea
 export interface BlockInput {
   day: string; start: string; end?: string | null; kind: Kind; title: string; icon?: string; steps: StepInput[];
   source_type?: "task" | "groceries" | "workout" | "calendar" | "bill" | "week" | null; source_id?: string | null;
+  slot?: boolean;
 }
 
 /* ---------- reading ---------- */
@@ -91,6 +92,7 @@ export async function addBlock(input: BlockInput): Promise<{ id: string; undo: U
     icon: input.icon || KIND_ICON[input.kind], title: input.title.trim(), status: allDone ? "done" : "open", done_at: allDone ? t : null,
     created_at: t, updated_at: t, deleted_at: null,
     source_type: input.source_type ?? null, source_id: input.source_id ?? null,
+    ...(input.slot ? { slot: true } : {}),
   };
   await db.transaction("rw", db.blocks, db.steps, async () => {
     await db.blocks.add(block);
