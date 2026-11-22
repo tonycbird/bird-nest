@@ -115,3 +115,6 @@
 | 2026-11-19 | Time ranges and spoken lengths are read by a Nest wrapper (`ranges.ts`), not by changing Clearhead's parser | The parser must keep matching Clearhead (parity tests). Masking keeps the colored marks lined up. |
 | 2026-11-19 | A slotted task that runs over slides once its time is up, only within the same stretch | Keeps the Now card honest without nagging past work hours. |
 | 2026-11-19 | DB writes started from Today's effects run outside any open transaction | A live query can redraw Today mid-write; the effect then borrowed that write's tables (the rare "objectStore not found"). |
+| 2026-11-22 | A spoken numbered list is split at its numbers only; its opening sets the day | iPhone dictation puts periods at pauses ("emptying. The baptismal"), so sentences can't be trusted inside a list. His real dump is a test, word for word. |
+| 2026-11-22 | Things dumped for a later day get their times the first time Nest opens on that day | He dumps Tuesday's list on Sunday; on Tuesday they'd otherwise sit unseen behind the Handyman block. |
+| 2026-11-22 | "Clean …" counts as work; only clearly-home words wait for free time | His job is church facilities: cafeteria, bathrooms, baptismal. |

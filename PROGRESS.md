@@ -1,6 +1,16 @@
 # Progress
 
-## Phase 8b — Morning dump gives today its times · built Nov 19 (cloud), waiting for his push
+## Phase 8c — The dump reads dictation · built Nov 22 (cloud), waiting for his push
+His real dictated dump (iPhone, Sun Nov 22): "Hello, these are gonna be the tasks that are needed to be done on Tuesday number one is going to be calling Chris Trongale about the leak. Number two is going to be emptying. The baptismal…" came out as "Hello", "These are gonna be the tas…", "Number two is going to be…". His words: "horrendous… just gives out garbage. Lets fix this."
+
+- [x] A spoken numbered list ("number one… number two…", "#1", "first… second… third…") is cut at the numbers only, never at dictation's pause-periods; the opening ("these are the tasks for Tuesday", "my work tasks for Wednesday") becomes the day for every item; "Hello / okay / so" go; a second list in the same dump starts over with its own day; a run-on after the last item ("Also I need to buy milk") is its own thing
+- [x] Said as things to do: "is going to be calling Chris" → "Call Chris…", "emptying. The baptismal" → "Empty the baptismal", "ensuring that…" → "Make sure…"
+- [x] Anywhere in a dump: a period right after a verb ("Then empty. The baptismal") no longer cuts the thing in two; "until Saturday" / "through Friday" stay in the title (not the day); "order furnace filters" is a task (ordering food is still shopping); titles aren't cut at "to go" or just a little over 9 words
+- [x] Things dumped for another day get their times on that day: the first open of the day slots them like the morning dump (what doesn't fit stays on the list). Cleaning/clearing things count as work; only clearly-home things (laundry, lawn, dishes, the house…) wait for free time
+- [x] Tests: 256 unit (dump-spoken 7, his real text word for word), all e2e incl. new dump-spoken.e2e (his dump → six Tuesday things → on Tuesday 7:30 onward)
+- [ ] Phone check: say the same list again
+
+## Phase 8b — Morning dump gives today its times · built Nov 19, pushed (Mac 33aaa46)
 He dumps his day in the morning ("today I have a ton of tasks for work") and asked for the best way to turn that into tasks with their times. His OK: "Lets do this."
 
 - [x] Morning card: "Empty your head" opens the dump. Before noon, things said with no day are for today (project steps keep no date)

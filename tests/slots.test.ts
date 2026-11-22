@@ -136,3 +136,18 @@ describe("how long, said in words", () => {
     expect(parseQuick("call the bank in 2 hours", {}).fields.est).toBeUndefined();
   });
 });
+
+describe("things dumped ahead of time get their times on the day", () => {
+  it("Sunday's 'tasks for Tuesday' land in Tuesday's handyman stretch the first time Nest opens Tuesday; once", async () => {
+    const { slotToday } = await import("../src/lib/slots");
+    const TUESDAY = "2026-11-24";
+    C.setNow(new Date(2026, 10, 24, 6, 0));
+    await fillWeek(TUESDAY, null);
+    let order = 1; // the dump keeps the order he said them in
+    for (const title of ["Call Chris about the leak", "Empty the baptismal", "Clean the cafeteria upstairs"]) await H.createTask({ title, when: TUESDAY, order: order++ });
+    expect(await slotToday(TUESDAY, at(6))).toBe(2); // the call waits for free time
+    const day = (await loadDay(TUESDAY)).filter((b) => b.slot);
+    expect(day.map((b) => `${b.start} ${b.title}`)).toEqual(["07:30 Empty the baptismal", "08:00 Clean the cafeteria upstairs"]);
+    expect(await slotToday(TUESDAY, at(6))).toBe(0);
+  });
+});

@@ -6,6 +6,7 @@ import { db, nowISO, type Block, type Kind } from "./db";
 import { addBlock, softDelete, type RiverBlock, type Undo } from "./river";
 import { addDays, minutes } from "./time";
 import { taskIcon } from "../ui/colors";
+import { cut } from "./text";
 import { endOf, startMin } from "./coach";
 import { weekKeyOf } from "./week";
 import type { Task } from "../head/types";
@@ -14,7 +15,9 @@ import * as H from "../head/store";
 export type Lane = "work" | "call" | "home" | "study" | "handyman" | "shop";
 export interface Span { from: number; to: number }
 
-const HOME_ICONS = new Set(["home", "heart", "meal", "paw", "gift", "groceries"]);
+const HOME_ICONS = new Set(["heart", "meal", "paw", "gift", "groceries"]);
+/* "Clean" alone could be the church's cafeteria; these say home. */
+const HOME_WORDS = /\b(?:laundry|dishes|lawn|mow|yard|garage|nursery|crib|diapers?|dog|trash cans?|(?:our|my|the) (?:house|home|room|bedroom|kitchen|truck|car|garage)|at home|around the house)\b/i;
 const SAYS = new Set(["mail", "call", "bill", "coin", "doc", "job", "calendar", "laptop", "drive", "coffee", "church"]);
 /** Where a task belongs in his day. */
 export function laneOf(t: Pick<Task, "title" | "grocery">, area = "", project = ""): Lane {
@@ -23,7 +26,7 @@ export function laneOf(t: Pick<Task, "title" | "grocery">, area = "", project = 
   if (icon === "call") return "call";
   if (/handyman|business/i.test(area) || /handyman/i.test(project)) return "handyman";
   if (icon === "study" || /theology|degree|school|class/i.test(area)) return "study";
-  if (HOME_ICONS.has(icon) || /family|home/i.test(area)) return "home";
+  if (HOME_ICONS.has(icon) || HOME_WORDS.test(t.title) || /family|home/i.test(area)) return "home";
   return "work";
 }
 export const WAITS: Partial<Record<Lane, string>> = { call: "On the drive", home: "Free time", study: "At study", shop: "Shopping list", handyman: "Handyman day" };
@@ -84,7 +87,7 @@ const hhmm = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
 export interface Slotted { placed: { id: string; block: string }[]; over: string[]; waiting: { id: string; lane: Lane }[]; undo: Undo }
 
 /** Give today's new tasks a time. `ids` in the order he said them. */
-export async function slotTasks(ids: string[], day: string, nowMin: number, names: (t: Task) => { area: string; project: string }): Promise<Slotted> {
+export async function slotTasks(ids: string[], day: string, nowMin: number, names: (t: Task) => { area: string; project: string }, overflow: "tomorrow" | "leave" = "tomorrow"): Promise<Slotted> {
   const tasks = (await Promise.all(ids.map((id) => db.tasks.get(id)))).filter((t): t is Task => !!t && t.status === "open");
   const blocks = (await db.blocks.where("day").equals(day).toArray()).filter((b) => !b.deleted_at);
   const onRiver = new Set(blocks.filter((b) => b.source_type === "task").map((b) => b.source_id));
@@ -104,12 +107,12 @@ export async function slotTasks(ids: string[], day: string, nowMin: number, name
     // A work thing looks like work unless its words name something clearer (mail, a bill, a quote…): "walk the roof" isn't the gym.
     const icon = SAYS.has(said) ? said : kind === "life" ? "job" : "briefcase";
     const steps = (t.checklist || []).filter((c) => c.text.trim()).slice(0, 7).map((c) => ({ label: c.text, done: c.done }));
-    const { id } = await addBlock({ day, start: hhmm(s.from), end: hhmm(s.to), kind, icon, title: t.title.slice(0, 48), steps, source_type: "task", source_id: t.id, slot: true });
+    const { id } = await addBlock({ day, start: hhmm(s.from), end: hhmm(s.to), kind, icon, title: cut(t.title, 48), steps, source_type: "task", source_id: t.id, slot: true });
     made.push({ id: t.id, block: id });
   }
   const tomorrow = addDays(day, 1);
   const moved: { id: string; when: string | null }[] = [];
-  for (const id of p.over) {
+  for (const id of overflow === "tomorrow" ? p.over : []) {
     const t = await db.tasks.get(id);
     if (!t) continue;
     moved.push({ id, when: t.when });
@@ -189,4 +192,23 @@ export async function slideUnfinished(day: string, nowMin: number): Promise<numb
     }
     return n;
   } finally { sliding = false; }
+}
+
+/** The morning of a day he dumped things for ahead of time ("these are the tasks for Tuesday"): the first time Nest
+    opens that day, those things get their times too. Once a day; what doesn't fit stays on today's list. */
+export async function slotToday(day: string, nowMin: number): Promise<number> {
+  const key = "nest:slotted:" + day;
+  try { if (localStorage.getItem(key)) return 0; } catch { /* storage blocked: still once per open below */ }
+  const blocks = (await db.blocks.where("day").equals(day).toArray()).filter((b) => !b.deleted_at);
+  const windows = windowsOf(blocks, blocks.some((b) => weekKeyOf(b) === "handyman"));
+  if (!windows.some((w) => w.to > nowMin)) return 0; // the day's work is over: nothing to place
+  const onRiver = new Set(blocks.filter((b) => b.source_type === "task").map((b) => b.source_id));
+  const data = await H.loadData();
+  const todays = (await db.tasks.where("when").equals(day).toArray())
+    .filter((t) => t.status === "open" && !t.time && !t.someday && !t.grocery && !onRiver.has(t.id))
+    .sort((a, b) => (a.todayOrder ?? a.order) - (b.todayOrder ?? b.order) || a.createdAt - b.createdAt);
+  try { localStorage.setItem(key, "1"); } catch { /* ok */ }
+  if (!todays.length) return 0;
+  const names = (t: Task) => ({ area: (t.areaId && data.areas.get(t.areaId)?.name) || "", project: (t.projectId && data.projects.get(t.projectId)?.name) || "" });
+  return (await slotTasks(todays.map((t) => t.id), day, nowMin, names, "leave")).placed.length;
 }

@@ -9,10 +9,11 @@ import { liveQuery } from "dexie";
 import { db, type CalEvent, type Proposal } from "./db";
 import { approve, decline } from "./apply";
 import { acceptEvent } from "./calendar-accept";
-import { addDays, today } from "./time";
+import { addDays, minutes, nowHHMM, today } from "./time";
 import { fitApi, fitState } from "../body/host";
 import { putPlanOnRiver } from "../body/river-body";
 import { fillWeek, loadWeek } from "./week";
+import { slotToday } from "./slots";
 
 /** What goes in by itself. Everything else Claude suggests is set aside. */
 export const AUTO_APPLY = new Set(["task", "grocery", "ramble_split"]);
@@ -110,6 +111,8 @@ export async function fillDays(): Promise<void> {
       again = false;
       const t = today();
       for (const day of [t, addDays(t, 1)]) { await fillWorkout(day).catch(() => 0); await fillCalendar(day).catch(() => 0); await fillUsual(day).catch(() => 0); }
+      // Things he dumped for today ahead of time get their times, once, after the day's blocks are in.
+      if (fitState.get().ready || !(await dayPrefs()).workout) await slotToday(t, minutes(nowHHMM())).catch(() => 0);
     } while (again);
   } finally { running = false; }
 }

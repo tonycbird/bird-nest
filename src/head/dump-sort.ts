@@ -46,7 +46,8 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const EXTRA_VERBS = ["draw", "figure", "remind", "look", "go", "run", "put", "see", "help", "hire", "cook", "apply", "register", "practice",
   "memorize", "outline", "record", "upload", "download", "set", "finish", "print", "rent", "stain", "tear", "hang", "pick", "drop", "grab",
   "sort", "contact", "write", "pray", "practise", "message", "email", "text", "bake", "feed", "bathe", "watch", "grade", "turn", "change",
-  "swap", "haul", "deal", "bring", "show", "start", "head", "give", "sweep", "tidy", "wipe", "fold", "iron", "vacuum", "unload", "load", "toss", "donate"];
+  "swap", "haul", "deal", "bring", "show", "start", "head", "give", "sweep", "tidy", "wipe", "fold", "iron", "vacuum", "unload", "load", "toss", "donate",
+  "restock", "sanitize", "unlock", "lock", "shovel", "drain", "refill", "scrub", "stack", "straighten", "reset", "close", "open", "do"];
 const VERBS = new Set<string>([...C.VERBS, ...EXTRA_VERBS]);
 const isVerb = (w: string | undefined) => !!w && VERBS.has(w.toLowerCase().replace(/[^a-z]/g, ""));
 const VERB_RE = [...VERBS].sort((a, b) => b.length - a.length).map(esc).join("|");
@@ -182,12 +183,108 @@ function breakRunOn(sentence: string): string {
   return w.join("").trim();
 }
 
+/* ---------- dictation: a spoken numbered list ---------- */
+/* "Hello, these are gonna be the tasks for Tuesday number one is going to be calling Chris about the leak. Number two is
+   going to be emptying. The baptismal number three…" (Nov 22, his real dump). Dictation puts periods where he pauses,
+   not where things end, so a spoken list is cut at "number one / number two…" (or first / second / third) and nothing
+   else, and turned into the plain list the rest of the sorter reads well:
+     Tuesday:
+     call Chris about the leak
+     empty the baptismal …                                                                                       */
+const NUM_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, for: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+const ORD_WORDS: Record<string, number> = { first: 1, firstly: 1, second: 2, secondly: 2, third: 3, thirdly: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
+const NUM_MARK = /\b(?:number|no\.|item|task)\s*(one|two|three|four|for|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2})\b[.:,]?|(?:^|\s)#\s?(\d{1,2})\b/gi;
+const ORD_MARK = /\b(first(?:ly)?|second(?:ly)?|third(?:ly)?|fourth|fifth|sixth|seventh|eighth|ninth|tenth|lastly|finally)\b(?:\s+(?:thing|task|one|off))?[.:,]?/gi;
+const GREETING = /^\s*(?:(?:hello|hi|hey|okay|ok|alright|all right|so|um+|uh+|yeah)\b[\s,.!]*)+/i;
+const LIST_LEAD = /^\s*[:,.\-–]?\s*(?:(?:is|'s|will be|would be|should be|is going to be|is gonna be|gonna be|going to be|is to|to be|be|it's|that's|is that|i need to|we need to|i have to|we have to|need to|is gonna|is going)\b[\s,:]*)*/i;
+/* What a list's opening says, besides when and where: "these are gonna be the tasks that are needed to be done on". */
+const META_WORDS = new Set("these this here are is be gonna going to the my our tasks task things thing stuff list lists to-do to-dos todo todos that needed need needs needing done do for on of and i we have got what jobs job items item gotta get should will today's tomorrow's for's want".split(" "));
+const WHEN_WORDS = /\b(today|tonight|tomorrow|this (?:morning|afternoon|evening|week|weekend)|next week|(?:mon|tues|wednes|thurs|fri|satur|sun)day)\b/gi;
+const TOPIC_WORDS = /\b(work|church|home|house|handyman|school|class|yard|shop)\b/i;
+const TAIL_JUNK = new Set("but and also so then plus outside oh okay ok um uh of besides except".split(" "));
+
+/** "emptying the baptismal" → "empty the baptismal"; "ensuring that the building…" → "make sure the building…". */
+function unGerund(t: string): string {
+  const s = t.replace(/^(?:ensuring|making sure|make sure)(?:\s+that)?\s+/i, "make sure ");
+  const m = s.match(/^([a-z]+?)ing\b/i);
+  if (!m) return s;
+  const stem = m[1].toLowerCase();
+  const v = [stem, stem + "e", stem.replace(/(.)\1$/, "$1")].find((c) => VERBS.has(c));
+  return v ? v + s.slice(m[0].length) : s;
+}
+/** Dictation's mid-thought periods go: "emptying. The baptismal" → "emptying the baptismal" (names keep their capitals). */
+function joinPauses(t: string): string {
+  const bits = t.split(/\.\s+/);
+  // A last few words that only lead into the next thing ("…until Saturday. But outside") are dropped.
+  if (bits.length > 1) {
+    const tail = bits[bits.length - 1].toLowerCase().replace(/[^a-z\s']/g, "").split(/\s+/).filter(Boolean);
+    if (tail.length <= 3 && tail.every((w) => TAIL_JUNK.has(w))) bits.pop();
+  }
+  return bits.map((b, i) => (i === 0 ? b : b.replace(/^(\w+)/, (w) => (COMMON.has(w.toLowerCase()) || /^(?:a|an|the|all|my|our|it)$/i.test(w) ? w.toLowerCase() : w)))).join(" ");
+}
+/** A list's opening → a "When topic:" header line, or the words themselves when they say something more. */
+function opening(t: string): string | null {
+  const plain = t.replace(GREETING, "").replace(/[.,!?:]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!plain) return null;
+  const when = [...plain.matchAll(WHEN_WORDS)].map((m) => m[1].toLowerCase()).pop() ?? null;
+  const topic = plain.match(TOPIC_WORDS)?.[1]?.toLowerCase() ?? null;
+  const left = plain.replace(WHEN_WORDS, " ").replace(TOPIC_WORDS, " ").toLowerCase().split(/\s+/).filter((w) => w && !META_WORDS.has(w.replace(/[^a-z'-]/g, "")));
+  if (left.length > 2) return plain; // it says something of its own: keep it as a thing
+  if (!when && !topic) return null;
+  return [topic, when].filter(Boolean).join(" ") + ":";
+}
+interface Mark { at: number; end: number; n: number }
+function marksIn(text: string): Mark[] {
+  const nums = [...text.matchAll(NUM_MARK)].map((m) => ({ at: m.index! + (m[0].length - m[0].trimStart().length), end: m.index! + m[0].length, n: m[1] ? (NUM_WORDS[m[1].toLowerCase()] ?? Number(m[1])) : Number(m[2]) }));
+  const okNums = nums.filter((m) => m.n > 0);
+  // A list counts when it starts at one and keeps going (a "number 4" in passing is just a number).
+  if (okNums.length >= 2 && okNums[0].n === 1 && okNums.some((m) => m.n === 2)) return okNums;
+  const ords = [...text.matchAll(ORD_MARK)].map((m) => ({ at: m.index!, end: m.index! + m[0].length, n: ORD_WORDS[m[1].toLowerCase()] ?? 99 }));
+  const seq = ords.filter((m, i) => i === 0 ? m.n === 1 : m.n > ords[i - 1].n);
+  if (seq.length >= 3 && seq[0].n === 1 && seq[1].n === 2 && seq[2].n === 3) return seq;
+  return [];
+}
+/** A spoken numbered list → one thing per line under its "When:" header. Anything else comes back as it was. */
+export function spokenList(text: string): string {
+  const marks = marksIn(text);
+  if (!marks.length) return text.replace(GREETING, "");
+  const out: string[] = [];
+  const head = opening(text.slice(0, marks[0].at));
+  let para: string[] = head ? [head] : [];
+  for (let i = 0; i < marks.length; i++) {
+    let body = text.slice(marks[i].end, i + 1 < marks.length ? marks[i + 1].at : text.length);
+    // The numbering starts over: the last sentence before it opens a new list ("These are gonna be my work tasks…").
+    const restart = i + 1 < marks.length && marks[i + 1].n === 1 && marks[i].n >= 1;
+    let next: string | null = null;
+    if (restart) {
+      const cut = body.search(/(?:[.!?]\s+|\s)(?=(?:these|this|here|now|and)\s+(?:are|is|for)\b|(?:for|on)\s+(?:today|tonight|tomorrow|\w+day)\b)/i);
+      if (cut > 0) { next = body.slice(cut).replace(/^[.!?\s]+/, ""); body = body.slice(0, cut); }
+    }
+    // The last one can run on into something else ("…bathrooms. Also I need to call mom").
+    let after: string | null = null;
+    if (i === marks.length - 1) {
+      const cut = body.search(/[.!?]\s+(?=(?:also|oh|another thing|separately|and then|i also|i need|i have|i gotta|we need|after that|then)\b)/i);
+      if (cut > 0) { after = body.slice(cut).replace(/^[.!?\s]+/, ""); body = body.slice(0, cut); }
+    }
+    const item = unGerund(joinPauses(body.replace(LIST_LEAD, "").trim()).replace(/[\s,.;:!?-]+$/, "").replace(/\s+(?:and|but|so|then|also|or)$/i, "").trim());
+    if (item) para.push(item);
+    if (restart) { out.push(para.join("\n")); const h = next ? opening(next) : null; para = h ? [h] : []; }
+    if (after) { out.push(para.join("\n")); para = [after]; }
+  }
+  out.push(para.join("\n"));
+  return out.filter((p) => p.trim()).join("\n\n");
+}
+
 const LEAD_DAY = /^(?:on\s+|this\s+|next\s+)?(?:mon|tues|tue|wednes|wed|thurs|thu|fri|satur|sat|sun)(?:day)?\b,?\s*|^(?:tomorrow|today|tonight|this (?:morning|afternoon|evening|weekend)|next week)\b,?\s*/i;
 const HEADER_COLON = /^\s*([^:,.]{2,48}?)\s*(?::|\s[-–—]\s)\s*(.*)$/;
 const HEADER_FOR = /^(?:as for|for|on|with|about|re|regarding|over at)\s+(?:the\s+)?([^,]{2,40}?)\s*,\s*(.+)$/i;
 
+/** Dictation puts a period where he pauses: "Then empty. The baptismal" → "Then empty the baptismal". */
+const PAUSE = /\b([A-Za-z]+)\.\s+(The|A|An|All|My|Our|Their|His|Her|Those|These|That|This|Every|Each)\b/g;
+const joinVerbPauses = (t: string) => t.replace(PAUSE, (m, w: string, d: string) => (isVerb(w) || unGerund(w) !== w ? `${w} ${d.toLowerCase()}` : m));
+
 function split(text: string): Piece[] {
-  let t0 = straight(text || "").replace(/\r/g, "");
+  let t0 = spokenList(joinVerbPauses(straight(text || "").replace(/\r/g, "")));
   // "1. finish trim 2. paint 3. send invoice" — numbers only count as a list when they go 1, 2…
   if (/(?:^|\s)1[.)]\s/.test(t0) && /\s2[.)]\s/.test(t0)) t0 = t0.replace(/(^|\s)\d{1,2}[.)]\s+(?=[a-z])/gi, "\n");
   const t = t0
@@ -298,7 +395,7 @@ const REASON = /\s+(?:because|cause|'cause|cuz|since|so that|so i can|so we can|
 /* "Coffee with Mark to go over the deck": for a meetup, the purpose is notes. */
 const MEETUP = /\b(?:coffee|lunch|breakfast|dinner|drinks|meet|meeting|starbucks|dutch bros)\b/i;
 const PURPOSE = /\s+to\s+(?:go over|talk about|talk through|talk|discuss|catch up|plan|review|look at|figure out)\b/i;
-const COND = /\s+(?:once|as soon as|whenever|if|unless|until|when)\s+(?!(?:mon|tue|wed|thu|fri|sat|sun)\w*\b|tomorrow\b|today\b|tonight\b|next\b|lunch\b|dinner\b|breakfast\b)/i;
+const COND = /\s+(?:once|as soon as|whenever|if|unless|until|when)\s+(?!(?:mon|tue|wed|thu|fri|sat|sun)\w*\b|tomorrow\b|today\b|tonight\b|next\b|lunch\b|dinner\b|breakfast\b|\u0001)/i;
 const BREAKS = new Set(["at", "in", "on", "for", "with", "from", "to", "about", "under", "near", "by", "so", "and", "while", "during", "over", "into", "before", "after"]);
 const PARTICLES = new Set(["up", "off", "out", "down", "back", "over", "in", "away", "together", "through"]);
 const PREPS = new Set(["to", "from", "at", "on", "for", "with", "in", "by", "about", "into", "under", "near", "over", "before", "after", "of"]);
@@ -338,7 +435,10 @@ function shorten(title: string, max = 9): { title: string; cut: boolean } {
   const w = title.split(/\s+/);
   if (w.length <= max) return { title, cut: false };
   let at = -1;
-  for (let i = 4; i <= max && i < w.length; i++) if (BREAKS.has(w[i].toLowerCase())) at = i;
+  // "to go", "to call": an infinitive belongs to the thing, it isn't a place to cut.
+  for (let i = 4; i <= max && i < w.length; i++) if (BREAKS.has(w[i].toLowerCase()) && !(w[i].toLowerCase() === "to" && isVerb(w[i + 1]))) at = i;
+  // Nowhere good to cut and only a little over: keep it whole rather than cut mid-thought.
+  if (at < 0 && w.length <= max + 3) return { title, cut: false };
   const keep = at > 0 ? w.slice(0, at) : w.slice(0, max);
   while (keep.length > 3 && /^(?:the|a|an|and|of|my|our|to)$/i.test(keep[keep.length - 1])) keep.pop();
   return { title: keep.join(" "), cut: true };
@@ -787,7 +887,9 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
     const inProject = !!(home?.projectId || home?.newKey);
 
     /* --- shopping: "buy milk, eggs and diapers", "out of coffee", "milk bread bananas", or anything under "Groceries:" --- */
-    const sm = p.match(SHOP_LEAD);
+    // "order furnace filters" for work is a task; "order more coffee" is groceries.
+    const sm0 = p.match(SHOP_LEAD);
+    const sm = sm0 && /^order\s/i.test(p) && !FOOD_WORDS.test(sm0[1]) ? null : sm0;
     let list = sm ? splitList(sm[1]) : !lead.action && /,|\band\b/.test(p) ? splitList(p) : [];
     if (!list.length && !lead.action && !VERB_START.test(p)) { const bareList = splitItem(p.replace(/,/g, " ")); if ((bareList.length >= 2 && bareList.every(isShop)) || (bareList.length === 1 && words(p) <= 3 && isFood(p))) list = bareList; }
     const groceries = list.length > 0 && list.filter(isShop).length >= Math.ceil(list.length * 0.6);
@@ -815,10 +917,10 @@ export function planDump(text: string, data: HeadData, s: HeadSettings): DumpPla
     const keep: string[] = [];
     let pp = dateWords(p).replace(/^((?:plan|plan out|map out|organize|prep for|prepare for|schedule out|think through)\s+)((?:next|this|the)\s+(?:week|month|weekend)|tomorrow)\b/i,
       (_m, v: string, what: string) => { keep.push(what); return v + "\u0001" + (keep.length - 1); })
-      // "text Abby about Friday": Friday is what it's about, not when.
+      // "text Abby about Friday", "good to go until Saturday": that day is what it's about, not when.
       .replace(/\b(about|regarding|for)\s+((?:this|next|the)\s+)?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}\/\d{1,2})(?=\s+(?:details|plans?|meeting|appointment|appt|job|visit|event|hang|hangs|thing)\b)/gi,
         (_m, a: string, pre: string | undefined, d: string) => { keep.push((pre ?? "") + d); return a + " \u0001" + (keep.length - 1); })
-      .replace(/\b(about|regarding)\s+((?:this|next)\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|the weekend|this weekend)\b/gi,
+      .replace(/\b(about|regarding|until|till|til|through|thru)\s+((?:this|next)\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|the weekend|this weekend)\b/gi,
         (_m, a: string, pre: string | undefined, d: string) => { keep.push((pre ?? "") + d); return a + " \u0001" + (keep.length - 1); });
     // "text Aaron and see if he can help Saturday": Saturday is about the help, not when to text.
     const msg = PEOPLE_VERB.test(pp) ? pp.search(/\s(?:and )?(?:see|ask|check)\s+(?:if|whether)\b|\sif\s|\swhether\s|\s(?:that|saying|to say)\s|\sand (?:ask|tell) (?:him|her|them)\b/i) : -1;
