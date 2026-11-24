@@ -1,6 +1,17 @@
 # Progress
 
-## Phase 8c — The dump reads dictation · built Nov 22 (cloud), waiting for his push
+## Polish 1 — from his real data · Nov 24 (cloud), waiting for his push
+Nov 24 he said: "not polished in any way… a ton of bugs / features not hanging on enough to use it." Looked at his live data first:
+- No workout had landed on the River since Nov 21 (Body's plan last worked out Nov 21). Cause: Body's crash guard. Closing the app while Body was still starting looked like a crash, so Body never started by itself again until he opened the Body tab
+- Thanksgiving week: his calendar says office closed Wed at noon and Thursday, and today (a Tuesday) he's at work (Staff Chapel, Department Lead Meeting), but the River showed his usual week (Handyman jobs today)
+- His Tuesday dictation never made it in (no Tuesday tasks); Claude's mail tasks lead with emoji ("⚡ Pay Avista bill")
+
+- [x] Body starts by itself again: going to the background clears the "starting" mark; only two starts in a row that die count as a crash
+- [x] Tap the date → "Not a usual day?": today or tomorrow becomes Usual / Work / Handyman / Day off. His calendar's events stay, blocks he's ticked stay and aren't doubled, Undo; the week doesn't refill a day he changed
+- [x] Claude's tasks lose a leading emoji (Nest draws its own icons)
+- [x] Tests: 258 unit, all e2e (coach +4)
+
+## Phase 8c — The dump reads dictation · built Nov 22, pushed (Mac d4f4523)
 His real dictated dump (iPhone, Sun Nov 22): "Hello, these are gonna be the tasks that are needed to be done on Tuesday number one is going to be calling Chris Trongale about the leak. Number two is going to be emptying. The baptismal…" came out as "Hello", "These are gonna be the tas…", "Number two is going to be…". His words: "horrendous… just gives out garbage. Lets fix this."
 
 - [x] A spoken numbered list ("number one… number two…", "#1", "first… second… third…") is cut at the numbers only, never at dictation's pause-periods; the opening ("these are the tasks for Tuesday", "my work tasks for Wednesday") becomes the day for every item; "Hello / okay / so" go; a second list in the same dump starts over with its own day; a run-on after the last item ("Also I need to buy milk") is its own thing

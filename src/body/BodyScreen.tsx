@@ -60,9 +60,23 @@ export default function BodyScreen() {
   );
 }
 
+/* Crash guard: if Body was starting when the app died, don't start it again by itself (start it when Body is tapped).
+   Nov 24: closing the app while Body was still starting looked the same, so after one quick close Body never started
+   on its own again: no workout landed on the River for days. Now a normal close (the app going to the background)
+   clears the mark, and only two starts in a row that died within a few minutes count. */
 const LOADING = "nest:body-loading";
-const lastLoadFailed = () => { try { return !!localStorage.getItem(LOADING); } catch { return false; } };
-const markLoading = () => { try { localStorage.setItem(LOADING, String(Date.now())); } catch { /* storage blocked */ } };
+const readMark = (): { at: number; n: number } | null => {
+  try { const v = localStorage.getItem(LOADING); if (!v) return null; const [at, n] = v.split(":").map(Number); return { at: at || 0, n: n || 1 }; } catch { return null; }
+};
+const lastLoadFailed = () => { const m = readMark(); return !!m && m.n >= 2 && Date.now() - m.at < 6 * 3600_000; };
+const markLoading = () => { try { const m = readMark(); const n = m && Date.now() - m.at < 6 * 3600_000 ? m.n + 1 : 1; localStorage.setItem(LOADING, `${Date.now()}:${n}`); } catch { /* storage blocked */ } };
+const clearLoading = () => { try { localStorage.removeItem(LOADING); } catch { /* storage blocked */ } };
+if (typeof document !== "undefined") {
+  // Going to the background isn't a crash.
+  const off = () => { if (document.visibilityState === "hidden") clearLoading(); };
+  document.addEventListener("visibilitychange", off);
+  window.addEventListener("pagehide", clearLoading);
+}
 
 /** Always mounted, so a running rest timer keeps going while you look at the River. Shown only on Body. */
 export function BodyFrame() {

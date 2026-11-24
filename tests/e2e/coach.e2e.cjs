@@ -75,6 +75,20 @@ const SHOTS = process.env.SHOTS;
   await p.click('.now-acts >> text=Start shutdown'); await p.waitForTimeout(500);
   assert(await p.locator('.flow-foot').count() === 1, 'Start shutdown opens the Shutdown flow');
 
+  // Not a usual day: tap the date, make tomorrow (Friday) a day off; the River for tomorrow changes; back to usual.
+  await p.keyboard.press('Escape').catch(() => {}); await p.goto(process.env.URL || 'http://localhost:4181/'); await p.waitForTimeout(1200);
+  await p.click('.t-day'); await p.waitForTimeout(300);
+  assert(await p.locator('.sheet h2 >> text=Not a usual day?').count() === 1, 'tapping the date asks what kind of day');
+  await p.locator('.dk').nth(1).locator('.dk-c', { hasText: 'Day off' }).click(); await p.waitForTimeout(500);
+  assert(await p.locator('.dk').nth(1).locator('.dk-c.on', { hasText: 'Day off' }).count() === 1, 'tomorrow is marked a day off');
+  await p.click('.sheet-x'); await p.waitForTimeout(200);
+  await p.click('.whole-t'); await p.click('.whole-day'); await p.waitForTimeout(400);
+  const fri = await p.locator('.tr .bc-main b').allInnerTexts();
+  assert(fri.includes('Day off') && !fri.includes('Work'), "tomorrow's River is a day off: " + fri.join(', '));
+  await p.click('.t-day'); await p.locator('.dk').nth(1).locator('.dk-c', { hasText: 'Usual' }).click(); await p.waitForTimeout(500); await p.click('.sheet-x');
+  const fri2 = await p.locator('.tr .bc-main b').allInnerTexts();
+  assert(fri2.includes('Work') && !fri2.includes('Day off'), 'and back to usual');
+
   assert(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.join(' | ') : ''));
   await b.close();
   console.log('\nCoach e2e: all passed');

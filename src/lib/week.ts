@@ -66,12 +66,14 @@ export const blocksFor = (w: Week, day: string): WeekBlock[] => [...(w.days[dowO
 /* ---------- onto the River ---------- */
 
 export const weekSourceId = (day: string, key: string) => `${day}|${key}`;
-export const weekKeyOf = (b: Pick<Block, "source_type" | "source_id">) => (b.source_type === "week" ? (b.source_id || "").split("|")[1] ?? null : null);
+/** "work" for "2026-11-25|work", and for a swapped-in "2026-11-26|work~work" too. */
+export const weekKeyOf = (b: Pick<Block, "source_type" | "source_id">) => (b.source_type === "week" ? ((b.source_id || "").split("|")[1] ?? "").split("~")[0] || null : null);
 
 /** The week's blocks for a day, each placed once. `gym`: when Body's workout starts that day ("06:00"),
     null on a rest day, undefined while Body is still starting (the gym drive waits for it). */
 export async function fillWeek(day: string, gym: string | null | undefined, w?: Week): Promise<number> {
   const week = w ?? (await loadWeek());
+  if ((await db.settings.get("swap:" + day))?.value) return 0; // a day he made different keeps its own plan
   const there = (await db.blocks.where("day").equals(day).toArray()).filter((b) => b.source_type === "week");
   const placed = new Set(there.map((b) => b.source_id)); // deleted ones too: what he took off stays off
   let n = 0;
@@ -155,6 +157,55 @@ export async function dropEvery(b: Block, today: string): Promise<Undo> {
   const gone = await db.blocks.get(b.id);
   if (gone && !gone.deleted_at) await softDelete(b.id);
   return async () => { await undoWeek(); await restoreBlock(b.id); };
+}
+
+/* ---------- a day that isn't like the rest (Thanksgiving week, a sick day, a Saturday job) ---------- */
+
+export type DayKind = "usual" | "work" | "handyman" | "off";
+/** Which weekday's plan a kind of day borrows: his own if it already is one, else a typical one. */
+function planFor(w: Week, day: string, kind: DayKind): WeekBlock[] {
+  const own = blocksFor(w, day);
+  const has = (k: string) => own.some((b) => b.key === k);
+  if (kind === "usual") return own;
+  if (kind === "work") return has("work") ? own : blocksFor(w, "2026-11-19"); // a Thursday: 8–4:30
+  if (kind === "handyman") return has("handyman") ? own : blocksFor(w, "2026-11-24"); // a Tuesday
+  return has("dayoff") ? own : blocksFor(w, "2026-11-23"); // a Monday
+}
+/** What kind of day it is now. */
+export async function kindOf(day: string): Promise<DayKind> {
+  return (((await db.settings.get("swap:" + day))?.value as { kind?: DayKind } | undefined)?.kind) ?? "usual";
+}
+/** Make a day a work day, a handyman day or a day off (or back to usual). Blocks he ticked or changed stay. */
+export async function swapDay(day: string, kind: DayKind): Promise<Undo> {
+  const w = await loadWeek();
+  const row = (await db.settings.get("swap:" + day))?.value as { kind: DayKind; removed: string[] } | undefined;
+  const all = (await db.blocks.where("day").equals(day).toArray()).filter((b) => b.source_type === "week");
+  const untouched = async (b: Block) => b.status === "open" && !(await db.steps.where("block_id").equals(b.id).toArray()).some((x) => x.done_at && !x.deleted_at);
+  const removed: string[] = [], restored: string[] = [], added: string[] = [];
+  // Whatever an earlier swap put in goes (if untouched); what it took off comes back.
+  for (const b of all) if (!b.deleted_at && (b.source_id || "").includes("~") && (await untouched(b))) { await softDelete(b.id); removed.push(b.id); }
+  for (const id of row?.removed ?? []) { await restoreBlock(id); restored.push(id); }
+  let tookOff: string[] = [];
+  if (kind !== "usual") {
+    // Take the usual plan off (only what he hasn't touched), put the other kind of day in.
+    for (const b of all) if (!b.deleted_at && !(b.source_id || "").includes("~") && (await untouched(b))) { await softDelete(b.id); tookOff.push(b.id); }
+    const kept = new Set(all.filter((b) => !b.deleted_at && !tookOff.includes(b.id) && !removed.includes(b.id)).map((b) => weekKeyOf(b)));
+    for (const wb of planFor(w, day, kind)) {
+      if (wb.gym || kept.has(wb.key)) continue; // the workout comes from Body; a block he's already into stays as the one
+      const sid = `${weekSourceId(day, wb.key)}~${kind}`;
+      const old = all.find((b) => b.source_id === sid);
+      if (old) { if (old.deleted_at) { await restoreBlock(old.id); added.push(old.id); } continue; }
+      const { id } = await addBlock({ day, start: wb.start, end: wb.end, kind: wb.kind, icon: wb.icon, title: wb.title, steps: wb.steps ?? [], source_type: "week", source_id: sid });
+      added.push(id);
+    }
+  } else tookOff = [];
+  await setSetting("swap:" + day, kind === "usual" ? null : { kind, removed: tookOff });
+  return async () => {
+    for (const id of [...added, ...tookOff]) await (added.includes(id) ? softDelete(id) : restoreBlock(id));
+    for (const id of restored) await softDelete(id);
+    for (const id of removed) await restoreBlock(id);
+    await setSetting("swap:" + day, row ?? null);
+  };
 }
 
 /** Back to the week he described (Nov 19). */

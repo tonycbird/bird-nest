@@ -118,3 +118,5 @@
 | 2026-11-22 | A spoken numbered list is split at its numbers only; its opening sets the day | iPhone dictation puts periods at pauses ("emptying. The baptismal"), so sentences can't be trusted inside a list. His real dump is a test, word for word. |
 | 2026-11-22 | Things dumped for a later day get their times the first time Nest opens on that day | He dumps Tuesday's list on Sunday; on Tuesday they'd otherwise sit unseen behind the Handyman block. |
 | 2026-11-22 | "Clean …" counts as work; only clearly-home words wait for free time | His job is church facilities: cafeteria, bathrooms, baptismal. |
+| 2026-11-24 | Body's crash guard only trips on two dead starts in a row; a normal close clears it | One quick close kept Body from starting for days, so no workouts landed. |
+| 2026-11-24 | A whole day can be swapped (Usual / Work / Handyman / Day off) from the date, today or tomorrow | Holiday weeks and odd days don't fit the usual week; one tap beats editing every block. |

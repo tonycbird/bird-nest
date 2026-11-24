@@ -92,6 +92,10 @@ html.quiet .detail{display:none !important;}
 .t-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 16px;}
 .t-date{font-size:30px; line-height:1.1; font-weight:800; letter-spacing:-.025em; margin:0; color:var(--ink);}
 .t-date span{color:var(--accent-ink);}
+.t-day{border:0; background:none; padding:0; font:inherit; color:inherit; text-align:left; letter-spacing:inherit;}
+.dk-row{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px;}
+.dk-c{border:0; border-radius:16px; background:var(--surface); box-shadow:var(--shadow); color:var(--ink-2); padding:12px 4px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:13px; font-weight:700; min-height:64px;}
+.dk-c.on{background:var(--accent); color:var(--on-accent); box-shadow:none; outline:2px solid var(--ink); outline-offset:2px;}
 .t-head .gear{box-shadow:none; background:none; color:var(--ink-3); width:36px; height:36px;}
 
 .now{position:relative; overflow:hidden; background:var(--surface); border-radius:28px; box-shadow:var(--shadow-lift); padding:20px 18px 18px 22px; display:flex; flex-direction:column; gap:14px;}

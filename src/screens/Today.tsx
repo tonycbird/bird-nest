@@ -15,7 +15,7 @@ import { placeTimedTasks } from "../head/river-bridge";
 import { fmtMoney, isCurrent, placeBillBlocks, useMoney } from "../lib/money";
 import { dur, endOf, fitOf, moment, startMin, tasksThatFit } from "../lib/coach";
 import { slideUnfinished } from "../lib/slots";
-import { WEEKDAY, dowOf, dropEvery, keepEvery, loadWeek, weekKeyOf, blocksFor } from "../lib/week";
+import { WEEKDAY, dowOf, dropEvery, keepEvery, loadWeek, weekKeyOf, blocksFor, kindOf, swapDay, type DayKind } from "../lib/week";
 import { justDone, markJustDone } from "../lib/motion";
 import { Layer } from "../ui/Layer";
 import { I, Icon } from "../ui/Icon";
@@ -63,6 +63,7 @@ export default function Today(props: Props) {
   const [sheet, setSheet] = useState<{ block?: RiverBlock; start?: string; day?: string } | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [whole, setWhole] = useState<"" | "today" | "tomorrow">("");
+  const [daySheet, setDaySheet] = useState(false);
 
   // Head tasks with a time today land on the River at that time, by themselves.
   const timed = useLiveQuery(() => db.tasks.where("when").equals(todayKey).filter((t) => !!t.time && t.status === "open").primaryKeys(), [todayKey], [] as string[]);
@@ -86,7 +87,7 @@ export default function Today(props: Props) {
   return (
     <>
       <header className="t-head">
-        <h1 className="t-date">{parts.weekday} <span>{parts.md}</span></h1>
+        <h1 className="t-date"><button className="t-day" onClick={() => setDaySheet(true)} aria-label={`${parts.weekday} ${parts.md}. Change what kind of day it is`}>{parts.weekday} <span>{parts.md}</span></button></h1>
         <div className="top-actions">
           {!props.online && <span className="offline detail">offline</span>}
           <button className="gear" aria-label="Settings" onClick={props.onSettings}><Icon n="settings" size={21} tone={false} /></button>
@@ -121,6 +122,7 @@ export default function Today(props: Props) {
 
       {menu && <BlockMenu b={menu} todayKey={todayKey} onClose={() => setMenu(null)} onEdit={() => { setSheet({ block: menu, day: menu.day }); setMenu(null); }}
         onPlay={() => { setPlaying(menu.id); setMenu(null); }} toast={toast} />}
+      {daySheet && <DayKindSheet todayKey={todayKey} onClose={() => setDaySheet(false)} />}
       {sheet && <BlockSheet day={sheet.day ?? sheet.block?.day ?? todayKey} block={sheet.block} start={sheet.start} onClose={() => setSheet(null)} />}
       {playingBlock && <StepPlayer block={playingBlock} nextBlock={after(playingBlock)} onClose={() => setPlaying(null)} onNext={(id) => setPlaying(id)} />}
     </>
@@ -296,6 +298,44 @@ function River(props: { day: string; blocks: RiverBlock[]; nowMin: number; onMen
         <button onClick={() => props.onAdd(props.day)}><I n="plus" tone={false} />Block</button>
       </div>
     </>
+  );
+}
+
+/* ---------- a day that isn't like the rest ---------- */
+
+const KINDS: { k: DayKind; label: string; icon: "today" | "briefcase" | "job" | "weekend" }[] = [
+  { k: "usual", label: "Usual", icon: "today" }, { k: "work", label: "Work", icon: "briefcase" },
+  { k: "handyman", label: "Handyman", icon: "job" }, { k: "off", label: "Day off", icon: "weekend" },
+];
+/** Tap the date: Thanksgiving week, a sick day, a Saturday job. Today or tomorrow becomes another kind of day. */
+function DayKindSheet({ todayKey, onClose }: { todayKey: string; onClose: () => void }) {
+  const toast = useToast();
+  const days = [todayKey, addDays(todayKey, 1)];
+  const kinds = useLiveQuery(() => Promise.all(days.map(kindOf)), [todayKey], ["usual", "usual"] as DayKind[]);
+  const pick = async (day: string, k: DayKind) => {
+    const u = await swapDay(day, k);
+    toast(k === "usual" ? "↺ Back to usual" : `✓ ${day === todayKey ? "Today" : "Tomorrow"}: ${KINDS.find((x) => x.k === k)!.label.toLowerCase()}`, u);
+  };
+  return (
+    <Layer><div className="scrim" onClick={onClose}>
+      <div className="sheet has-x" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="What kind of day">
+        <button className="sheet-x" aria-label="Close" onClick={onClose}><Icon n="close" size={18} tone={false} /></button>
+        <h2>Not a usual day?</h2>
+        {days.map((d, i) => (
+          <div key={d} className="dk">
+            <div className="lbl" style={{ marginTop: i ? 18 : 0 }}>{i ? "Tomorrow" : "Today"} · {WEEKDAY[dowOf(d)]}</div>
+            <div className="dk-row" role="group">
+              {KINDS.map((x) => (
+                <button key={x.k} className={"dk-c" + (kinds[i] === x.k ? " on" : "")} aria-pressed={kinds[i] === x.k} onClick={() => void pick(d, x.k)}>
+                  <Icon n={x.icon} size={20} tone={kinds[i] === x.k} /><span>{x.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <p className="quiet" style={{ marginTop: 14 }}>Your calendar's events stay. Blocks you've ticked stay.</p>
+      </div>
+    </div></Layer>
   );
 }
 

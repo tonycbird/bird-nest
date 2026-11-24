@@ -31,8 +31,10 @@ async function areaIdByName(name: string | null): Promise<string | null> {
   return a?.id ?? null;
 }
 
+/* Claude sometimes leads a title with an emoji ("⚡ Pay Avista bill"); Nest draws its own icons. */
+const plainTitle = (t: string | null) => t && t.replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u, "").trim() || t;
 async function makeTask(x: Json): Promise<Task | null> {
-  const title = str(x.title);
+  const title = plainTitle(str(x.title));
   if (!title) return null;
   const link = str(x.link);
   const notes = [str(x.notes), link ? `📧 ${link}` : null].filter(Boolean).join("\n");

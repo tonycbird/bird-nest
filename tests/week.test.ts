@@ -137,3 +137,35 @@ describe("Today as a coach", () => {
     expect(tasksThatFit(fitOf({ icon: "briefcase", title: "Work" }), tasks, area)).toEqual([]);
   });
 });
+
+describe("a day that isn't like the rest", () => {
+  it("Tuesday becomes a work day (Thanksgiving week), then back to usual; what he ticked stays; the week doesn't refill it", async () => {
+    const { swapDay, kindOf } = await import("../src/lib/week");
+    const { toggleStep } = await import("../src/lib/river");
+    await fillWeek(TUE, null);
+    const morning = (await loadDay(TUE)).find((b) => b.title === "Morning")!;
+    await toggleStep(morning.steps[0].id); // he's had his coffee
+    const undo = await swapDay(TUE, "work");
+    expect(await kindOf(TUE)).toBe("work");
+    const t = await titles(TUE);
+    expect(t).toContain("08:00 Work");
+    expect(t).toContain("07:40 Drive to work");
+    expect(t.some((x) => /Handyman/.test(x))).toBe(false);
+    expect(t.filter((x) => /Morning/.test(x))).toEqual(["04:30 Morning"]); // his ticked one stays, and isn't doubled
+    expect(await fillWeek(TUE, null)).toBe(0);
+    await swapDay(TUE, "usual");
+    expect(await kindOf(TUE)).toBe("usual");
+    const back = await titles(TUE);
+    expect(back).toContain("07:30 Handyman jobs");
+    expect(back.some((x) => /Work$/.test(x))).toBe(false);
+    void undo;
+  });
+  it("a work day becomes a day off; undo puts it back", async () => {
+    const { swapDay } = await import("../src/lib/week");
+    await fillWeek(THU, null);
+    const undo = await swapDay(THU, "off");
+    expect(await titles(THU)).toEqual(["04:30 Morning", "08:00 Day off", "19:30 Study", "20:30 Wind down"]);
+    await undo();
+    expect((await titles(THU)).includes("08:00 Work")).toBe(true);
+  });
+});
