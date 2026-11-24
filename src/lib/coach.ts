@@ -20,6 +20,7 @@ export interface Moment {
   free: { from: number | null; until: number | null } | null; // between blocks (from = null: before the day starts)
   next: RiverBlock | null;
   later: RiverBlock | null;
+  ahead: RiverBlock[];             // everything still to come today, in order (next first)
   over: boolean;                   // the day's last block has ended
 }
 
@@ -39,7 +40,7 @@ export function moment(blocks: RiverBlock[], nowMin: number): Moment {
   // What's behind him: blocks that ended, and ones he finished early (free from the moment he did).
   const ended = all.filter((b) => endOf(b) <= nowMin || (b.status === "done" && startMin(b) <= nowMin));
   const free = now ? null : { from: ended.length ? Math.max(...ended.map((b) => Math.min(endOf(b), nowMin))) : null, until: next ? startMin(next) : null };
-  return { now, free, next, later, over: !now && !next && lastEnd != null && nowMin >= lastEnd };
+  return { now, free, next, later, ahead, over: !now && !next && lastEnd != null && nowMin >= lastEnd };
 }
 
 /** "25m", "1h", "1h 20m" */

@@ -181,6 +181,14 @@ const LONG = 'I\u2019m going to need to pick up the leaves from Sam\u2019s house
 /* ---------- the walk: every screen, from a fresh load each time ---------- */
 const go = async (p, tab) => { await p.goto(URL); await p.waitForTimeout(650); if (tab) { await p.click(`.tabs >> text=${tab}`); await p.waitForTimeout(400); } };
 const headView = async (p, v) => { await go(p, 'Head'); await p.click(`.hn >> text=${v}`); await p.waitForTimeout(300); };
+/* Head's flows: Process from the Inbox, Plan from Today, the rest from Today's ⋯ menu. */
+const MENU = { Dump: 'Brain dump', Now: 'What can I do now?', Ramble: 'Ramble about a project', Review: 'Weekly review', Shutdown: 'Shutdown' };
+const openFlow = async (p, r) => {
+  if (r === 'Process') { await headView(p, 'Inbox'); await p.click('.top-actions >> text=Process'); return; }
+  await headView(p, 'Today');
+  if (r === 'Plan') { const b = p.locator('.top-actions >> text=Plan'); await ((await b.count()) ? b.click() : p.click('.nudge >> text=Plan my day')); return; }
+  await p.click('.top-actions [aria-label=More]'); await p.waitForTimeout(250); await p.click(`.sheet >> text=${MENU[r]}`);
+};
 const STEPS = [
   ['today', async (p) => { await go(p); }],
   ['today-bottom', async (p) => { await go(p); await p.evaluate(() => { const se = document.querySelector('.scroller'); if (se) se.scrollTop = se.scrollHeight; else scrollTo(0, document.body.scrollHeight); }); await p.waitForTimeout(200); }],
@@ -220,8 +228,8 @@ const STEPS = [
   ['task-detail-bottom', async (p) => { await headView(p, 'Today'); await p.locator('.task').first().click(); await p.locator('.sheet.tall').evaluate((e) => { e.scrollTop = 99999; }); }],
   ['task-more', async (p) => { await headView(p, 'Today'); await p.locator('.task').first().click(); await p.click('[aria-label="More actions"]'); }],
   ...['When', 'Deadline', 'Repeat', 'List', 'Contexts', 'Estimate', 'Energy', 'Priority', 'Waiting'].map((f) => ['picker-' + f.toLowerCase(), async (p) => { await headView(p, 'Today'); await p.locator('.task').first().click(); await p.locator('.pr-main', { hasText: f }).first().click(); }]),
-  ...['Dump', 'Process', 'Plan', 'Now', 'Ramble', 'Review', 'Shutdown'].map((r) => ['flow-' + r.toLowerCase(), async (p) => { await headView(p, 'Today'); await p.click(`.rituals >> text=${r}`); }]),
-  ...['Plan', 'Review', 'Shutdown', 'Process'].map((r) => ['flow-' + r.toLowerCase() + '-steps', async (p) => { await headView(p, 'Today'); await p.click(`.rituals >> text=${r}`); for (let i = 0; i < 8; i++) { const b = p.locator('.flow-foot .btn').last(); if (!(await b.count()) || !(await b.isEnabled())) break; await b.click(); await p.waitForTimeout(250); if (!(await p.locator('.flow').count())) break; } }]),
+  ...['Dump', 'Process', 'Plan', 'Now', 'Ramble', 'Review', 'Shutdown'].map((r) => ['flow-' + r.toLowerCase(), async (p) => { await openFlow(p, r); }]),
+  ...['Plan', 'Review', 'Shutdown', 'Process'].map((r) => ['flow-' + r.toLowerCase() + '-steps', async (p) => { await openFlow(p, r); for (let i = 0; i < 8; i++) { const b = p.locator('.flow-foot .btn').last(); if (!(await b.count()) || !(await b.isEnabled())) break; await b.click(); await p.waitForTimeout(250); if (!(await p.locator('.flow').count())) break; } }]),
   ['focus', async (p) => { await headView(p, 'Today'); await p.locator('.task').first().click(); await p.click('[aria-label="Focus"]'); }],
   ['body-workout', async (p) => { await go(p, 'Body'); await p.waitForTimeout(2500); }],
   ['body-workout-bottom', async (p) => { await go(p, 'Body'); await p.waitForTimeout(2500); await p.frameLocator('iframe.bodyframe').locator('body').evaluate(() => scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(300); }],

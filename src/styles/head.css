@@ -23,9 +23,6 @@ html.quiet .detail-inline{display:none;}
 .hn-ic{font-size:21px; line-height:1; position:relative; display:flex;}
 .hn-ic .ii{margin:0;}
 .hn-ic i{position:absolute; top:-6px; right:-12px; font-style:normal; font-size:10px; font-weight:800; background:var(--accent); color:var(--on-accent); border-radius:9px; min-width:16px; height:16px; line-height:16px; padding:0 4px; text-align:center;}
-.rituals{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 -16px 16px; padding:4px 16px;}
-.rituals::-webkit-scrollbar{display:none;}
-.rituals .chip{flex:none;}
 
 /* sections + rows */
 .hsec{margin-top:20px;}
@@ -123,7 +120,7 @@ html.quiet .task .t-meta span:nth-child(n+4){display:none;}
 .notes-edit{width:100%; min-height:80px; font:inherit; font-size:15px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:var(--surface); color:var(--ink); resize:none;}
 .subtasks{display:flex; flex-direction:column; margin-top:6px;}
 .subtask{display:flex; align-items:center; gap:10px; padding:5px 0;}
-.subtask input{flex:1; border:0; background:none; font:inherit; font-size:15px; color:var(--ink); outline:none; padding:4px 0;}
+.subtask input{flex:1; border:0; background:none; font:inherit; font-size:15px; color:var(--ink); outline:none; padding:4px 0; min-height:40px;}
 .subtask.done input, .subtask.done span{color:var(--ink-3); text-decoration:line-through;}
 .subtask .plus{width:21px; text-align:center; color:var(--ink-3);}
 .stuck{border:1.5px solid var(--warn); border-radius:14px; padding:12px; margin:14px 0 0; font-size:14.5px;}
@@ -157,7 +154,10 @@ html.quiet .task .t-meta span:nth-child(n+4){display:none;}
 .qa-mirror mark.due, .qa-mirror mark.important{background:color-mix(in srgb, var(--money) 26%, transparent);}
 .qa-input{position:relative; background:transparent; border:1.5px solid var(--line); color:var(--ink); resize:none; outline:none; min-height:56px; max-height:40vh; overflow-y:auto;}
 .qa-hint{font-size:13px; color:var(--ink-3); margin-top:8px;}
-.qa-tools{display:flex; align-items:center; gap:6px; margin-top:12px; flex-wrap:wrap;}
+.qa-tools{display:flex; align-items:center; gap:4px; margin-top:12px;}
+.qa-tools .chip{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:0 1 auto;}
+.qa-tools .iconbtn{width:36px; height:36px;}
+.qa-tools .btn.primary{width:44px; height:44px; min-height:0; padding:0; border-radius:50%; margin-left:4px; flex:none; justify-content:center;}
 .chip.tok{padding:5px 10px; font-size:13px;}
 .chip.tok.unresolved{border-style:dashed; color:var(--warn-ink);}
 .chip.tok > button{opacity:.7;}

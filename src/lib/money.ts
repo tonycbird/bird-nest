@@ -44,7 +44,8 @@ export const fmtMoney = (n: number, round = false) => {
 };
 
 export function useMoney(): { summary: MoneySummary | null; updated: string | null; ready: boolean } {
-  const row = useLiveQuery(() => db.money.get("summary"), [], undefined);
+  // No row yet is an answer too (null), or Money would wait forever on a blank screen.
+  const row = useLiveQuery(async () => (await db.money.get("summary")) ?? null, [], undefined);
   return { summary: row?.data ?? null, updated: row?.updated_at ?? null, ready: row !== undefined };
 }
 

@@ -9,7 +9,7 @@ import { closeTask, nav, openOverlay, useHeadData, useHeadSettings } from "../us
 import { Check, ic } from "./bits";
 import * as A from "./actions";
 import { putTaskOnRiver } from "../river-bridge";
-import { I } from "../../ui/Icon";
+import { I, notesHtml } from "../../ui/Icon";
 
 /* Clearhead's task detail (src/ui/detail.js): title, notes, checklist, the property rows,
    job details for handyman work, photos and the activity log. Opens as a tall sheet. */
@@ -47,7 +47,7 @@ export function NotesEditor(props: { value: string; onSave: (v: string) => void;
         if (b) { e.stopPropagation(); props.onSave(C.toggleNoteLine(props.value, Number(b.dataset.line))); return; }
         if ((e.target as HTMLElement).closest("a")) return;
         setEditing(true);
-      }} dangerouslySetInnerHTML={{ __html: C.renderNotes(props.value) }} />
+      }} dangerouslySetInnerHTML={{ __html: notesHtml(C.renderNotes(props.value)) }} />
     );
   }
   return (

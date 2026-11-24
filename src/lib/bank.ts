@@ -44,7 +44,7 @@ export async function bankCall<T>(op: string, body: Record<string, unknown> = {}
 async function saveStatus(s: BankStatus) { await db.bank.put({ key: "status", data: s, updated_at: nowISO() }); }
 
 export function useBank(): { status: BankStatus | null; checked: string | null; ready: boolean } {
-  const row = useLiveQuery(() => db.bank.get("status"), [], undefined);
+  const row = useLiveQuery(async () => (await db.bank.get("status")) ?? null, [], undefined); // null: asked, nothing yet
   return { status: (row?.data as BankStatus | undefined) ?? null, checked: row?.updated_at ?? null, ready: row !== undefined };
 }
 

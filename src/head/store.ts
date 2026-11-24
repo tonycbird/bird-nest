@@ -339,6 +339,15 @@ export async function purgeTrashItem(entry: TrashEntry): Promise<void> {
   await db.trash.delete(entry.id);
 }
 
+/** Titles that start with an emoji (Claude's old mail tasks: "⚡ Pay Avista bill") lose it. Nest draws its own icons.
+    Open tasks only; runs at start-up and does nothing once they're clean. */
+export async function tidyTitles(): Promise<number> {
+  const lead = /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u;
+  const messy = await db.tasks.where("status").equals("open").filter((t) => lead.test(t.title) && !!t.title.replace(lead, "").trim()).toArray();
+  for (const t of messy) await updateTask(t.id, { title: t.title.replace(lead, "").trim() });
+  return messy.length;
+}
+
 /** Clearhead purged Recently Deleted after 30 days. Same here, run once at start-up. */
 export async function purgeOldTrash(): Promise<void> {
   const cutoff = Date.now() - 30 * 864e5;

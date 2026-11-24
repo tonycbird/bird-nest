@@ -52,7 +52,7 @@ const SHOTS = process.env.SHOTS;
   await p.locator('.kv', { hasText: 'Testing mode' }).locator('input').click(); await p.waitForTimeout(600);
   assert(await p.locator('.tflag').count() === 1, 'flag shows when Testing mode is on');
   // Open a flow, then report from inside it
-  await p.click('.tabs >> text=Head'); await p.click('.rituals >> text=Plan'); await p.waitForTimeout(400);
+  await p.click('.tabs >> text=Head'); await p.click('.hn >> text=Today'); { const b = p.locator('.top-actions >> text=Plan'); await ((await b.count()) ? b.click() : p.click('.nudge >> text=Plan my day')); } await p.waitForTimeout(400);
   await p.click('.tflag'); await p.waitForTimeout(300);
   assert(await p.locator('.tsheet').count() === 1, 'flag opens the report sheet above a full-screen flow');
   await shot('report-sheet');

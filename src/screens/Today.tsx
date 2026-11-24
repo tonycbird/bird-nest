@@ -64,6 +64,7 @@ export default function Today(props: Props) {
   const [playing, setPlaying] = useState<string | null>(null);
   const [whole, setWhole] = useState<"" | "today" | "tomorrow">("");
   const [daySheet, setDaySheet] = useState(false);
+  const kind = useLiveQuery(() => kindOf(todayKey), [todayKey], "usual" as DayKind);
 
   // Head tasks with a time today land on the River at that time, by themselves.
   const timed = useLiveQuery(() => db.tasks.where("when").equals(todayKey).filter((t) => !!t.time && t.status === "open").primaryKeys(), [todayKey], [] as string[]);
@@ -87,7 +88,8 @@ export default function Today(props: Props) {
   return (
     <>
       <header className="t-head">
-        <h1 className="t-date"><button className="t-day" onClick={() => setDaySheet(true)} aria-label={`${parts.weekday} ${parts.md}. Change what kind of day it is`}>{parts.weekday} <span>{parts.md}</span></button></h1>
+        <h1 className="t-date"><button className="t-day" onClick={() => setDaySheet(true)} aria-label={`${parts.weekday} ${parts.md}. Change what kind of day it is`}>{parts.weekday} <span>{parts.md}</span><Icon n="chevD" size={18} tone={false} className="t-chev" /></button>
+          {kind !== "usual" && <button className="t-kind" onClick={() => setDaySheet(true)}>{KINDS.find((x) => x.k === kind)?.label}</button>}</h1>
         <div className="top-actions">
           {!props.online && <span className="offline detail">offline</span>}
           <button className="gear" aria-label="Settings" onClick={props.onSettings}><Icon n="settings" size={21} tone={false} /></button>
@@ -98,10 +100,9 @@ export default function Today(props: Props) {
         <Coach m={m} nowMin={nowMin} blocks={list} tomorrow={tomorrow} onPlay={setPlaying} onMenu={setMenu} onAdd={(start) => setSheet({ start })} />
       )}
 
-      {(m.next || m.later) && (
+      {m.next && (
         <div className="nx-list">
-          {m.next && <NextLine label="Next" b={m.next} nowMin={nowMin} onTap={() => setMenu(m.next)} />}
-          {m.later && <NextLine label="Later" b={m.later} nowMin={nowMin} onTap={() => setMenu(m.later)} />}
+          {m.ahead.slice(0, 4).map((b, i) => <NextLine key={b.id} label={i === 0 ? "Next" : i === 1 ? "Later" : ""} b={b} nowMin={nowMin} onTap={() => setMenu(b)} />)}
         </div>
       )}
 
@@ -233,7 +234,7 @@ function NextLine({ label, b, nowMin, onTap }: { label: string; b: RiverBlock; n
   const look = blockLook(b);
   const inMin = startMin(b) - nowMin;
   return (
-    <button className="nx" style={k(look.color)} onClick={onTap} aria-label={`${label}: ${b.title} at ${shortTime(b.start)}`}>
+    <button className="nx" style={k(look.color)} onClick={onTap} aria-label={`${label || "Then"}: ${b.title} at ${shortTime(b.start)}`}>
       <span className="nx-l">{label}</span>
       <span className="nx-t">{shortTime(b.start)}</span>
       <span className="nx-ic"><Icon n={look.icon} size={16} /></span>
@@ -275,7 +276,7 @@ function River(props: { day: string; blocks: RiverBlock[]; nowMin: number; onMen
             const n = b.steps.length;
             const sub = done ? "" : skipped ? "Skipped" : [b.doneCount > 0 && n ? `${b.doneCount}/${n}` : "", b.end ? `${shortTime(b.start)}–${shortTime(b.end)}` : ""].filter(Boolean).join(" · ");
             return (
-              <div key={b.id} className={["tr", done ? "done" : "", skipped ? "skipped" : "", past ? "past" : "", live ? "now" : ""].join(" ")} style={k(look.color)}>
+              <div key={b.id} className={["tr", done ? "done" : "", skipped ? "skipped" : "", past ? "past" : "", live ? "live" : ""].join(" ")} style={k(look.color)}>
                 <div className="tr-time">{shortTime(b.start)}</div>
                 <div className="tp"><Icon n={look.icon} size={19} /></div>
                 <div className="bc">

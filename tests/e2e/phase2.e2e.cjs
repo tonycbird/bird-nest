@@ -49,7 +49,7 @@ const assert = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log(
   assert(await p.locator('.tr >> text=Pick up trailer').count() === 1, "tomorrow's River got the block");
   // Shutdown in the evening → quiet screen on Head
   await p.clock.setFixedTime(new Date('2026-10-16T02:30:00Z')); // 7:30 PM PT Oct 15
-  await p.click('.tabs >> text=Head'); await p.click('.hn >> text=Today'); await p.click('.rituals >> text=Shutdown'); await p.waitForTimeout(300);
+  await p.click('.tabs >> text=Head'); await p.click('.hn >> text=Today'); await p.click('.top-actions [aria-label=More]'); await p.waitForTimeout(250); await p.click('.sheet >> text=Shutdown'); await p.waitForTimeout(300);
   for (let i=0;i<3;i++){ const nx = await p.$('.flow-foot .btn'); if (nx) { await nx.click(); await p.waitForTimeout(300);} }
   await p.click('text=Shut down'); await p.waitForTimeout(400);
   await p.click('.tabs >> text=Head'); await p.waitForTimeout(400);

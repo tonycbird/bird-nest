@@ -46,6 +46,7 @@ export default function App() {
     startBuzz();
     void import("./lib/autofill").then((m) => m.startAutofill()).catch(() => undefined); // the day fills itself
     void import("./lib/budget").then((m) => m.startMoney()).catch(() => undefined); // a new day: this month's numbers
+    void import("./head/store").then((m) => m.tidyTitles()).catch(() => undefined); // no emoji at the start of a title
     const open = (href: string) => {
       const what = new URL(href, location.origin).searchParams.get("open");
       if (what === "body") goTab("body");

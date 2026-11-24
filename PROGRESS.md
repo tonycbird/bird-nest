@@ -1,6 +1,19 @@
 # Progress
 
-## Polish 1 — from his real data · Nov 24 (cloud), waiting for his push
+## Polish 2 — one app, everywhere · Nov 24 (cloud), waiting for his push
+He asked for "a deep polish on everything… a good base before I troubleshoot" and agreed: no dashboard for now, and Body restyled to match. Went screen by screen (every screen, day and night, at iPhone size) and through his real Tuesday loaded into a test copy.
+
+- [x] Today: under Next and Later, the rest of the day (up to 4 rows), so the screen isn't half empty. The date shows it can be tapped (⌄), and a swapped day says so beside the date ("Day off")
+- [x] Whole day: the running block was wearing the big Now card's style (a class name clash): now a plain ring in its own color, its time in bold
+- [x] Head: the scrolling row of seven flow chips is gone. Process lives in Inbox, Plan in Today's header (hidden while the "Plan my day" card shows), and Brain dump / What now / Ramble / Plan tomorrow / Weekly review / Shutdown in Today's ⋯ menu
+- [x] No emoji anywhere: one with a Nest icon is drawn as the icon (also inside task notes now); any other is dropped. His old tasks that start with an emoji lose it once at start-up
+- [x] Quick add: the ✓ no longer drops to a row of its own
+- [x] Money (and the bank card) no longer sit blank before any money data exists: they show their empty state
+- [x] Body: picks and links use Nest's teal, not the old blue; tips are plain cards; corners match; in the player "where you are" is dark and "done" is teal (lightness, not hue). Its Settings page is "Setup", like its tab
+- [x] Head settings button just says Head settings; step input is thumb-sized
+- [x] Tests: unit (new polish.test.ts), all e2e (audit + flows go through the new menu), audit day + night at 390: only the old known items
+
+## Polish 1 — from his real data · Nov 24, pushed (Mac 6db3150)
 Nov 24 he said: "not polished in any way… a ton of bugs / features not hanging on enough to use it." Looked at his live data first:
 - No workout had landed on the River since Nov 21 (Body's plan last worked out Nov 21). Cause: Body's crash guard. Closing the app while Body was still starting looked like a crash, so Body never started by itself again until he opened the Body tab
 - Thanksgiving week: his calendar says office closed Wed at noon and Thursday, and today (a Tuesday) he's at work (Staff Chapel, Department Lead Meeting), but the River showed his usual week (Handyman jobs today)

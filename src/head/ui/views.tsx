@@ -86,17 +86,21 @@ export function TodayView({ data, s }: ViewProps) {
   const doneToday = [...data.tasks.values()].filter((x) => x.status === "done" && x.doneAt && C.ymd(new Date(x.doneAt)) === t && !x.grocery);
   const [showDone, setShowDone] = useState(false);
   const multi = (["start", "morning", "afternoon", "evening"] as const).some((k) => groups[k].length);
+  const planNudge = s.lastPlan !== t && C.nowHHMM() < "14:00"; // the "Plan my day" card is showing: one way in is enough
   const G: [keyof typeof groups, string, string][] = [["start", "Start with", "▶"], ["morning", "Morning", "🌅"], ["afternoon", "Afternoon", "☀"], ["evening", "Evening", "🌙"], ["anytime", multi ? "Anytime today" : "", "◌"]];
   return (
     <>
       <PageHead kicker={"⭐ " + C.longLabel(t)} title={main.length ? `${main.length} for today` : "Today"}
         right={<>
-          <button className="btn sm" onClick={() => openOverlay("plan")}><I n="morning" /> Plan</button>
+          {!planNudge && <button className="btn sm" onClick={() => openOverlay("plan")}><I n="morning" /> Plan</button>}
           <button className="iconbtn" aria-label="More" onClick={() => A.openMenu("Today", [
-            { text: "Put today on the River", icon: "🌊", run: async () => toast("🌊 On the River", await putTasksOnRiver(main.filter(C.isOpen).map((x) => x.id))) },
+            { text: "Brain dump", icon: "🧠", run: () => openOverlay("dump") },
             { text: "What can I do now?", icon: "🧭", run: () => openOverlay("whatnow") },
-            { text: "Shutdown", icon: "⏻", run: () => openOverlay("shutdown") },
+            { text: "Ramble about a project", icon: "💬", run: () => openOverlay("ramble") },
+            { text: "Put today on the River", icon: "🌊", run: async () => toast("🌊 On the River", await putTasksOnRiver(main.filter(C.isOpen).map((x) => x.id))) },
             { text: "Plan tomorrow", icon: "📅", run: () => openOverlay("planday", { date: C.addDays(C.today(), 1) }) },
+            { text: "Weekly review", icon: "🗓", run: () => openOverlay("review") },
+            { text: "Shutdown", icon: "⏻", run: () => openOverlay("shutdown") },
           ])}><I n="more" /></button>
         </>} />
       <Nudges data={data} s={s} />

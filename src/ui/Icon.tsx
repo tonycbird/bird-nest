@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { ICONS, type IconName } from "./icons";
-import { splitGlyphs } from "./glyphs";
+import { glyphHtml, splitGlyphs } from "./glyphs";
 export { iconName, EMOJI } from "./glyphs";
 
 /* Nest icons: drawn for this app, one stroke weight, one soft tone fill. They take the text color. */
@@ -31,3 +31,12 @@ export function iconText(s: string | null | undefined): ReactNode {
   if (!parts) return s;
   return parts.map((p, i) => (i % 2 === 1 ? <I key={i} n={p} /> : p ? <Fragment key={i}>{p}</Fragment> : null));
 }
+
+/** The same icon as an SVG string, for HTML that isn't drawn by React (task notes). */
+export function iconSvg(n: IconName | string): string {
+  const d = (ICONS as Record<string, { t: string; l: string }>)[n] ?? ICONS.dot;
+  return `<svg class="i ii" width="1.2em" height="1.2em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${d.t ? `<g fill="currentColor" opacity=".28" stroke="none">${d.t}</g>` : ""}<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d.l}</g></svg>`;
+}
+
+/** Task notes as HTML, with Nest icons for any emoji in them. */
+export const notesHtml = (html: string) => glyphHtml(html, iconSvg);

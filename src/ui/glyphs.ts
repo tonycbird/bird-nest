@@ -23,7 +23,10 @@ export const EMOJI: Record<string, IconName> = {
 /* Typographic marks stay as text inside sentences. */
 const KEEP_INLINE = new Set(["•", "…", "→", "‹", "›", "＋"]);
 const KEYS = Object.keys(EMOJI).filter((k) => !KEEP_INLINE.has(k)).sort((a, b) => b.length - a.length);
-const RE = new RegExp("(" + KEYS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\uFE0F?", "gu");
+/* Any other emoji (💧, 💳…) has no Nest icon: it's decoration, so it goes (with the space after it).
+   ©, ® and ™ are "pictographic" too but they're words, so they stay. */
+const OTHER = "(?![©®™])\\p{Extended_Pictographic}(?:\\uFE0F|\\u200D\\p{Extended_Pictographic}|[\\u{1F3FB}-\\u{1F3FF}])*";
+const RE = new RegExp("(" + KEYS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\uFE0F?|" + OTHER + " ?", "gu");
 
 /** The Nest icon name for a stored icon value: an icon name already, an old emoji, or a fallback. */
 export function iconName(v: string | null | undefined, fallback: IconName = "dot"): IconName {
@@ -38,5 +41,21 @@ export function splitGlyphs(s: string): string[] | null {
   RE.lastIndex = 0;
   if (!RE.test(s)) return null;
   RE.lastIndex = 0;
-  return s.split(RE).map((p, i) => (i % 2 === 1 ? EMOJI[p] ?? "dot" : p));
+  // split() puts the captured (known) emoji at odd places; an unknown one isn't captured, so it just drops out
+  // and leaves an undefined capture: those join the text around them.
+  const raw = s.split(RE);
+  const out: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (i % 2 === 1) { if (raw[i] === undefined) { out[out.length - 1] += raw[++i] ?? ""; continue; } out.push(EMOJI[raw[i]] ?? "dot"); }
+    else out.push(raw[i]);
+  }
+  return out;
+}
+
+/** Notes are drawn as HTML: swap emoji in the text (never inside tags) for Nest icons. */
+export function glyphHtml(html: string, svg: (n: IconName) => string): string {
+  return html.replace(/(^|>)([^<]+)/g, (_m, gt: string, text: string) => {
+    const parts = splitGlyphs(text);
+    return gt + (parts ? parts.map((p, i) => (i % 2 === 1 ? svg(p as IconName) : p)).join("") : text);
+  });
 }

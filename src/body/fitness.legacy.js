@@ -4155,7 +4155,7 @@ ACT.ingSaveF = () => {
 ACT.ingDelete = () => { const F = UI.ingf, MP = Store.d.meals; MP.ing = (MP.ing || []).filter(z => z.id !== F.id); Store.save('meals'); syncCustomIng(); closeSheet(); render(); toast('Ingredient deleted', 'trash'); };
 VIEWS.setmying = () => {
   const list = [...(Store.d.meals.ing || [])].sort((a, b) => a.name.localeCompare(b.name));
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">My ingredients</h1><div class="sub">Foods you added yourself. They show up first when you search in Add food.</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">My ingredients</h1><div class="sub">Foods you added yourself. They show up first when you search in Add food.</div></div><div class="stack">
     ${list.length ? `<div class="card list">${list.map(x => `<button class="srow" data-a="ingEdit" data-id="${x.id}"><span class="srow-l">${esc(x.name)}<small>${fmtInt(x.kcal)} kcal · ${Math.round(x.p)}P · ${Math.round(x.c)}C · ${Math.round(x.f)}F per ${esc(x.unit)}</small></span>${ic('chev', 16, 'muted')}</button>`).join('')}</div>` : `<div class="card"><p class="fine">Nothing yet. Add anything that isn't in the list — your protein waffles, a local bakery item, a label from the gas station.</p></div>`}
     <button class="btn" data-a="ingNew">${ic('plus', 18)} New ingredient</button></div></div>`;
 };
@@ -4292,7 +4292,7 @@ VIEWS.setroot = () => {
   const gd = [1, 2, 3, 4, 5, 6, 0].map(d => `<button class="daychip ${s.gymDays.includes(d) ? 'on' : ''}" data-a="toggleGymDay" data-v="${d}" aria-pressed="${s.gymDays.includes(d)}">${DOW_SHORT[d].slice(0, 2)}</button>`).join('');
   const N = nutrition(null);
   const SG = (icon, t) => `<div class="sg-h">${ic(icon, 14)} ${t}</div>`;
-  return `<div class="pad top"><div class="ltitle-row"><h1 class="ltitle">Settings</h1></div><div class="stack">
+  return `<div class="pad top"><div class="ltitle-row"><h1 class="ltitle">Setup</h1></div><div class="stack">
     <div class="sgroup">${SG('user', 'You')}<div class="card list">
       ${srow('Age', s.age, 'editNum', 'data-f="age"', 'user')}
       ${srow('Height', heightText(s.heightIn), 'editHeight', '', 'ruler')}
@@ -4420,7 +4420,7 @@ VIEWS.setrot = () => {
   const weeks = [0, 1, 2, 3].map(i => addDays(mon, i * 7));
   const gdays = gymOrder();
   const table = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Week of</th>${gdays.map(d => `<th>${DOW_SHORT[d]}</th>`).join('')}</tr></thead><tbody>${weeks.map(w => `<tr><td>${fmtDate(w)}</td>${gdays.map(dd => { const date = addDays(w, (dd + 6) % 7); const id = rotationFor(date); return `<td>${id ? esc(tinyName(workoutById(id))) : '—'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Workout rotation</h1></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Workout rotation</h1></div><div class="stack">
     ${seg('rotmode', [['auto', 'Auto rotate weekly'], ['locked', 'Locked order']], R.mode)}
     <div class="card"><div class="lbl">Order</div><p class="fine">Drag to change the loop.</p>
       <div class="list" data-sortable="reorderRot">${order.map((id, i) => `<div class="exrow" data-idx="${i}"><span class="rot-n">${i + 1}</span><span class="exname grow">${esc(workoutById(id).name)}</span><span class="drag-h" aria-label="Drag to reorder">${ic('grip', 18)}</span></div>`).join('')}</div></div>
@@ -4442,7 +4442,7 @@ ACT.rotStart = d => {
 /* ---- Warm-up page ---- */
 VIEWS.setwarm = () => {
   const W = SET().warm;
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Warm-up sets</h1><div class="sub">Generated from your last working weight and rounded to real dumbbells and plates.</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Warm-up sets</h1><div class="sub">Generated from your last working weight and rounded to real dumbbells and plates.</div></div><div class="stack">
     <div class="card">${W.map((w, i) => `<div class="wu-edit"><b>Set ${i + 1}</b><div class="kv"><span>Reps</span>${stepper('warmStep', w.r, `data-i="${i}" data-f="r"`, 'Reps')}</div><div class="kv"><span>% of working weight</span>${stepper('warmStep', w.p + '%', `data-i="${i}" data-f="p"`, 'Percent')}</div></div>`).join('')}</div>
     <button class="btn-text" data-a="warmReset">Reset to 12 @ 30%, 10 @ 50%, 4 @ 70%</button>
     <p class="fine">Warm-ups skip bodyweight, timed and assisted exercises. Turn them off for a single exercise from its ••• menu.</p></div></div>`;
@@ -4455,7 +4455,7 @@ VIEWS.setplates = () => {
   const I = incs(), kg = isKg(), u = wu();
   const allPlates = kg ? [25, 20, 15, 10, 5, 2.5, 1.25] : [45, 35, 25, 10, 5, 2.5];
   const opt = (f, vals, cur) => `<div class="chips">${vals.map(v => `<button class="chip ${v === cur ? 'on' : ''}" data-a="setInc" data-f="${f}" data-v="${v}">${nice(v, 2)} ${u}</button>`).join('')}</div>`;
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Weights & plates</h1><div class="sub">Targets and warm-ups round to what your gym actually has. Settings are kept separately for ${kg ? 'kg' : 'lbs'}.</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Weights & plates</h1><div class="sub">Targets and warm-ups round to what your gym actually has. Settings are kept separately for ${kg ? 'kg' : 'lbs'}.</div></div><div class="stack">
     <div class="card"><div class="lbl">Dumbbell jumps</div>${opt('db', kg ? [1, 2, 2.5] : [2.5, 5], I.db)}</div>
     <div class="card"><div class="lbl">Barbell</div>${opt('bar', kg ? [20, 15] : [45, 35], I.bar)}
       <div class="lbl mt">Plates you have</div><div class="chips">${allPlates.map(p => `<button class="chip ${I.plates.includes(p) ? 'on' : ''}" data-a="togglePlate" data-v="${p}">${nice(p, 2)}</button>`).join('')}</div>
@@ -4469,7 +4469,7 @@ ACT.togglePlate = d => { const I = incs(), v = +d.v, i = I.plates.indexOf(v); if
 /* ---- Starting weights ---- */
 VIEWS.setstart = () => {
   const S = PRG().start;
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Starting weights</h1><div class="sub">Coming from Caliber? Enter your current working weight for each lift so targets and warm-ups work from day one. For dumbbells, enter one dumbbell.</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Starting weights</h1><div class="sub">Coming from Caliber? Enter your current working weight for each lift so targets and warm-ups work from day one. For dumbbells, enter one dumbbell.</div></div><div class="stack">
     ${PRG().workouts.map(w => `<div class="card list"><div class="g-h"><b>${esc(w.name)}</b></div>${w.slots.map(sl => { const ex = EX[sl.id]; if (ex.time || (ex.bw && !ex.assist)) return ''; const l = lastPerf(ex.id, '9999-12-31'); const lw = l ? Math.max(...l.sets.map(x => x.w || 0)) : null;
       return `<div class="srow static"><span class="srow-l">${esc(ex.name)}${lw ? `<small>Last logged ${fmtW(lw)} ${wu()}</small>` : ''}</span><div class="bw-in sm"><input class="num" id="sw-${ex.id}" type="text" inputmode="decimal" value="${S[ex.id] != null ? esc(fmtW(S[ex.id])) : ''}" placeholder="—" data-in="startW" data-x="${ex.id}" aria-label="${esc(ex.name)} starting weight"><span class="fl">${wu()}${ex.pair ? ' each' : ''}${ex.assist ? ' assist' : ''}</span></div></div>`; }).join('')}</div>`).join('')}
     <p class="fine">Saved as you type. Once you log a session, your real history takes over.</p></div></div>`;
@@ -4480,7 +4480,7 @@ INP.startW = el => { const v = parseFloat(String(el.value).replace(',', '.')); i
 VIEWS.setdislike = () => {
   const D = SET().meals.dislikes; const excluded = MEAL_LIST.filter(m => !mealOK(m)).length;
   const bySec = SECTIONS.filter(s => s !== 'Spices & Sauces').map(sec => [sec, Object.values(ING).filter(g => g.sec === sec)]);
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Foods you don’t eat</h1><div class="sub">${excluded ? `${excluded} meal${excluded > 1 ? 's' : ''} left out of your plans.` : 'Tap anything you want kept out of your meal plans.'}</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Foods you don’t eat</h1><div class="sub">${excluded ? `${excluded} meal${excluded > 1 ? 's' : ''} left out of your plans.` : 'Tap anything you want kept out of your meal plans.'}</div></div><div class="stack">
     ${bySec.map(([sec, list]) => `<div class="card"><div class="lbl">${esc(sec)}</div><div class="chips">${list.map(g => `<button class="chip ${D.includes(g.id) ? 'on neg' : ''}" data-a="toggleDislike" data-v="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>`).join('')}
     <p class="fine">New plans respect this right away. Tap “New plan” on the Week view to reshuffle the current week.</p></div></div>`;
 };
@@ -4510,7 +4510,7 @@ ACT.resetGo = async () => { if (!UI.resetArm) { UI.resetArm = true; refreshSheet
 /* ---- Warm-up cardio page ---- */
 VIEWS.setwarmup = () => {
   const wu = SET().warmup;
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Warm-up cardio</h1><div class="sub">A walk, then one machine that primes the muscles you're about to train.</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Warm-up cardio</h1><div class="sub">A walk, then one machine that primes the muscles you're about to train.</div></div><div class="stack">
     <div class="card list">
       <div class="srow static"><span class="srow-l">Walk</span>${stepper('warmMin', wu.walk + ' min', 'data-f="walk"', 'Walk minutes')}</div>
       <div class="srow static"><span class="srow-l">Machine</span>${stepper('warmMin', wu.machine + ' min', 'data-f="machine"', 'Machine minutes')}</div>
@@ -4556,7 +4556,7 @@ function iconPNG(size = 1024) {
   });
 }
 function fallbackIcon() { const b = atob(APP_ICON_180.split(',')[1]), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Blob([u], { type: 'image/png' }); }
-VIEWS.sethome = () => `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Home Screen icon</h1><div class="sub">Put Bird Fitness on your iPhone with its own icon and name.</div></div><div class="stack">
+VIEWS.sethome = () => `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Home Screen icon</h1><div class="sub">Put Bird Fitness on your iPhone with its own icon and name.</div></div><div class="stack">
   <div class="card hs-hero"><img class="hs-icon" src="${appIconSrc()}" alt="Bird Fitness app icon" width="96" height="96"><div class="hs-name">Bird Fitness</div></div>
   <div class="btnrow"><button class="btn2" data-a="copyAppLink">${ic("copy", 18)} Copy link</button><button class="btn" data-a="saveIcon">${ic('download', 18)} Save icon</button></div>
   <div class="card"><div class="lbl">Set it up in Shortcuts · about 2 minutes</div><ol class="hs-steps">
@@ -4732,7 +4732,7 @@ function releaseWake() { try { if (wakeLock) wakeLock.release(); } catch (e) {} 
 
 VIEWS.setcard = () => {
   const c = CARD();
-  return `${navBar({ back: 'Settings' })}<div class="pad"><div class="dh"><h1 class="h1">Gym check-in</h1><div class="sub">Your membership barcode, ready to scan at the front desk.</div></div><div class="stack">
+  return `${navBar({ back: 'Setup' })}<div class="pad"><div class="dh"><h1 class="h1">Gym check-in</h1><div class="sub">Your membership barcode, ready to scan at the front desk.</div></div><div class="stack">
     <div class="card list">
       ${srow('Barcode number', c.code ? esc(c.code) : 'Not set', 'editCard', 'data-f="code"')}
       ${srow('Name on card', c.name ? esc(c.name) : 'None', 'editCard', 'data-f="name"')}

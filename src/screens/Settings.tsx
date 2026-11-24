@@ -114,7 +114,7 @@ export default function Settings(props: { email: string; online: boolean }) {
       )}
 
       <div className="lbl">Head</div>
-      <button className="btn" style={{ width: "100%" }} onClick={() => { go("settings"); goTab("head"); }}><I n="settings" /> Head settings · <I n="upload" /> Clearhead import</button>
+      <button className="btn" style={{ width: "100%" }} onClick={() => { go("settings"); goTab("head"); }}><I n="settings" /> Head settings</button>
 
       <div className="lbl">Body</div>
       <div className="card">

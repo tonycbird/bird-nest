@@ -120,3 +120,7 @@
 | 2026-11-22 | "Clean …" counts as work; only clearly-home words wait for free time | His job is church facilities: cafeteria, bathrooms, baptismal. |
 | 2026-11-24 | Body's crash guard only trips on two dead starts in a row; a normal close clears it | One quick close kept Body from starting for days, so no workouts landed. |
 | 2026-11-24 | A whole day can be swapped (Usual / Work / Handyman / Day off) from the date, today or tomorrow | Holiday weeks and odd days don't fit the usual week; one tap beats editing every block. |
+| 2026-11-24 | No "dashboard of my life" for now | He asked; a page of numbers to check is what felt useless in November. Today stays a coach; maybe a quiet weekly look-back later. |
+| 2026-11-24 | Head's flows live in menus, not a chip row | Seven chips scrolled off the screen and repeated buttons already there (Process, Plan). Less is more. |
+| 2026-11-24 | Body uses Nest's one accent (teal) for picks and actions | The old blue made Body look like a different app. Where two states need telling apart, lightness does it (red-green safe). |
+| 2026-11-24 | Emoji with no Nest icon are dropped on screen; leading emoji are cut from old task titles once | "Never emoji" held only for emoji Nest knew. |

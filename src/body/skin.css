@@ -1,9 +1,9 @@
 /* Bird Nest skin for the Fitness screens: Mist by day, Dusk at night (the app sets data-theme on this frame),
-   Nest's font, teal for actions, sky blue for picks. Only tokens and a few shapes change; the old app's rules stay. */
+   Nest's font, and Nest's one accent (teal) for actions and picks alike (Nov 24: the old blue made Body look like another app). Only tokens and a few shapes change; the old app's rules stay. */
 :root:root{
   --bg:#F4F5F8; --card:#FFFFFF; --ink:#171A23; --ink2:#5C6375; --ink3:#767D8F; --line:#E8EBF1; --pill:#ECEEF3; --pill-ink:#5C6375;
   --coral:#16A394; --coral-press:#11897C; --coral-soft:#DFF4F1; --coral-2:#8FD5CC;
-  --blue:#3D7FEA; --blue-soft:#E6EFFD; --blue-2:#A9C6F7;
+  --blue:#0F8577; --blue-soft:#E3F4F1; --blue-2:#9ED8CF;
   --green:#1F8A55; --green-soft:#E1F4EA; --amber:#E19A1B; --amber-soft:#FCF1DC; --danger:#E0683D; --danger-soft:#FCE8E0;
   --c1:#16A394; --c2:#4C8DF6;
   --mus:#D3D8E2; --mus-2:#E1E5EC; --hi-1:#22B8A5; --hi-2:#16A394;
@@ -18,7 +18,7 @@
 :root:root[data-theme="dark"]{
   --bg:#1B1E26; --card:#242833; --ink:#F3F5F9; --ink2:#A9B0C0; --ink3:#8A92A5; --line:#323846; --pill:#2C313D; --pill-ink:#A3AABB;
   --coral:#6FD6C1; --coral-press:#86E0CE; --coral-soft:#21403C; --coral-2:#3E7D72;
-  --blue:#7FB2F5; --blue-soft:#243450; --blue-2:#3E5F8E;
+  --blue:#6FD6C1; --blue-soft:#21403C; --blue-2:#3E7D72;
   --green:#86CF8E; --green-soft:#22382A; --amber:#F3CB6B; --amber-soft:#3A3220; --danger:#F2A07B; --danger-soft:#3D2A24;
   --c1:#6FD6C1; --c2:#7FB2F5;
   --mus:#3A4152; --mus-2:#333947; --hi-1:#6FD6C1; --hi-2:#56C2AC;
@@ -32,7 +32,7 @@ body{font-feature-settings:"tnum" 1; transition:background-color .4s ease, color
 .btn,.btn2{border-radius:100px}
 .btn-sm{border-radius:100px}
 .btn,.btn-sm:not(.ghost):not(.alt),.chip.on,.wday.on,.optbtn.on,.daychip.on{color:var(--on-fill)}
-.card{border-radius:20px}
+.card{border-radius:18px}
 
 /* Nest shows the four sections as chips above this frame, so the old tab bar hides
    and everything that sat above it drops to the bottom. */
@@ -53,3 +53,8 @@ body:has(.actionbar) .timer{bottom:84px}
 .nest-groc small{margin-top:2px}
 .wday.on .wd-d,.wday.on .wd-n,.wday.on .wd-w{color:var(--on-fill)}
 :root .daychip.on{color:var(--on-fill);}
+/* With picks and actions both teal, "where you are" in the player is the dark ink, "done" is teal: told apart by lightness, not hue. */
+.pl-bar i.cur,.pl-rounds i.cur{background:var(--ink)}
+/* Tips sit quietly, like Nest's cards. */
+.tipcard{background:var(--card);box-shadow:var(--shadow)}
+.tipline{background:var(--card);box-shadow:var(--shadow)}

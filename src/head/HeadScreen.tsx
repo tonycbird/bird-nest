@@ -64,15 +64,6 @@ function BackLink() {
   return <button className="hback" onClick={goBack}><Icon n="chevL" size={18} tone={false} />{name}</button>;
 }
 
-function Rituals() {
-  const r: [string, IconName, string][] = [["dump", "head", "Dump"], ["process", "sort", "Process"], ["plan", "morning", "Plan"], ["whatnow", "compass", "Now"], ["ramble", "talk", "Ramble"], ["review", "calendar", "Review"], ["shutdown", "shutdown", "Shutdown"]];
-  return (
-    <div className="rituals">
-      {r.map(([k, i, l]) => <button key={k} className="chip" onClick={() => openOverlay(k)}><Icon n={i} size={17} />{l}</button>)}
-    </div>
-  );
-}
-
 export function HeadSettingsView() {
   const s = useHeadSettings();
   const { data } = useHeadData();
@@ -205,7 +196,6 @@ export default function HeadScreen() {
       {empty && r.view !== "settings" ? <FirstRun /> : (
         <>
           {noAreas && r.view !== "settings" && <FirstRun />}
-          {(r.view === "today" || r.view === "inbox") && <Rituals />}
           {DRILL.has(r.view) && <BackLink />}
           <div className="view-in" key={r.view + (r.id ?? "")}>{body}</div>
         </>

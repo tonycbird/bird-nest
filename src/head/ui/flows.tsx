@@ -13,7 +13,7 @@ import { DatePicker, MovePicker, WaitingPicker, type MoveResult, type WhenResult
 import { putTasksOnRiver, blockForTask } from "../river-bridge";
 import { db } from "../../lib/db";
 import { useLiveQuery } from "dexie-react-hooks";
-import { I } from "../../ui/Icon";
+import { I, notesHtml } from "../../ui/Icon";
 
 /* Clearhead's guided flows (src/flows/flows.js): Process Inbox, Plan My Day, Weekly Review, Shutdown,
    Day planner, Focus, What now, Templates. Each is a full-screen, one-thing-at-a-time screen. */
@@ -532,7 +532,7 @@ export function Focus({ taskId }: { taskId: string }) {
             ))}
           </div>
         )}
-        {task.notes && <div className="card notes-md" style={{ marginTop: 10, textAlign: "left" }} onClick={(e) => { const b = (e.target as HTMLElement).closest("[data-line]") as HTMLElement | null; if (b) void H.updateTask(task.id, { notes: C.toggleNoteLine(task.notes, Number(b.dataset.line)) }); }} dangerouslySetInnerHTML={{ __html: C.renderNotes(task.notes) }} />}
+        {task.notes && <div className="card notes-md" style={{ marginTop: 10, textAlign: "left" }} onClick={(e) => { const b = (e.target as HTMLElement).closest("[data-line]") as HTMLElement | null; if (b) void H.updateTask(task.id, { notes: C.toggleNoteLine(task.notes, Number(b.dataset.line)) }); }} dangerouslySetInnerHTML={{ __html: notesHtml(C.renderNotes(task.notes)) }} />}
         <button className="btn" style={{ marginTop: 18 }} onClick={async () => { await saveTime(); await A.complete(task.id); closeOverlay(); }}><I n="tick" /> Complete task</button>
       </div>
     </FlowShell>
